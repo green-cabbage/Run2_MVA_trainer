@@ -45,7 +45,7 @@ else:
     dashboard_address = f"{node_ip}:8787"
 
 #model_name = "pytorch_may24_pisa"
-model_name = "pytorch_jun27"
+model_name = "pytorch_jun27_"
 
 # global parameters
 parameters = {
