@@ -45,7 +45,7 @@ else:
     dashboard_address = f"{node_ip}:8787"
 
 #model_name = "pytorch_may24_pisa"
-model_name = "pytorch_jun27_"
+model_name = "pytorch_jul10"
 
 # global parameters
 parameters = {
@@ -140,12 +140,12 @@ if __name__ == "__main__":
         )
         df = df[vbf_filter]
 
-    for step in [0, 1, 2, 3]:#range(4):
+    for step in [0]:#range(4):
         train_dnn(step, df, model_name, "pytorch_dnn")
 
     #train_dnn(0, df, model_name, "pytorch_dnn")
     #print(df)
-    #for step in [1, 2, 3]:
+    #for step in [0, 1, 2, 3]:
     #    train_dnn(step, df, model_name, "pytorch_pisa")
 
 

@@ -1,6 +1,7 @@
 import os
 import tqdm
 import copy 
+import math
 
 import torch
 import torch.nn as nn
@@ -160,13 +161,61 @@ def train_dnn(step, df, model_name, model_type):
     df_val.loc[:, trainer.features] = normalized["x_val"]
     
     best_loss = 1000
+    train_histories = {}
     train_history = {}
 
     if model_type == "pytorch_dnn":
-        train_history, best_loss = train_pytorch_simple(model_name, step, df_train, df_val, trainer)
+        """
+        configurations = {
+            #"sigLoss_atanh": {"loss": "sigLoss", "out_transform": lambda x: torch.arctanh(x)},
+            "x_entr": {"loss": "x_entr", "out_transform": lambda x: x},
+            "x_entr_1vbf": {"loss": "x_entr", "out_transform": lambda x: x,},
+            #"sigLoss": {"loss": "sigLoss", "out_transform": lambda x: x},
+            #"likelihoodLoss": {"loss": "likelihoodLoss", "out_transform": lambda x: x}
+        }
+        for key, config in configurations.items():
+            train_history, best_loss, best_model = train_pytorch_simple(model_name, step, df_train, df_val, trainer, **config)
+            train_histories[key] = train_history
+        """
+        # regular training
+        train_history, best_loss, last_model = train_pytorch_simple(
+            model_name, step, df_train, df_val, trainer,
+            **{"loss": "x_entr", "out_transform": lambda x: x, "nepochs": 5, "niterations": 10000, "save_every": 100}
+        )
+        train_histories["baseline"] = train_history
+        
+
+        for drop_factor in [0]:
+            train_history, best_loss, last_model = train_pytorch_simple(
+                model_name, step, df_train, df_val, trainer,
+                **{"loss": "x_entr", "out_transform": lambda x: x, "nepochs": 10, "save_every": 100,
+                   "niterations": 10000,
+                   #"exclude_features": ["dimuon_pisa_mass_res", "dimuon_pisa_mass_res_rel",]
+                   "exclude_datasets": ['vbf_powhegPS','vbf_powheg_herwig'],
+                   #"exclude_datasets": ['vbf_powhegPS','vbf_powheg_dipole'],
+                   #"exclude_datasets": ['vbf_powheg_herwig','vbf_powheg_dipole'],
+                   "vbf_drop_factor": drop_factor
+                  }
+            )
+            keep = round((1-drop_factor)*100)
+            train_histories[f"only vbf_dipole"] = train_history
+
+        
+        """
+        for lam in [0.5, 0.7, 0.9]:
+            # first regular, then fine-tune
+            train_history, best_loss, last_model = train_pytorch_simple(
+                model_name, step, df_train, df_val, trainer,
+                **{"loss": "x_entr", "out_transform": lambda x: x, "nepochs": 10, "save_every": 5, "finetune": True, "lambda": lam}
+            )
+            train_histories[f"x_entr_modified_{lam}"] = train_history
+        """
+
+        
     elif model_type == "pytorch_pisa":
         train_pytorch_pisa(model_name, step, df_train, df_val, trainer)
-    
+
+
     """
     if ("batch_n" in train_history) and ("val_losses" in train_history):
         fig = plt.figure()
@@ -182,50 +231,144 @@ def train_dnn(step, df, model_name, model_type):
         fig.tight_layout()
         fig.savefig(f"plots/pytorch/losses_{model_name}_{step}.png")
     """
-    
-    if ("batch_n_sign" in train_history) and ("significance" in train_history):
-        fig = plt.figure()
-        fig, ax = plt.subplots()
-        fig.set_size_inches(8, 6)
 
-        opts = {"linewidth": 2}
-        ax.plot(train_history["batch_n_sign"], train_history["significance"], label="significance (1/4 data)", **opts)
-        ax.plot(train_history["batch_n_sign"], train_history["val_losses"], label="validation loss", **opts)
-        ax.legend(prop={"size": "x-small"})
-        ax.set_xlabel("Iteration")
-        ax.set_ylabel("Significance")
-        fig.tight_layout()
+    fig = plt.figure()
+    fig, ax = plt.subplots()
+    fig.set_size_inches(8, 6)
+    opts = {"linewidth": 2}
+
+    save = False    
+
+    for key, train_history in train_histories.items():
+        if ("batch_n_sign" in train_history) and ("significance" in train_history):
+            save = True
+            sign = round(np.array(train_history["significance"])[20:].mean(), 5)
+            ax.plot(train_history["batch_n_sign"], train_history["significance"], label=f"{key}: {sign}", **opts)
+            #ax.plot(train_history["batch_n_sign"], train_history["asimov_sign"], label=f"asimov sign.: {key}", **opts)
+            #ax.plot(train_history["batch_n_sign"], train_history["val_losses"], label=f"val. loss ({key})", **opts)
+    ax.legend(prop={"size": "x-small"})
+    ax.set_xlabel("Iteration")
+    ax.set_ylabel("Significance")
+    fig.tight_layout()
+    if save:
         fig.savefig(f"plots/pytorch/significance_{model_name}_{step}.png")
     
     return best_loss
 
+def significanceLossInvert(expectedSignal,expectedBkgd):
+    def sigLossInvert(y_pred, y_true):
+        signalWeight=expectedSignal/torch.sum(y_true)
+        bkgdWeight=expectedBkgd/torch.sum(1-y_true)
+        s = signalWeight*torch.sum(y_pred*y_true)
+        b = bkgdWeight*torch.sum(y_pred*(1-y_true))
+        return (s+b)/(s*s+1e-7) #Add the epsilon to avoid dividing by 0
+    return sigLossInvert
 
-def train_pytorch_simple(model_name, step, df_train, df_val, trainer, weighted=False):
+def likelihoodLoss(expectedSignal, expectedBkgd):
+    def likLoss(y_pred, y_true):
+        signalWeight=expectedSignal/torch.sum(y_true)
+        bkgdWeight=expectedBkgd/torch.sum(1-y_true)
+        L = bkgdWeight*torch.sum((1-y_true)*(torch.exp(y_pred)-1)) - torch.sum(y_pred*y_true)
+        return L
+    return likLoss
+
+
+def asimovLossInvert(expectedSignal,expectedBkgd,systematic):
+    def asimovLossInvert_(y_pred,y_true):
+        signalWeight=expectedSignal/torch.sum(y_true)
+        bkgdWeight=expectedBkgd/torch.sum(1-y_true)
+        s = signalWeight*torch.sum(y_pred*y_true)
+        b = bkgdWeight*torch.sum(y_pred*(1-y_true))
+        sigB=systematic*b
+        eps = 1e-7
+        return 1./(2*((s+b)*torch.log((s+b)*(b+sigB*sigB)/(b*b+(s+b)*sigB*sigB+eps)+eps)-b*b*torch.log(1+sigB*sigB*s/(b*(b+sigB*sigB)+eps))/(sigB*sigB+eps))) 
+    return asimovLossInvert_
+
+
+def train_pytorch_simple(model_name, step, df_train, df_val, trainer, **kwargs):
+    weighted = kwargs.get("weighted", False)
+    loss_f = kwargs.get("loss_f", "x_entr")
+    out_transform = kwargs.get("out_transform", lambda x : x)
+    pretrained_model = kwargs.get("pretrained_model", None)
+    train_history = kwargs.get("train_history", None)
+    do_finetune = kwargs.get("finetune", False)
+    lambda_ = kwargs.get("lambda", 0)
+    exclude_features = kwargs.get("exclude_features", [])
+    exclude_datasets = kwargs.get("exclude_datasets", [])
+    vbf_drop_factor = kwargs.get("vbf_drop_factor", 0)
+    
+    features = [f for f in trainer.features if f not in exclude_features]
+
+    df_train = copy.deepcopy(df_train).reset_index(drop=True)
+    df_val = copy.deepcopy(df_val).reset_index(drop=True)
+
+    df_train = df_train[~df_train.dataset.isin(exclude_datasets)]
+    #df_val = df_val[~df_val.dataset.isin(exclude_datasets)]
+
+    
+    signals = ["vbf_powheg_dipole", 'vbf_powhegPS','vbf_powheg_herwig']
+    df_train = df_train.drop(df_train[df_train.dataset.isin(signals)].sample(frac=vbf_drop_factor).index)
+    print(df_train.dataset.value_counts())
+    #df_val = df_val.drop(df_val[df_val.dataset.isin(signals)].sample(frac=vbf_drop_factor).index)
+    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     #device = 'cpu'
-    model = Net()
-    model.to(device)
+    if pretrained_model is None:
+        model = Net(input_shape = len(features))
+        model.to(device)
+    else:
+        model = pretrained_model
+        
     reduction = 'mean'
-    weighted=False
     if weighted:
         reduction = 'none'
-    criterion = nn.BCELoss(reduction=reduction)
+
+    exp_s = 48.7982068771 #vbf+ggH
+    exp_b = 15786.6000629724 #DY+EWK
+
+    if loss_f == "x_entr":
+        criterion = nn.BCELoss(reduction=reduction)
+    elif loss_f == "mse":
+        criterion = nn.MSELoss()
+    elif loss_f == "x_entr_logits":
+        criterion = nn.BCEWithLogitsLoss()
+    elif loss_f == "likelihoodLoss":
+        criterion = likelihoodLoss(exp_s, exp_b)
+    elif loss_f == "sigLoss":
+        criterion = significanceLossInvert(exp_s, exp_b)
+    elif loss_f == "asimov0.1":
+        criterion = asimovLossInvert(exp_s, exp_b, 0.1)     
+    else:
+        print(f"Incorrect loss specified: {loss_f}")
+        return
+
     optimizer = optim.Adam(model.parameters(), eps=1e-07, lr=1e-2)
     #optimizer = optim.SGD(model.parameters(), lr=0.01)
 
-    train_history = {
-        "train_losses": [],
-        "val_losses": [],
-        "batch_n": [],
-        "significance": [],
-        "batch_n_sign": []
-    }
+    if train_history is None:
+        train_history = {
+            "train_losses": [],
+            "val_losses": [],
+            "batch_n": [],
+            "significance": [],
+            "asimov_sign": [],
+            "batch_n_sign": []
+        }
+        batch_n_sign = 0
+    else:
+        batch_n_sign = max(train_history["batch_n_sign"])
 
-    epochs = 10
+
     #batch_size = 2048
     batch_size = 65536
-    
     n_training_batches = int(df_train.shape[0] / batch_size)
+
+    epochs = kwargs.get("nepochs", 1)
+    iterations = kwargs.get("niterations", None)
+    if iterations is not None:
+        #overrides nepochs
+        epochs = math.ceil(iterations / n_training_batches)
+    
     print(f"Training dataset size: {df_train.shape[0]}.")
     print(f"Number of batches of size {batch_size} is {n_training_batches}.")
     print(f"Will train for {epochs} epochs.")
@@ -233,22 +376,37 @@ def train_pytorch_simple(model_name, step, df_train, df_val, trainer, weighted=F
     best_loss_so_far = 1000
     best_significance_so_far = 0
     best_model = model
-    batch_n_sign = 0
+    lr = 0.2*1e-1
     #for epoch in tqdm.tqdm(range(epochs)):
     for epoch in range(epochs):
-        for batch in tqdm.tqdm(range(n_training_batches)):
-            #for batch in range(n_training_batches):
 
+        #finetune = False
+        #if (epoch>=5) and do_finetune:
+        #    finetune = True
+        #if finetune:
+            #lr = lr*5
+            #optimizer = optim.Adam(model.parameters(), eps=1e-07, lr=lr)
+            #optimizer = optim.SGD(model.parameters(), lr=lr)
+            #to_remove = ['vbf_powhegPS','vbf_powheg_herwig']
+            #df_train = df_train[~df_train.dataset.isin(to_remove)]
+            #df_val = df_val[~df_val.dataset.isin(to_remove)]
+
+        for batch in tqdm.tqdm(range(n_training_batches)):
             batch_n_sign += 1
+            if batch_n_sign > iterations:
+                continue
+
+
+            
             train_batch = df_train.sample(batch_size)
             val_batch = df_val.sample(batch_size)
 
-            x_train_batch = train_batch.loc[:, trainer.features]
+            x_train_batch = train_batch.loc[:, features]
             y_train_batch = train_batch.loc[:, "class"]
             x_train_batch = torch.tensor(x_train_batch.values).float().to(device)
             y_train_batch = torch.tensor(y_train_batch.values).float().view(-1, 1).to(device)
 
-            x_val_batch = val_batch.loc[:, trainer.features]
+            x_val_batch = val_batch.loc[:, features]
             y_val_batch = val_batch.loc[:, "class"]
             x_val_batch = torch.tensor(x_val_batch.values).float().to(device)
             y_val_batch = torch.tensor(y_val_batch.values).float().view(-1, 1).to(device)
@@ -257,7 +415,17 @@ def train_pytorch_simple(model_name, step, df_train, df_val, trainer, weighted=F
 
             optimizer.zero_grad(set_to_none=True)
             output = model(x_train_batch)
+            output_best = best_model(x_train_batch)
+            
             loss = criterion(output, y_train_batch)
+            loss_wrt_best = criterion(output, output_best)
+
+            if do_finetune:
+                #print(loss.item(), loss_wrt_best.item())
+                #total_iterations = n_training_batches*epochs
+                #factor = (batch_n_sign - 1) / total_iterations
+                #factor = epoch / (epochs-1)
+                loss = (1-lambda_)*loss + lambda_*loss_wrt_best
             
             if weighted:
                 batch_weights = abs(train_batch.wgt_nominal) * train_batch.wgt_aux / train_batch.mean_cls_wgt
@@ -291,14 +459,67 @@ def train_pytorch_simple(model_name, step, df_train, df_val, trainer, weighted=F
                         best_model = copy.deepcopy(model)
                         save_model(model, model_name, step)
 
-                elif best_model_mode == "significance":                    
+                elif best_model_mode == "significance":   
+                    if batch_n_sign % kwargs.get("save_every", 1) != 1:
+                        continue
                     df_val_aux = df_val.copy()
                     score_name = "score"
-                    val_input = torch.tensor(df_val_aux.loc[:, trainer.features].values).float()
+                    val_input = torch.tensor(df_val_aux.loc[:, features].values).float()
                     df_val_aux[score_name] = np.arctanh(model(val_input.to(device)).cpu())
+                    #df_val_aux[score_name] = model(val_input.to(device)).cpu()
+                    
+                    """
+                    #######
+                    #######
+                    
+                    from sklearn.isotonic import IsotonicRegression
+                    iso_reg = IsotonicRegression().fit(df_val_aux[score_name], df_val_aux["class"])
+                    df_val_aux["calibrated"] = iso_reg.predict(df_val_aux[score_name])
+
+                    entries = {
+                        "dy": ['dy_m105_160_amc','dy_m105_160_vbf_amc'],
+                        "vbf": ['vbf_powheg_dipole'],
+                        "ewk": ['ewk_lljj_mll105_160_ptj0']
+                    }
+                    hists = {}
+                    nbins = 50
+                    centers = np.array(list(range(nbins))) + 1/(2*nbins)
+                    centers = centers / nbins
+                    for lbl, datasets in entries.items():
+                        hists[lbl] = np.histogram(
+                            df_val_aux.loc[df_val_aux.dataset.isin(datasets), "calibrated"],
+                            nbins, (0,1),
+                            weights =  df_val_aux.loc[df_val_aux.dataset.isin(datasets), "wgt_nominal"]
+                        )
+
+                                        
+                    fig = plt.figure()
+                    fig, ax = plt.subplots()
+                    fig.set_size_inches(8, 6)
+
+                    opts = {"linewidth": 2}
+                    for lbl, hist in hists.items():
+                        ax.step(centers, hist[0], label=lbl, **opts)
+
+                    ax.plot(iso_reg.y_thresholds_, iso_reg.X_thresholds_, "C1.", markersize=12)
+ 
+                    ax.legend(prop={"size": "x-small"})
+                    ax.set_xlabel("bin")
+                    ax.set_ylabel("calibrated score")
+                    ax.set_yscale('log')
+                    fig.tight_layout()
+                    fig.savefig(f"plots/pytorch/isotonic.png")
+                    
+                    #######
+                    #######
+                    """
+                    #df_val_aux.loc[df_val_aux.dataset=='vbf_powheg_dipole', "wgt_nominal"] = df_val_aux.loc[df_val_aux.dataset=='vbf_powheg_dipole', "wgt_nominal"]/df_val_aux.loc[df_val_aux.dataset=='vbf_powheg_dipole', "wgt_nominal"].sum() * 6.63989928647691
+                    
                     vbf_signal = df_val_aux[df_val_aux.dataset=='vbf_powheg_dipole']
                     vbf_signal_yield = vbf_signal.wgt_nominal.sum()
+
                     nbins = 13
+                    #nbins = 128
 
                     #bins_mode = "fixed"
                     bins_mode = "quantiles_unwgted"
@@ -329,6 +550,7 @@ def train_pytorch_simple(model_name, step, df_train, df_val, trainer, weighted=F
                         bins.append(0.0)
                         bins = sorted(bins)
 
+                    df_val_aux["bin_number"] = 0
                     for i in range(nbins - 1):
                         lo = bins[i]
                         hi = bins[i + 1]
@@ -343,10 +565,16 @@ def train_pytorch_simple(model_name, step, df_train, df_val, trainer, weighted=F
                     df_bkg = df_val_aux[df_val_aux.dataset.isin(background)]
                     yields_sig = df_sig.groupby("bin_number")["wgt_nominal"].sum()
                     yields_bkg = df_bkg.groupby("bin_number")["wgt_nominal"].sum()
+                    num_bkg = df_bkg.groupby("bin_number")["wgt_nominal"].count()
+                    mask = (num_bkg>100)
 
-                    significance = np.sqrt((yields_sig*yields_sig / yields_bkg).sum())
-
+                    significance = np.sqrt((yields_sig*yields_sig / yields_bkg)[mask].sum())
+                    #asimov_sign = np.sqrt((2*(
+                    #        (yields_sig+yields_bkg)*np.log(1+yields_sig/yields_bkg)-yields_sig
+                    #)).sum())
                     train_history["significance"].append(significance)
+                    #train_history["asimov_sign"].append(asimov_sign)
+                    #print(significance, asimov_sign)
                     train_history["batch_n_sign"].append(batch_n_sign)
                     
                     if significance > best_significance_so_far:
@@ -355,7 +583,7 @@ def train_pytorch_simple(model_name, step, df_train, df_val, trainer, weighted=F
                         save_model(model, model_name, step)
                         print(f"Update best significance: {significance}")
                     
-                    val_loss = criterion(model(x_val_batch), y_val_batch).item()
+                    val_loss = criterion(out_transform(model(x_val_batch)), y_val_batch).item()
                     train_history["val_losses"].append(val_loss)
 
 
@@ -370,7 +598,7 @@ def train_pytorch_simple(model_name, step, df_train, df_val, trainer, weighted=F
         #train_history["val_losses"].append(val_loss)
         train_history["batch_n"].append(epoch)
 
-    return train_history, best_loss_so_far
+    return train_history, best_loss_so_far, model
 
 
 
@@ -380,23 +608,23 @@ def train_pytorch_pisa(model_name, step, df_train_, df_val_, trainer):
 
     training_setup = {
         "sig_vs_ewk": {
-            "datasets": ["ewk_lljj_mll105_160_py_dipole", "ggh_amcPS", "vbf_powheg_dipole"],
+            "datasets": ['ewk_lljj_mll105_160_ptj0', 'vbf_powheg_dipole', 'vbf_powhegPS','vbf_powheg_herwig', 'ggh_amcPS'],
             "features": training_features_mass + training_features_nomass,
         },
         "sig_vs_dy": {
-            "datasets": ["dy_m105_160_amc", "dy_m105_160_vbf_amc", "ggh_amcPS", "vbf_powheg_dipole"],
+            "datasets": ['dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'vbf_powheg_dipole', 'vbf_powhegPS','vbf_powheg_herwig', 'ggh_amcPS'],
             "features": training_features_mass + training_features_nomass,
         },
         "no_mass": {
-            "datasets": ["dy_m105_160_amc", "dy_m105_160_vbf_amc", "ttjets_dl", "ggh_amcPS", "vbf_powheg_dipole", "ewk_lljj_mll105_160_py_dipole"],
+            "datasets": ['dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160_ptj0', 'vbf_powheg_dipole', 'vbf_powhegPS','vbf_powheg_herwig', 'ggh_amcPS'],
             "features": training_features_nomass,
         },
         "mass": {
-            "datasets": ["dy_m105_160_amc", "dy_m105_160_vbf_amc", "ttjets_dl", "ggh_amcPS", "vbf_powheg_dipole", "ewk_lljj_mll105_160_py_dipole"],
+            "datasets": ['dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160_ptj0', 'vbf_powheg_dipole', 'vbf_powhegPS','vbf_powheg_herwig', 'ggh_amcPS'],
             "features": training_features_mass,
         }, 
         "combination": {
-            "datasets": ["dy_m105_160_amc", "dy_m105_160_vbf_amc", "ttjets_dl", "ggh_amcPS", "vbf_powheg_dipole", "ewk_lljj_mll105_160_py_dipole"],
+            "datasets": ['dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160_ptj0', 'vbf_powheg_dipole', 'vbf_powhegPS','vbf_powheg_herwig', 'ggh_amcPS'],
         },
     }
     
@@ -457,25 +685,42 @@ def train_pytorch_pisa(model_name, step, df_train_, df_val_, trainer):
             print(f"Fold #{step}    Epoch #{epoch}    Best val loss: {best_loss_so_far}")
         return best_model
 
-    def train_combination(subnetworks, epochs, batch_size, freeze):
+    def train_combination(subnetworks, epochs, batch_size, freeze, from_saved_model = False):
+        weighted = False
         n_training_batches = int(df_train_.shape[0] / batch_size)
         print(f"Training combined subnetwork")
         print(f"Training dataset size: {df_train_.shape[0]}.")
         print(f"Number of batches of size {batch_size} is {n_training_batches}.")
         print(f"Will train for {epochs} epochs.")
 
+        train_history = {
+            "train_losses": [],
+            "val_losses": [],
+            "batch_n": [],
+            "significance": [],
+            "batch_n_sign": []
+        }
+        
         nlayers = 3
         nnodes = [64, 32, 16]
         model = NetPisaRun2Combination("combination", nlayers, nnodes, subnetworks, freeze)
+
+        if from_saved_model:
+            model_path = f"data/trained_models/vbf/models/{model_name}_combination_{step}.pt"
+            model.load_state_dict(torch.load(model_path, map_location=device))
+        
         model.to(device)
         criterion = nn.BCELoss()
         optimizer = optim.Adam(model.parameters(), eps=1e-07)
 
         best_loss_so_far = 1000
+        best_significance_so_far = 0
         best_model = model
+        batch_n_sign  = 0
 
         for epoch in range(epochs):
             for batch in tqdm.tqdm(range(n_training_batches)):
+                batch_n_sign += 1
                 train_batch = df_train_.sample(batch_size)
                 val_batch = df_val_.sample(batch_size)
 
@@ -509,20 +754,80 @@ def train_pytorch_pisa(model_name, step, df_train_, df_val_, trainer):
                 model.eval()
 
                 with torch.no_grad():
-                    output = model(x_val_batch_nomass, x_val_batch_mass)
-                    loss = criterion(output, y_val_batch)
-                    val_loss = loss.item()
-                    if val_loss < best_loss_so_far:
-                        best_loss_so_far = val_loss
-                        best_model = copy.deepcopy(model)
-                        save_model(model, f"{model_name}_combination", step)
 
-            print(f"Fold #{step}    Epoch #{epoch}    Best val loss: {best_loss_so_far}")
+                    best_model_mode = "loss"
+                    #best_model_mode = "significance"
+
+                    if best_model_mode == "loss":
+                        output = model(x_val_batch_nomass, x_val_batch_mass)
+                        loss = criterion(output, y_val_batch)
+                        val_loss = loss.item()
+
+                        if val_loss < best_loss_so_far:
+                            best_loss_so_far = val_loss
+                            best_model = copy.deepcopy(model)
+                            save_model(model, f"{model_name}_combination", step)
+
+                    elif best_model_mode == "significance":                    
+                        df_val_aux = df_val_.copy()
+                        score_name = "score"
+                        #val_input = torch.tensor(df_val_aux.loc[:, trainer.features].values).float()
+                        val_input_nomass = torch.tensor(df_val_aux.loc[:, training_features_nomass].values).float()
+                        val_input_mass = torch.tensor(df_val_aux.loc[:, training_features_mass].values).float()
+
+                        df_val_aux[score_name] = np.arctanh(
+                            model(
+                                val_input_nomass.to(device),
+                                val_input_mass.to(device)
+                            ).cpu()
+                        )
+                        vbf_signal = df_val_aux[df_val_aux.dataset=='vbf_powheg_dipole']
+                        vbf_signal_yield = vbf_signal.wgt_nominal.sum()
+                        nbins = 13
+
+                        grid = [(i+1)/nbins for i in range(nbins)]
+                        bins = vbf_signal["score"].quantile(grid).values
+
+                        for i in range(nbins - 1):
+                            lo = bins[i]
+                            hi = bins[i + 1]
+                            cut = (df_val_aux[score_name] > lo) & (
+                                df_val_aux[score_name] <= hi
+                            )
+                            df_val_aux.loc[cut, "bin_number"] = i
+
+                        signal = ['vbf_powheg_dipole', 'ggh_amcPS']
+                        background = ['dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160_ptj0']
+                        df_sig = df_val_aux[df_val_aux.dataset.isin(signal)]
+                        df_bkg = df_val_aux[df_val_aux.dataset.isin(background)]
+                        yields_sig = df_sig.groupby("bin_number")["wgt_nominal"].sum()
+                        yields_bkg = df_bkg.groupby("bin_number")["wgt_nominal"].sum()
+
+                        significance = np.sqrt((yields_sig*yields_sig / yields_bkg).sum())
+
+                        train_history["significance"].append(significance)
+                        train_history["batch_n_sign"].append(batch_n_sign)
+
+                        if significance > best_significance_so_far:
+                            best_significance_so_far = significance
+                            best_model = copy.deepcopy(model)
+                            save_model(model, f"{model_name}_combination", step)
+                            print(f"Update best significance: {significance}")
+
+                        val_loss = criterion(model(x_val_batch_nomass, x_val_batch_mass), y_val_batch).item()
+                        train_history["val_losses"].append(val_loss)
+
+            if best_model_mode == "loss":
+                print(f"Fold #{step}    Epoch #{epoch}    Best val loss: {best_loss_so_far}")
+            if best_model_mode == "significance":
+                print(f"Fold #{step}    Epoch #{epoch}    Best significance: {best_significance_so_far}")
+        return train_history
+
     subnetworks = {}
     retrain = True
     if retrain:
         for name in ["sig_vs_ewk", "sig_vs_dy", "no_mass", "mass"]:
-            subnetworks[name] = train_subnetwork(name, 10, 1024, training_setup)
+            subnetworks[name] = train_subnetwork(name, 10, 65536, training_setup)
     else:
         nlayers = 3
         nnodes = [64, 32, 16]
@@ -534,11 +839,32 @@ def train_pytorch_pisa(model_name, step, df_train_, df_val_, trainer):
             )
             subnetworks[name].load_state_dict(torch.load(model_path, map_location=device))
 
-    train_combination(subnetworks, 10, 1024, freeze=["sig_vs_ewk", "sig_vs_dy", "no_mass"])
-    train_combination(subnetworks, 10, 1024, freeze=["sig_vs_ewk", "sig_vs_dy"])
+    def plot_history(key, train_history):
+        if ("batch_n_sign" in train_history) and ("significance" in train_history):
+            fig = plt.figure()
+            fig, ax = plt.subplots()
+            fig.set_size_inches(8, 6)
+
+            opts = {"linewidth": 2}
+            ax.plot(train_history["batch_n_sign"], train_history["significance"], label="significance (1/4 data)", **opts)
+            ax.plot(train_history["batch_n_sign"], train_history["val_losses"], label="validation loss", **opts)
+            ax.legend(prop={"size": "x-small"})
+            ax.set_xlabel("Iteration")
+            ax.set_ylabel("Significance")
+            fig.tight_layout()
+            fig.savefig(f"plots/pytorch/significance_{model_name}_combination_{key}_{step}.png")
+
+
+    ths = {}
+    ths["first"] = train_combination(subnetworks, 10, 65536, freeze=["sig_vs_ewk", "sig_vs_dy", "no_mass"])
+    plot_history("first", ths["first"])
+    ths["second"] = train_combination(subnetworks, 10, 65536, freeze=["sig_vs_ewk", "sig_vs_dy"], from_saved_model=True)
+    plot_history("second", ths["second"])
+
 
     #train_combined(model, 5, 1024, training_setup)
     # then train_combined: load weights from sig_vs_ewk and sig_vs_dy
+    
 
 
     
