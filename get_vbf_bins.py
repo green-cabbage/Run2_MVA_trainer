@@ -4,28 +4,28 @@ from stage2.mva_evaluators import evaluate_pytorch_dnn, evaluate_pytorch_dnn_pis
 from python.io import load_dataframe
 
 parameters = {
-    "global_path": "/depot/cms/hmm/copperhead/",
-    "label": "2022jun1",
+    "global_path": "/depot/cms/hmm/vscheure/",
+    "label": "UL16_stitchingtest5",
     "channels": ["vbf"],
     "custom_npartitions": {
-        "vbf_powheg_dipole": 1,
+        "vbf_powheg": 1,
     },
     "models_path": "data/trained_models/",
 }
 
-dataset = "vbf_powheg_dipole"
+dataset = "vbf_powheg"
 #model_name = "pytorch_may18"
 #model_name = "pytorch_may24_pisa"
-model_name = "pytorch_jun24"
+model_name = "ValerieDNNtest2"
 score_name = f"score_{model_name}_nominal"
 channel = "vbf"
 region = "h-peak"
 
-for year in ["2016", "2017", "2018"]:
-    #for year in ["2016"]:
+#for year in ["2016", "2017", "2018"]:
+for year in ["2016"]:
     print(year)
     #paths = glob.glob(f"/depot/cms/hmm/coffea/{year}_2022apr6/{dataset}/*.parquet")
-    paths = glob.glob(f"/depot/cms/hmm/copperhead/2022jun1/stage1_output/{year}/{dataset}/*.parquet")
+    paths = glob.glob(f"/depot/cms/hmm/vscheure/UL16_stitchingtest5/stage1_output/{year}/{dataset}/*.parquet")
 
     df = load_dataframe(None, parameters, inputs=paths, dataset=dataset)
     df = df.compute()

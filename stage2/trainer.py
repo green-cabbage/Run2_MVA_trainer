@@ -76,6 +76,7 @@ class Trainer(object):
             self.fold_filters_list.append(fold_filters)
 
     def fix_variables(self):
+        print("testtesttest")
         self.df.loc[:, "mu1_pt_over_mass"] = self.df.mu1_pt / self.df.dimuon_mass
         self.df.loc[:, "mu2_pt_over_mass"] = self.df.mu2_pt / self.df.dimuon_mass
 
@@ -136,7 +137,7 @@ class Trainer(object):
     def normalize_data(self, reference, features, to_normalize_dict, model_name, step):
         mean = np.mean(reference[features].values, axis=0)
         std = np.std(reference[features].values, axis=0)
-        out_path = f"{self.out_path}/scalers/"
+        out_path = f"{self.out_path}"
         mkdir(out_path)
         save_path = f"{out_path}/scalers_{model_name}_{step}"
         np.save(save_path, [mean, std])
@@ -148,12 +149,15 @@ class Trainer(object):
         return normalized, save_path
 
 
-    def plot_roc_curves(self):
+    def plot_roc_curves(self, model_dict):
         roc_curves = {}
         fig = plt.figure()
         fig, ax = plt.subplots()
         df = self.df[self.df.dataset.isin(self.train_samples)]
+        print("plotting ROC")
+        print(self.models)
         for model_name, model in self.models.items():
+            print("plotting ROC")
             score_name = f"{model_name}_score"
             roc_curves[score_name] = roc_curve(
                 y_true=df["class"],

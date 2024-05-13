@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from sklearn.metrics import roc_curve
 
 import pandas as pd
 import numpy as np
@@ -78,7 +79,6 @@ training_features_nomass = [
     "mmj_min_dEta_nominal",
     "nsoftjets5_nominal",
     "htsoft2_nominal",
-    "year"
 ]
 
 #training_datasets = {
@@ -86,8 +86,8 @@ training_features_nomass = [
 #    "signal": ["ggh_amcPS", "vbf_powheg_dipole"],
 #}
 training_datasets = {
-    'background': ['dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160_ptj0'],
-    'signal': ['vbf_powhegPS','vbf_powheg_herwig', 'vbf_powheg_dipole', 'ggh_amcPS'],
+    'background': ['dy_M-100To200'],
+    'signal': ['vbf_powheg']#PS','vbf_powheg_herwig', 'vbf_powheg_dipole', 'ggh_amcPS'],
 }
 
 def prepare_features(df, variation='nominal', add_year=False):
@@ -104,14 +104,14 @@ def prepare_features(df, variation='nominal', add_year=False):
     return features
 
 def save_model(model, model_name, step):
-    model_path = f"data/trained_models/vbf/models/{model_name}_{step}.pt"
+    model_path = f"/depot/cms/hmm/vscheure/data/trained_models/{model_name}/{model_name}_{step}.pt"
     torch.save(model.state_dict(), model_path)
 
 
 def train_dnn(step, df, model_name, model_type):
     if isinstance(df, str):
         df = pd.read_pickle(df)
-    add_year = True
+    add_year = False
     features = prepare_features(df, add_year=add_year)
     if add_year:
         assert len(features) == len(training_features)+1
@@ -123,7 +123,7 @@ def train_dnn(step, df, model_name, model_type):
         channel="vbf",
         ds_dict=training_datasets,
         features=features,
-        out_path="data/trained_models/vbf/",
+        out_path="/depot/cms/hmm/vscheure/data/trained_models/",
         #training_cut="(dimuon_mass > 110) & (dimuon_mass < 150)",
     )
 
@@ -180,25 +180,25 @@ def train_dnn(step, df, model_name, model_type):
         # regular training
         train_history, best_loss, last_model = train_pytorch_simple(
             model_name, step, df_train, df_val, trainer,
-            **{"loss": "x_entr", "out_transform": lambda x: x, "nepochs": 5, "niterations": 10000, "save_every": 100}
+            **{"loss": "x_entr", "out_transform": lambda x: x, "nepochs": 50, "niterations": 200, "save_every": 1}
         )
         train_histories["baseline"] = train_history
         
 
-        for drop_factor in [0]:
-            train_history, best_loss, last_model = train_pytorch_simple(
-                model_name, step, df_train, df_val, trainer,
-                **{"loss": "x_entr", "out_transform": lambda x: x, "nepochs": 10, "save_every": 100,
-                   "niterations": 10000,
-                   #"exclude_features": ["dimuon_pisa_mass_res", "dimuon_pisa_mass_res_rel",]
-                   "exclude_datasets": ['vbf_powhegPS','vbf_powheg_herwig'],
-                   #"exclude_datasets": ['vbf_powhegPS','vbf_powheg_dipole'],
-                   #"exclude_datasets": ['vbf_powheg_herwig','vbf_powheg_dipole'],
-                   "vbf_drop_factor": drop_factor
-                  }
-            )
-            keep = round((1-drop_factor)*100)
-            train_histories[f"only vbf_dipole"] = train_history
+        #for drop_factor in [0]:
+            #train_history, best_loss, last_model = train_pytorch_simple(
+                #model_name, step, df_train, df_val, trainer,
+                #**{"loss": "x_entr", "out_transform": lambda x: x, "nepochs": 10, "save_every": 100,
+                #   "niterations": 100,
+                #   #"exclude_features": ["dimuon_pisa_mass_res", "dimuon_pisa_mass_res_rel",]
+                #   "exclude_datasets": ['vbf_powhegPS','vbf_powheg_herwig'],
+                #   #"exclude_datasets": ['vbf_powhegPS','vbf_powheg_dipole'],
+                #   #"exclude_datasets": ['vbf_powheg_herwig','vbf_powheg_dipole'],
+                #   "vbf_drop_factor": drop_factor
+                #  }
+            #)
+            #keep = round((1-drop_factor)*100)
+            #train_histories[f"only vbf_dipole"] = train_history
 
         
         """
@@ -240,18 +240,18 @@ def train_dnn(step, df, model_name, model_type):
     save = False    
 
     for key, train_history in train_histories.items():
-        if ("batch_n_sign" in train_history) and ("significance" in train_history):
+        if ("batch_n_sign" in train_history) and ("train_losses" in train_history):
             save = True
-            sign = round(np.array(train_history["significance"])[20:].mean(), 5)
-            ax.plot(train_history["batch_n_sign"], train_history["significance"], label=f"{key}: {sign}", **opts)
+            sign = round(np.array(train_history["train_losses"])[20:].mean(), 5)
+            ax.plot(train_history["batch_n"], train_history["train_losses"], label=f"{key}: {sign}", **opts)
             #ax.plot(train_history["batch_n_sign"], train_history["asimov_sign"], label=f"asimov sign.: {key}", **opts)
-            #ax.plot(train_history["batch_n_sign"], train_history["val_losses"], label=f"val. loss ({key})", **opts)
+            ax.plot(train_history["batch_n"], train_history["val_losses"], label=f"val. loss ({key})", **opts)
     ax.legend(prop={"size": "x-small"})
     ax.set_xlabel("Iteration")
-    ax.set_ylabel("Significance")
+    ax.set_ylabel("Loss")
     fig.tight_layout()
     if save:
-        fig.savefig(f"plots/pytorch/significance_{model_name}_{step}.png")
+        fig.savefig(f"plots/pytorch/loss_{model_name}_{step}.png")
     
     return best_loss
 
@@ -306,7 +306,7 @@ def train_pytorch_simple(model_name, step, df_train, df_val, trainer, **kwargs):
     #df_val = df_val[~df_val.dataset.isin(exclude_datasets)]
 
     
-    signals = ["vbf_powheg_dipole", 'vbf_powhegPS','vbf_powheg_herwig']
+    signals = ["vbf_powheg"]
     df_train = df_train.drop(df_train[df_train.dataset.isin(signals)].sample(frac=vbf_drop_factor).index)
     print(df_train.dataset.value_counts())
     #df_val = df_val.drop(df_val[df_val.dataset.isin(signals)].sample(frac=vbf_drop_factor).index)
@@ -440,8 +440,8 @@ def train_pytorch_simple(model_name, step, df_train, df_val, trainer, **kwargs):
 
             model.eval()
 
-            #best_model_mode = "loss"
-            best_model_mode = "significance"
+            best_model_mode = "loss"
+            #best_model_mode = "significance"
             with torch.no_grad():
                 if best_model_mode == "loss":
                     output = model(x_val_batch)
@@ -515,7 +515,7 @@ def train_pytorch_simple(model_name, step, df_train, df_val, trainer, **kwargs):
                     """
                     #df_val_aux.loc[df_val_aux.dataset=='vbf_powheg_dipole', "wgt_nominal"] = df_val_aux.loc[df_val_aux.dataset=='vbf_powheg_dipole', "wgt_nominal"]/df_val_aux.loc[df_val_aux.dataset=='vbf_powheg_dipole', "wgt_nominal"].sum() * 6.63989928647691
                     
-                    vbf_signal = df_val_aux[df_val_aux.dataset=='vbf_powheg_dipole']
+                    vbf_signal = df_val_aux[df_val_aux.dataset=='vbf_powheg']
                     vbf_signal_yield = vbf_signal.wgt_nominal.sum()
 
                     nbins = 13
@@ -559,8 +559,8 @@ def train_pytorch_simple(model_name, step, df_train, df_val, trainer, **kwargs):
                         )
                         df_val_aux.loc[cut, "bin_number"] = i
                     
-                    signal = ['vbf_powheg_dipole', 'ggh_amcPS']
-                    background = ['dy_m105_160_amc', 'dy_m105_160_vbf_amc', 'ewk_lljj_mll105_160_ptj0']
+                    signal = ['vbf_powheg']
+                    background = ['dy_M-100To200']
                     df_sig = df_val_aux[df_val_aux.dataset.isin(signal)]
                     df_bkg = df_val_aux[df_val_aux.dataset.isin(background)]
                     yields_sig = df_sig.groupby("bin_number")["wgt_nominal"].sum()
@@ -595,9 +595,13 @@ def train_pytorch_simple(model_name, step, df_train, df_val, trainer, **kwargs):
             print(f"Fold #{step}    Epoch #{epoch}    Best significance: {best_significance_so_far}")
 
         train_history["train_losses"].append(train_loss)
-        #train_history["val_losses"].append(val_loss)
+        train_history["val_losses"].append(val_loss)
         train_history["batch_n"].append(epoch)
-
+        #models = {model_name : best_model}
+        #plot_roc_curves(trainer,df_val,models)
+        #if epoch == epochs-1:
+                #trainer.add_models({model_name : best_model})
+                #trainer.plot_roc_curves()
     return train_history, best_loss_so_far, model
 
 
@@ -821,6 +825,7 @@ def train_pytorch_pisa(model_name, step, df_train_, df_val_, trainer):
                 print(f"Fold #{step}    Epoch #{epoch}    Best val loss: {best_loss_so_far}")
             if best_model_mode == "significance":
                 print(f"Fold #{step}    Epoch #{epoch}    Best significance: {best_significance_so_far}")
+
         return train_history
 
     subnetworks = {}
@@ -865,7 +870,29 @@ def train_pytorch_pisa(model_name, step, df_train_, df_val_, trainer):
     #train_combined(model, 5, 1024, training_setup)
     # then train_combined: load weights from sig_vs_ewk and sig_vs_dy
     
-
+def plot_roc_curves(trainer,df,models):
+    roc_curves = {}
+    fig = plt.figure()
+    fig, ax = plt.subplots()
+    df = df[df.dataset.isin(trainer.train_samples)]
+    print("plotting ROC")
+    print(models)
+    for model_name, model in models.items():
+        print("plotting ROC")
+        score_name = "score"
+        roc_curves[score_name] = roc_curve(
+            y_true=df["class"],
+            y_score=df[score_name],
+            sample_weight=df["wgt_nominal"],
+        )
+        ax.plot(
+            roc_curves[score_name][0], roc_curves[score_name][1], label=score_name
+        )
+    ax.legend(prop={"size": "x-small"})
+    ax.set_xlabel("FPR")
+    ax.set_ylabel("TPR")
+    out_name = "plots/pytorch/rocs.png"
+    fig.savefig(out_name)
 
     
     """
