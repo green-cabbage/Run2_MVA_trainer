@@ -4,15 +4,19 @@ import argparse
 from sklearn.metrics import mean_squared_error
 import pandas as pd
 import numpy as np
+import awkward as ak
+import dask_awkward as dak
 from sklearn.metrics import roc_curve, auc, roc_auc_score
 import matplotlib.pyplot as plt
 #import mplhep as hep
 import tqdm
+from distributed import LocalCluster, Client, progress
+import os
 
 #training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_ebe_mass_res', 'dimuon_ebe_mass_res_rel', 'dimuon_eta', 'dimuon_mass', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta nominal', 'jet1_phi nominal', 'jet1_pt nominal', 'jet1_qgl nominal', 'jet2_eta nominal', 'jet2_phi nominal', 'jet2_pt nominal', 'jet2_qgl nominal', 'jj_dEta nominal', 'jj_dPhi nominal', 'jj_eta nominal', 'jj_mass nominal', 'jj_mass_log nominal', 'jj_phi nominal', 'jj_pt nominal', 'll_zstar_log nominal', 'mmj1_dEta nominal', 'mmj1_dPhi nominal', 'mmj2_dEta nominal', 'mmj2_dPhi nominal', 'mmj_min_dEta nominal', 'mmj_min_dPhi nominal', 'mmjj_eta nominal', 'mmjj_mass nominal', 'mmjj_phi nominal', 'mmjj_pt nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt', 'mu2_pt_over_mass', 'zeppenfeld nominal']
 #training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_eta', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta_nominal', 'jet1_phi_nominal', 'jet1_pt_nominal', 'jet1_qgl_nominal', 'jet2_eta_nominal', 'jet2_phi_nominal', 'jet2_pt_nominal', 'jet2_qgl_nominal', 'jj_dEta_nominal', 'jj_dPhi_nominal', 'jj_eta_nominal', 'jj_mass_nominal', 'jj_mass_log_nominal', 'jj_phi_nominal', 'jj_pt_nominal', 'll_zstar_log_nominal', 'mmj1_dEta_nominal', 'mmj1_dPhi_nominal', 'mmj2_dEta_nominal', 'mmj2_dPhi_nominal', 'mmj_min_dEta_nominal', 'mmj_min_dPhi_nominal', 'mmjj_eta_nominal', 'mmjj_mass_nominal', 'mmjj_phi_nominal', 'mmjj_pt_nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt_over_mass', 'zeppenfeld_nominal']
 
-training_features = ['dimuon_cos_theta_cs', 'dimuon_eta', 'dimuon_phi_cs', 'dimuon_pt', 'jet1_eta_nominal', 'jet1_pt_nominal', 'jet2_eta_nominal', 'jet2_pt_nominal', 'jj_dEta_nominal', 'jj_dPhi_nominal', 'jj_mass_nominal', 'mmj1_dEta_nominal', 'mmj1_dPhi_nominal',  'mmj_min_dEta_nominal', 'mmj_min_dPhi_nominal', 'mu1_eta', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_pt_over_mass', 'zeppenfeld_nominal', 'njets_nominal'] # AN 19-124
+training_features = ['dimuon_cos_theta_cs', 'dimuon_eta', 'dimuon_phi_cs', 'dimuon_pt', 'jet1_eta', 'jet1_pt', 'jet2_eta', 'jet2_pt', 'jj_dEta', 'jj_dPhi', 'jj_mass', 'mmj1_dEta', 'mmj1_dPhi',  'mmj_min_dEta', 'mmj_min_dPhi', 'mu1_eta', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_pt_over_mass', 'zeppenfeld', 'njets']  # AN 19-124
 
 #training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_eta', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta_nominal', 'jet1_phi_nominal', 'jet1_pt_nominal', 'jet2_eta_nominal', 'jet2_phi_nominal', 'jet2_pt_nominal',  'jj_dEta_nominal', 'jj_dPhi_nominal', 'jj_eta_nominal', 'jj_mass_nominal', 'jj_mass_log_nominal', 'jj_phi_nominal', 'jj_pt_nominal', 'll_zstar_log_nominal', 'mmj1_dEta_nominal', 'mmj1_dPhi_nominal', 'mmj2_dEta_nominal', 'mmj2_dPhi_nominal', 'mmj_min_dEta_nominal', 'mmj_min_dPhi_nominal', 'mmjj_eta_nominal', 'mmjj_mass_nominal', 'mmjj_phi_nominal', 'mmjj_pt_nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt_over_mass', 'zeppenfeld_nominal']
 
@@ -35,6 +39,34 @@ training_samples = {
         #],
     }
 
+def convert2df(dak_zip, dataset: str):
+    """
+    small wrapper that takes delayed dask awkward zip and converts them to pandas dataframe
+    with zip's keys as columns with extra column "dataset" to be named the string value given
+    Note: we also filter out regions not in h-peak region first, and apply cuts for
+    ggH production mode
+    """
+    # filter out arrays not in h_peak
+    is_hpeak = dak_zip.h_peak
+    vbf_cut = ak.fill_none(dak_zip.vbf_cut, value=False)
+    prod_cat_cut =  ~vbf_cut
+    btag_cut = ak.fill_none((dak_zip.nBtagLoose >= 2), value=False) | ak.fill_none((dak_zip.nBtagMedium >= 1), value=False)
+    
+    category_selection = (
+        prod_cat_cut & 
+        is_hpeak &
+        ~btag_cut # btag cut is for VH and ttH categories
+    )
+    computed_zip = dak_zip[category_selection].compute()
+    df = ak.to_dataframe(computed_zip)
+    df.fillna(-99,inplace=True)
+    # add columns
+    df["dataset"] = dataset 
+    df["cls_avg_wgt"] = -1.0
+    df["wgt_nominal_total"] = np.abs(df["wgt_nominal_total"]) # enforce poisitive weights
+    return df
+    
+
 def prepare_dataset(df, ds_dict):
     # Convert dictionary of datasets to a more useful dataframe
     df_info = pd.DataFrame()
@@ -55,23 +87,21 @@ def prepare_dataset(df, ds_dict):
     cls_name_map = dict(df_info[["dataset", "class_name"]].values)
     df["class"] = df.dataset.map(cls_map)
     df["class_name"] = df.dataset.map(cls_name_map)
-    df.loc[:,'mu1_pt_over_mass'] = np.divide(df['mu1_pt'], df['dimuon_mass'])
-    df.loc[:,'mu2_pt_over_mass'] = np.divide(df['mu2_pt'], df['dimuon_mass'])
-    df[df['njets_nominal']<2]['jj_dPhi_nominal'] = -1
-    #df[training_features].fillna(0, inplace=True)
-    #df[df['dataset']=="ggh_amcPS"].loc[:,'wgt_nominal'] = np.divide(df[df['dataset']=="ggh_amcPS"]['wgt_nominal'], df[df['dataset']=="ggh_amcPS"]['dimuon_ebe_mass_res'])
-    df.loc[df['dataset']=="ggh_powheg",'wgt_nominal'] = np.divide(df[df['dataset']=="ggh_powheg"]['wgt_nominal'], df[df['dataset']=="ggh_powheg"]['dimuon_ebe_mass_res'])
-    #df[training_features].fillna(-99,inplace=True)
+    # df.loc[:,'mu1_pt_over_mass'] = np.divide(df['mu1_pt'], df['dimuon_mass'])
+    # df.loc[:,'mu2_pt_over_mass'] = np.divide(df['mu2_pt'], df['dimuon_mass'])
+    # df[df['njets']<2]['jj_dPhi'] = -1
+    #df[df['dataset']=="ggh_amcPS"].loc[:,'wgt_nominal_total'] = np.divide(df[df['dataset']=="ggh_amcPS"]['wgt_nominal_total'], df[df['dataset']=="ggh_amcPS"]['dimuon_ebe_mass_res'])
+    df.loc[df['dataset']=="ggh_powheg",'wgt_nominal_total'] = np.divide(df[df['dataset']=="ggh_powheg"]['wgt_nominal_total'], df[df['dataset']=="ggh_powheg"]['dimuon_ebe_mass_res'])
     df.fillna(-99,inplace=True)
     #print(df.head)
-    columns_print = ['njets_nominal','jj_dPhi_nominal','jj_mass_log_nominal', 'jj_phi_nominal', 'jj_pt_nominal', 'll_zstar_log_nominal', 'mmj1_dEta_nominal',]
-    columns_print = ['njets_nominal','jj_dPhi_nominal','jj_mass_log_nominal', 'jj_phi_nominal', 'jj_pt_nominal', 'll_zstar_log_nominal', 'mmj1_dEta_nominal','jet2_pt_nominal']
-    columns2 = ['mmj1_dEta_nominal', 'mmj1_dPhi_nominal', 'mmj2_dEta_nominal', 'mmj2_dPhi_nominal', 'mmj_min_dEta_nominal', 'mmj_min_dPhi_nominal']
-    with open("df.txt", "w") as f:
-        print(df[columns_print], file=f)
-    with open("df2.txt", "w") as f:
-        print(df[columns2], file=f)
-    print(df[df['dataset']=="ggh_powheg"].head)
+    columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
+    columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta','jet2_pt']
+    columns2 = ['mmj1_dEta', 'mmj1_dPhi', 'mmj2_dEta', 'mmj2_dPhi', 'mmj_min_dEta', 'mmj_min_dPhi']
+    # with open("df.txt", "w") as f:
+    #     print(df[columns_print], file=f)
+    # with open("df2.txt", "w") as f:
+    #     print(df[columns2], file=f)
+    # print(df[df['dataset']=="ggh_powheg"].head)
     return df
 
 def classifier_train(df, args):
@@ -104,10 +134,13 @@ def classifier_train(df, args):
         x_std = np.sqrt(x_std/(1-sumw2/sumw**2))
         training_data = (x_train[inputs]-x_mean)/x_std
         validation_data = (x_val[inputs]-x_mean)/x_std
-        output_path = "/depot/cms/hmm/vscheure/data/trained_models"
-        print(output_path)
-        print(name)
-        np.save(f'{output_path}/{name}_{year}/scalers_{name}_{label}', [x_mean, x_std]) #label contains year
+        output_path = args["output_path"]
+        print(f"output_path: {output_path}")
+        print(f"name: {name}")
+        save_path = f'{output_path}/{name}_{year}/scalers_{name}_{label}'
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        np.save(save_path, [x_mean, x_std]) #label contains year
         return training_data, validation_data
 
     nfolds = 4
@@ -153,19 +186,21 @@ def classifier_train(df, args):
         y_val = df_val['class']
         y_eval = df_eval['class']
 
-        #df_train['cls_avg_wgt'] = 1.0
-        #df_val['cls_avg_wgt'] = 1.0
+
         
         for icls, cls in enumerate(classes):
             train_evts = len(y_train[y_train==icls])
-            df_train.loc[y_train==icls,'cls_avg_wgt'] = df_train.loc[y_train==icls,'wgt_nominal'].values.mean()
-            df_val.loc[y_val==icls,'cls_avg_wgt'] = df_val.loc[y_val==icls,'wgt_nominal'].values.mean()
-            df_eval.loc[y_eval==icls,'cls_avg_wgt'] = df_eval.loc[y_eval==icls,'wgt_nominal'].values.mean()
+            df_train.loc[y_train==icls,'cls_avg_wgt'] = df_train.loc[y_train==icls,'wgt_nominal_total'].values.mean()
+            df_val.loc[y_val==icls,'cls_avg_wgt'] = df_val.loc[y_val==icls,'wgt_nominal_total'].values.mean()
+            df_eval.loc[y_eval==icls,'cls_avg_wgt'] = df_eval.loc[y_eval==icls,'wgt_nominal_total'].values.mean()
             print(f"{train_evts} training events in class {cls}")
         
-        df_train['training_wgt'] = df_train['wgt_nominal']/df_train['cls_avg_wgt']
-        df_val['training_wgt'] = df_val['wgt_nominal']/df_val['cls_avg_wgt']
-        df_eval['training_wgt'] = df_eval['wgt_nominal']/df_eval['cls_avg_wgt']
+        # df_train['training_wgt'] = df_train['wgt_nominal_total']/df_train['cls_avg_wgt']
+        # df_val['training_wgt'] = df_val['wgt_nominal_total']/df_val['cls_avg_wgt']
+        # df_eval['training_wgt'] = df_eval['wgt_nominal_total']/df_eval['cls_avg_wgt']
+        df_train.loc[:,'training_wgt'] = df_train['wgt_nominal_total']/df_train['cls_avg_wgt']
+        df_val.loc[:,'training_wgt'] = df_val['wgt_nominal_total']/df_val['cls_avg_wgt']
+        df_eval.loc[:,'training_wgt'] = df_eval['wgt_nominal_total']/df_eval['cls_avg_wgt']
         
         # scale data
         #x_train, x_val = scale_data(training_features, label)#Last used
@@ -248,24 +283,7 @@ def classifier_train(df, args):
             w_train = w_train[shuf_ind_tr]
             w_val = w_val[shuf_ind_val]
             #data_dmatrix = xgb.DMatrix(data=X,label=y)
-            """
-            model = xgb.XGBClassifier(max_depth=7,#for 2018
-                                  #max_depth=6,previous value
-                                  n_estimators=10000,
-                                  #n_estimators=100,
-                                  early_stopping_rounds=50, eval_metric="logloss",
-                                  #learning_rate=0.001,#for 2018
-                                  learning_rate=0.0034,#previous value
-                                  reg_alpha=0.680159426755822,
-                                  colsample_bytree=0.47892268305051233,
-                                  min_child_weight=20,
-                                  subsample=0.5606,
-                                  reg_lambda=16.6,
-                                  gamma=24.505,
-                                  n_jobs=35,
-                                      tree_method='gpu_hist')
-                                  #tree_method='hist')
-            """                   
+                
             model = xgb.XGBClassifier(max_depth=4,#for 2018
                                       #max_depth=6,previous value
                                       n_estimators=100000,
@@ -284,61 +302,13 @@ def classifier_train(df, args):
                                       #n_jobs=35,
                                       tree_method='hist')
                                       #tree_method='hist')
-            """
-            #Multiclass
-            model = XGBClassifier(max_depth=7,#for 2018
-                                  #max_depth=6,previous value
-                                  n_estimators=100000,
-                                  #n_estimators=100,
-                                  objective='multi:softmax',
-                                  num_class = classes,
-                                  #learning_rate=0.001,#for 2018
-                                  learning_rate=0.0034,#previous value
-                                  reg_alpha=0.680159426755822,
-                                  colsample_bytree=0.47892268305051233,
-                                  min_child_weight=20,
-                                  subsample=0.5606,
-                                  reg_lambda=16.6,
-                                  gamma=24.505,
-                                  n_jobs=5,
-                                  tree_method='gpu_hist')
 
-            
-            model = XGBClassifier(max_depth=7,
-                                  n_estimators=10000,
-                                  #n_estimators=100,
-                                  learning_rate=0.007972,
-                                  reg_alpha=23.81,
-                                  colsample_bytree=0.6506,
-                                  min_child_weight=7.109,
-                                  subsample=0.7306,
-                                  reg_lambda=0.1708,
-                                  gamma=15.77,
-                                  n_jobs=1,
-                                  tree_method='hist')
-            """
             print(model)
-            #eval_set = [(x_train[training_features], y_train), (x_val[training_features], y_val)]
-            #eval_set = [(x_train[training_features], y_train, df_train['training_wgt'].values), (x_val[training_features], y_val, df_val['training_wgt'].values)]#Last used
-            #eval_set = [(xp_train, y_train, df_train['training_wgt'].values), (xp_val, y_val, df_val['training_wgt'].values)]#Last used
-            #eval_set = [(xp_train, y_train, w_train), (xp_val, y_val, w_val)]#Last used
+
             eval_set = [(xp_train, y_train), (xp_val, y_val)]#Last used
-            #eval_set = [(xp_train, y_train), (xp_val, y_val)]
-            ###eval_set = [(x_train[training_features], y_train), (x_val[training_features], y_val)]
-            ##print(df_train['training_wgt'].values)#Last used
-            #model.fit(x_train[training_features], y_train, sample_weight = weight_train.values, early_stopping_rounds=50, eval_metric="logloss", eval_set=eval_set, sample_weight_eval_set=[weight_train.values, weight_val.values], verbose=True)
-            
-            #model.fit(x_train[training_features].values, y_train, sample_weight = df_train['training_wgt'].values, early_stopping_rounds=50, eval_metric="logloss", eval_set=eval_set, verbose=True)#Last used
+
             model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=True)
-            #from sklearn.calibration import CalibratedClassifierCV
-            #calibrated_model = CalibratedClassifierCV(model, method='sigmoid', cv='prefit')
-            #calibrated_model.fit(xp_eval, y_eval)
-            #model.fit(xp_train, y_train, eval_set=eval_set, verbose=True)
-            ###model.fit(x_train[training_features], y_train, early_stopping_rounds=50, eval_metric="logloss", eval_set=eval_set, verbose=True)
-            ##np.save(f"output/trained_models_nest10000_allyears_multiclass_clsweightAndShuffle_6Aug/x_train_{label}.npy", x_train[training_features])#Last used
-            ##np.save(f"output/trained_models_nest10000_allyears_multiclass_clsweightAndShuffle_6Aug/y_train_{label}.npy", y_train)#Last used
-            ##np.save(f"output/trained_models_nest10000_allyears_multiclass_clsweightAndShuffle_6Aug/weight_train_{label}.npy", df_train['training_wgt'].values)#Last used
-            #fig, ax = plt.subplots(1,1)
+
 
             y_pred_signal_val = model.predict_proba(xp_val)[:, 1].ravel()
             y_pred_signal_train = model.predict_proba(xp_train)[:, 1]
@@ -351,7 +321,10 @@ def classifier_train(df, args):
             plt.hist(y_pred_bkg_train, bins=50, alpha=0.5, color='firebrick', label='Training BKG')
 
             ax1.legend(loc="upper right")
-            fig1.savefig(f"output/{name}_{year}/Validation_{label}.png")
+            save_path = f"output/{name}_{year}"
+            if not os.path.exists(save_path):
+                os.makedirs(save_path)
+            fig1.savefig(f"{save_path}/Validation_{label}.png")
             
             y_pred = model.predict_proba(xp_val)[:, 1].ravel()
             y_pred_train = model.predict_proba(xp_train)[:, 1].ravel()
@@ -416,9 +389,12 @@ def classifier_train(df, args):
             #save('x_val_{label}.npy', x_val[training_features])
             #save('y_val_{label}.npy', y_val)
             #save('weight_val_{label}.npy', df_val['training_wgt'].values)
-            output_path = "/depot/cms/hmm/vscheure/data/trained_models"
+            output_path = args["output_path"]
             #util.save(history.history, f"output/trained_models/history_{label}_bdt.coffea")            
-            model_fname = (f"{output_path}/{name}_{year}/{name}_{label}.pkl")
+            save_path = f"{output_path}/{name}_{year}"
+            if not os.path.exists(save_path):
+                os.makedirs(save_path)
+            model_fname = (f"{save_path}/{name}_{label}.pkl")
             pickle.dump(model, open(model_fname, "wb"))
             print ("wrote model to",model_fname)
             
@@ -489,10 +465,16 @@ def evaluation(df, args):
             eval_folds = [(i+f)%nfolds for f in [3]]
             
             eval_filter = df.event.mod(nfolds).isin(eval_folds)
-            output_path = "/depot/cms/hmm/vscheure/data/trained_models"
+            
+            # scalers_path = f"{output_path}/{name}_{year}/scalers_{name}_{eval_label}.npy"
+            # start_path = "/depot/cms/hmm/copperhead/trained_models/"
+            output_path = args["output_path"]
+            print(f"output_path: {output_path}")
             scalers_path = f"{output_path}/{name}_{year}/scalers_{name}_{eval_label}.npy"
+            
             #scalers_path = f'output/trained_models_nest10000/scalers_{label}.npy'
             scalers = np.load(scalers_path)
+
             model_path = f"{output_path}/{name}_{year}/{name}_{label}.pkl"
             #model_path = f'output/trained_models_nest10000/BDT_model_earlystop50_{label}.pkl'
             bdt_model = pickle.load(open(model_path, "rb"))
@@ -516,10 +498,13 @@ def evaluation(df, args):
 
 
             ax1.legend(loc="upper right")
-            fig1.savefig(f"output/{name}_{year}/Validation_{label}.png")
+            save_path = f"output/{name}_{year}"
+            if not os.path.exists(save_path):
+                os.makedirs(save_path)
+            fig1.savefig(f"{save_path}/Validation_{label}.png")
             
 
-            df.loc[eval_filter,'bdt_score'] = prediction
+            # df.loc[eval_filter,'bdt_score'] = prediction
     return df
         
 if __name__ == "__main__":
@@ -550,78 +535,96 @@ if __name__ == "__main__":
         "name": name,
         "do_massscan": False,
         "evaluate_allyears_dnn": False,
-        "output_path": "/depot/cms/hmm/vscheure/data/trained_models/",
+        "output_path": "/depot/cms/users/yun79/hmm/trained_MVAs",
         "label": ""
     }
-    #df_signal = pd.read_pickle("/depot/cms/hmm/purohita/coffea/my_training_signal_sample.pickle")
-    #df_background = pd.read_pickle("/depot/cms/hmm/purohita/coffea/my_training_sample.pickle")
-    #df = pd.concat([df_signal, df_background])
-    
-    #df = pd.read_pickle("/depot/cms/hmm/coffea/training_dataset.pickle")
-    df = pd.read_pickle(f"/depot/cms/hmm/vscheure/training_dataset_ggHnew_{year}.pickle")
-    #df = pd.read_pickle("/depot/cms/hmm/purohita/coffea/training_dataset100FromEach_may14.pickle")
-    #df = pd.read_pickle("/depot/cms/hmm/purohita/coffea/my_training_signal_sample.pickle")
-    #df = pd.read_pickle("/depot/cms/hmm/purohita/coffea/my_training_sample.pickle")
-    print(df)
-    print(df['dataset'].unique())
-    #df = df[:100000]
-    #df = df.sample(frac = 0.1)
-    #df.replace([np.inf, -np.inf], np.nan, inplace=True)
-    #df = df.dropna()
-    #df = df.fillna(0)
-    #print(np.isinf(df).any())
-    """
-    for col in training_features:
-        print(col)
-        print(np.isinf(df[col]).values.sum())
-        print(df[col].isnull().sum())
-    """
-    #split_into_channels(df, "nominal")
-    #df["channel"] = df["channel_nominal"]
+    client =  Client(n_workers=31,  threads_per_worker=1, processes=True, memory_limit='4 GiB') 
+    # old code start --------------------------------------------------------------------------------------------
+    # #df = pd.read_pickle("/depot/cms/hmm/coffea/training_dataset.pickle")
+    # df = pd.read_pickle(f"/depot/cms/hmm/vscheure/training_dataset_ggHnew_{year}.pickle")
+    # #df = pd.read_pickle("/depot/cms/hmm/purohita/coffea/training_dataset100FromEach_may14.pickle")
+    # #df = pd.read_pickle("/depot/cms/hmm/purohita/coffea/my_training_signal_sample.pickle")
+    # #df = pd.read_pickle("/depot/cms/hmm/purohita/coffea/my_training_sample.pickle")
+    # print(df)
+    # print(df['dataset'].unique())
+    # #df = df[:100000]
+    # #df = df.sample(frac = 0.1)
+    # #df.replace([np.inf, -np.inf], np.nan, inplace=True)
+    # #df = df.dropna()
+    # #df = df.fillna(0)
+    # #print(np.isinf(df).any())
+    # """
+    # for col in training_features:
+    #     print(col)
+    #     print(np.isinf(df[col]).values.sum())
+    #     print(df[col].isnull().sum())
+    # """
+    # #split_into_channels(df, "nominal")
+    # #df["channel"] = df["channel_nominal"]
    
-    vbf_filter = (
-        (df[f"nBtagLoose_nominal"] < 2) &
-        (df[f"nBtagMedium_nominal"] < 1) &
-        (df[f"jj_mass_nominal"] > 400) &
-        (df[f"jj_dEta_nominal"] > 2.5) &
-        (df[f"jet1_pt_nominal"] > 35)
-    )
-    df = df[vbf_filter==False]
+    # vbf_filter = (
+    #     (df[f"nBtagLoose_nominal"] < 2) &
+    #     (df[f"nBtagMedium_nominal"] < 1) &
+    #     (df[f"jj_mass_nominal"] > 400) &
+    #     (df[f"jj_dEta_nominal"] > 2.5) &
+    #     (df[f"jet1_pt_nominal"] > 35)
+    # )
+    # df = df[vbf_filter==False]
 
-    """
-    ggh_filter = (((df['njets_nominal'] == 0) | 
-                  ((df['njets_nominal'] == 1) & ((df['jj_mass_nominal'] <= 400) | (df['jj_dEta_nominal'] <= 2.5) | (df['jet1_pt_nominal']< 35))) | 
-                  ((df['njets_nominal'] >= 2) & ((df['jj_mass_nominal'] <= 400) | (df['jj_dEta_nominal'] <= 2.5) | (df['jet1_pt_nominal']< 35)))
-               ) & ((df['dimuon_mass'] > 115) & (df['dimuon_mass'] < 135)))
-    """
-    print(df['njets_nominal'])
-    df['njets_nominal']= df['njets_nominal'].fillna(0)
-    print(df['njets_nominal'])
-    ggh_filter = (  (df[f"nBtagLoose_nominal"] < 2) &
-                    (df[f"nBtagMedium_nominal"] < 1) &
-                    #(df['njets_nominal'] > 0) & #temp for testing
-                 ((df['dimuon_mass'] > 115) & (df['dimuon_mass'] < 135)))
-    df = df[ggh_filter]
-    #print(df.shape)
-    df['wgt_nominal'] = np.abs(df['wgt_nominal'])
-    print("aftergghfiletr")
+    # """
+    # ggh_filter = (((df['njets_nominal'] == 0) | 
+    #               ((df['njets_nominal'] == 1) & ((df['jj_mass_nominal'] <= 400) | (df['jj_dEta_nominal'] <= 2.5) | (df['jet1_pt_nominal']< 35))) | 
+    #               ((df['njets_nominal'] >= 2) & ((df['jj_mass_nominal'] <= 400) | (df['jj_dEta_nominal'] <= 2.5) | (df['jet1_pt_nominal']< 35)))
+    #            ) & ((df['dimuon_mass'] > 115) & (df['dimuon_mass'] < 135)))
+    # """
+    # print(df['njets_nominal'])
+    # df['njets_nominal']= df['njets_nominal'].fillna(0)
+    # print(df['njets_nominal'])
+    # ggh_filter = (  (df[f"nBtagLoose_nominal"] < 2) &
+    #                 (df[f"nBtagMedium_nominal"] < 1) &
+    #                 #(df['njets_nominal'] > 0) & #temp for testing
+    #              ((df['dimuon_mass'] > 115) & (df['dimuon_mass'] < 135)))
+    # df = df[ggh_filter]
+    # #print(df.shape)
+    # df['wgt_nominal'] = np.abs(df['wgt_nominal'])
+    # print("aftergghfiletr")
 
-    df = prepare_dataset(df[df['region']=='h-peak'], training_samples)
+    # df = prepare_dataset(df[df['region']=='h-peak'], training_samples)
+    # old code end --------------------------------------------------------------------------------------------
+
+    # new code start --------------------------------------------------------------------------------------------
+    load_path = "/depot/cms/users/yun79/results/stage1/DNN_test2/2018/f1_0"
+    zip_ggh = dak.from_parquet(load_path+"/ggh_powheg/*/*.parquet")
+    df_ggh = convert2df(zip_ggh, "ggh_powheg")
+    zip_dy = dak.from_parquet(load_path+"/dy_M-100To200/*/*.parquet")
+    df_dy = convert2df(zip_dy, "dy_M-100To200")
+    # df_dy = convert2df(zip_ggh, "dy_M-100To200")
+    df_total = pd.concat([df_ggh,df_dy],ignore_index=True)
+    print(f"len(df_dy.index): {len(df_dy.index)}")
+    print(f"len(df_ggh.index): {len(df_ggh.index)}")
+    del df_ggh # delete redundant df to save memory. Not sure if this is necessary
+    del df_dy # delete redundant df to save memory. Not sure if this is necessary
+    # print(f"df_total: {df_total}")
+    print("starting prepare_dataset")
+    df_total = prepare_dataset(df_total, training_samples)
+    print("prepare_dataset done")
+    # raise ValueError
+    # new code end --------------------------------------------------------------------------------------------
     #print(df["class"])
     #print([ x for x in df.columns if "nominal" in x])
-    print(df[df['dataset']=="dy_M-100To200"])
-    print(df[df['dataset']=="ggh_powheg"])
+    # print(df[df['dataset']=="dy_M-100To200"])
+    # print(df[df['dataset']=="ggh_powheg"])
     """
     for col in training_features:
         print(col)
         print(np.isinf(df[col]).values.sum())
         print(df[col].isnull().sum())
     """
-    classifier_train(df, args)
-    evaluation(df, args)
+    classifier_train(df_total, args)
+    evaluation(df_total, args)
     #df.to_pickle('/depot/cms/hmm/purohita/coffea/eval_dataset.pickle')
     #print(df)
-
+    
 
 
 
