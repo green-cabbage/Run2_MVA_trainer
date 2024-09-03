@@ -68,6 +68,7 @@ def convert2df(dak_zip, dataset: str, is_vbf=False):
     df["dataset"] = dataset 
     df["cls_avg_wgt"] = -1.0
     df["wgt_nominal_total"] = np.abs(df["wgt_nominal_total"]) # enforce poisitive weights
+    
     return df
     
 
@@ -106,6 +107,7 @@ def prepare_dataset(df, ds_dict):
     # with open("df2.txt", "w") as f:
     #     print(df[columns2], file=f)
     # print(df[df['dataset']=="ggh_powheg"].head)
+    print(f"prepare_dataset df: {df.head()}")
     return df
 
 def scale_data(inputs, x_train, x_val, df_train, label):
@@ -192,9 +194,13 @@ def classifier_train(df, args):
         y_val = df_val['class']
         y_eval = df_eval['class']
 
-
+        # print(f"y_train: {y_train}")
+        # print(f"y_val: {y_val}")
+        # print(f"y_eval: {y_eval}")
+        print(f"df_train: {df_train.head()}")
         
         for icls, cls in enumerate(classes):
+            print(f"icls: {icls}")
             train_evts = len(y_train[y_train==icls])
             df_train.loc[y_train==icls,'cls_avg_wgt'] = df_train.loc[y_train==icls,'wgt_nominal_total'].values.mean()
             df_val.loc[y_val==icls,'cls_avg_wgt'] = df_val.loc[y_val==icls,'wgt_nominal_total'].values.mean()
@@ -489,12 +495,12 @@ def evaluation(df, args):
             
             eval_filter = df.event.mod(nfolds).isin(eval_folds)
 
-            print(f"train_folds: {train_folds}")
-            print(f"val_folds: {val_folds}")
-            print(f"eval_folds: {eval_folds}")
+            # print(f"train_folds: {train_folds}")
+            # print(f"val_folds: {val_folds}")
+            # print(f"eval_folds: {eval_folds}")
 
             eval_label = f"{args['year']}_{args['label']}{eval_folds[0]}"
-            print(f"eval_label: {eval_label}")
+            # print(f"eval_label: {eval_label}")
             
             # scalers_path = f"{output_path}/{name}_{year}/scalers_{name}_{eval_label}.npy"
             # start_path = "/depot/cms/hmm/copperhead/trained_models/"
@@ -641,6 +647,12 @@ if __name__ == "__main__":
     df_dy = convert2df(zip_dy, "dy_M-100To200", is_vbf=is_vbf)
     # df_dy = convert2df(zip_ggh, "dy_M-100To200", is_vbf=is_vbf)
     df_total = pd.concat([df_ggh,df_dy],ignore_index=True)
+    # print(f"df_total b4 shuffle: {df_total}")
+    
+    # apply random shuffle, so that signal and bkg samples get mixed up well
+    df_total = df_total.sample(frac=1, random_state=123)
+    print(f"df_total after shuffle: {df_total}")
+    
     print(f"len(df_dy.index): {len(df_dy.index)}")
     print(f"len(df_ggh.index): {len(df_ggh.index)}")
     del df_ggh # delete redundant df to save memory. Not sure if this is necessary
