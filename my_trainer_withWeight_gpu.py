@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import tqdm
 from distributed import LocalCluster, Client, progress
 import os
+import coffea.util as util
 
 #training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_ebe_mass_res', 'dimuon_ebe_mass_res_rel', 'dimuon_eta', 'dimuon_mass', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta nominal', 'jet1_phi nominal', 'jet1_pt nominal', 'jet1_qgl nominal', 'jet2_eta nominal', 'jet2_phi nominal', 'jet2_pt nominal', 'jet2_qgl nominal', 'jj_dEta nominal', 'jj_dPhi nominal', 'jj_eta nominal', 'jj_mass nominal', 'jj_mass_log nominal', 'jj_phi nominal', 'jj_pt nominal', 'll_zstar_log nominal', 'mmj1_dEta nominal', 'mmj1_dPhi nominal', 'mmj2_dEta nominal', 'mmj2_dPhi nominal', 'mmj_min_dEta nominal', 'mmj_min_dPhi nominal', 'mmjj_eta nominal', 'mmjj_mass nominal', 'mmjj_phi nominal', 'mmjj_pt nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt', 'mu2_pt_over_mass', 'zeppenfeld nominal']
 #training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_eta', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta_nominal', 'jet1_phi_nominal', 'jet1_pt_nominal', 'jet1_qgl_nominal', 'jet2_eta_nominal', 'jet2_phi_nominal', 'jet2_pt_nominal', 'jet2_qgl_nominal', 'jj_dEta_nominal', 'jj_dPhi_nominal', 'jj_eta_nominal', 'jj_mass_nominal', 'jj_mass_log_nominal', 'jj_phi_nominal', 'jj_pt_nominal', 'll_zstar_log_nominal', 'mmj1_dEta_nominal', 'mmj1_dPhi_nominal', 'mmj2_dEta_nominal', 'mmj2_dPhi_nominal', 'mmj_min_dEta_nominal', 'mmj_min_dPhi_nominal', 'mmjj_eta_nominal', 'mmjj_mass_nominal', 'mmjj_phi_nominal', 'mmjj_pt_nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt_over_mass', 'zeppenfeld_nominal']
@@ -39,7 +40,7 @@ training_samples = {
         #],
     }
 
-def convert2df(dak_zip, dataset: str):
+def convert2df(dak_zip, dataset: str, is_vbf=False):
     """
     small wrapper that takes delayed dask awkward zip and converts them to pandas dataframe
     with zip's keys as columns with extra column "dataset" to be named the string value given
@@ -49,7 +50,10 @@ def convert2df(dak_zip, dataset: str):
     # filter out arrays not in h_peak
     is_hpeak = dak_zip.h_peak
     vbf_cut = ak.fill_none(dak_zip.vbf_cut, value=False)
-    prod_cat_cut =  ~vbf_cut
+    if is_vbf: # VBF
+        prod_cat_cut =  vbf_cut
+    else: # ggH
+        prod_cat_cut =  ~vbf_cut
     btag_cut = ak.fill_none((dak_zip.nBtagLoose >= 2), value=False) | ak.fill_none((dak_zip.nBtagMedium >= 1), value=False)
     
     category_selection = (
@@ -104,6 +108,37 @@ def prepare_dataset(df, ds_dict):
     # print(df[df['dataset']=="ggh_powheg"].head)
     return df
 
+def scale_data(inputs, x_train, x_val, df_train, label):
+    x_mean = np.mean(x_train[inputs].values,axis=0)
+    x_std = np.std(x_train[inputs].values,axis=0)
+    training_data = (x_train[inputs]-x_mean)/x_std
+    validation_data = (x_val[inputs]-x_mean)/x_std
+    np.save(f"{output_path}/{name}_{year}/scalers_{name}_{year}_{label}", [x_mean, x_std])
+    return training_data, validation_data
+def scale_data_withweight(inputs, x_train, x_val, df_train, label):
+    masked_x_train = np.ma.masked_array(x_train[x_train[inputs]!=-99][inputs], np.isnan(x_train[x_train[inputs]!=-99][inputs]))
+    #x_mean = np.average(x_train[inputs].values,axis=0, weights=df_train['training_wgt'].values)
+    x_mean = np.average(masked_x_train,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
+    #x_std = np.std(x_train[inputs].values,axis=0)
+    #masked_x_std = np.ma.masked_array(x_train[x_train[inputs]!=-99][inputs], np.isnan(x_train[x_train[inputs]!=-99][inputs]))
+    #x_std = np.average((x_train[inputs].values-x_mean)**2,axis=0, weights=df_train['training_wgt'].values)
+    x_std = np.average((masked_x_train-x_mean)**2,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
+    sumw2 = (df_train['training_wgt']**2).sum()
+    sumw = df_train['training_wgt'].sum()
+    
+    x_std = np.sqrt(x_std/(1-sumw2/sumw**2))
+    training_data = (x_train[inputs]-x_mean)/x_std
+    validation_data = (x_val[inputs]-x_mean)/x_std
+    output_path = args["output_path"]
+    print(f"output_path: {output_path}")
+    print(f"name: {name}")
+    save_path = f'{output_path}/{name}_{year}'
+    print(f"scalar save_path: {save_path}")
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    np.save(save_path + f"/scalers_{name}_{label}", [x_mean, x_std]) #label contains year
+    return training_data, validation_data
+
 def classifier_train(df, args):
     if args['dnn']:
         from tensorflow.keras.models import Model
@@ -113,35 +148,6 @@ def classifier_train(df, args):
         import xgboost as xgb
         from xgboost import XGBClassifier
         import pickle
-    def scale_data(inputs, label):
-        x_mean = np.mean(x_train[inputs].values,axis=0)
-        x_std = np.std(x_train[inputs].values,axis=0)
-        training_data = (x_train[inputs]-x_mean)/x_std
-        validation_data = (x_val[inputs]-x_mean)/x_std
-        np.save(f"{output_path}/{name}_{year}/scalers_{name}_{year}_{label}", [x_mean, x_std])
-        return training_data, validation_data
-    def scale_data_withweight(inputs, label):
-        masked_x_train = np.ma.masked_array(x_train[x_train[inputs]!=-99][inputs], np.isnan(x_train[x_train[inputs]!=-99][inputs]))
-        #x_mean = np.average(x_train[inputs].values,axis=0, weights=df_train['training_wgt'].values)
-        x_mean = np.average(masked_x_train,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
-        #x_std = np.std(x_train[inputs].values,axis=0)
-        #masked_x_std = np.ma.masked_array(x_train[x_train[inputs]!=-99][inputs], np.isnan(x_train[x_train[inputs]!=-99][inputs]))
-        #x_std = np.average((x_train[inputs].values-x_mean)**2,axis=0, weights=df_train['training_wgt'].values)
-        x_std = np.average((masked_x_train-x_mean)**2,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
-        sumw2 = (df_train['training_wgt']**2).sum()
-        sumw = df_train['training_wgt'].sum()
-        
-        x_std = np.sqrt(x_std/(1-sumw2/sumw**2))
-        training_data = (x_train[inputs]-x_mean)/x_std
-        validation_data = (x_val[inputs]-x_mean)/x_std
-        output_path = args["output_path"]
-        print(f"output_path: {output_path}")
-        print(f"name: {name}")
-        save_path = f'{output_path}/{name}_{year}/scalers_{name}_{label}'
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
-        np.save(save_path, [x_mean, x_std]) #label contains year
-        return training_data, validation_data
 
     nfolds = 4
     classes = df.dataset.unique()
@@ -203,8 +209,13 @@ def classifier_train(df, args):
         df_eval.loc[:,'training_wgt'] = df_eval['wgt_nominal_total']/df_eval['cls_avg_wgt']
         
         # scale data
-        #x_train, x_val = scale_data(training_features, label)#Last used
-        x_train, x_val = scale_data_withweight(training_features, label)
+        #x_train, x_val = scale_data(training_features, x_train, x_val, df_train, label)#Last used
+        x_train, x_val = scale_data_withweight(training_features, x_train, x_val, df_train, label)
+        # print(f"x_train.shape: {x_train.shape}")
+        # print(f"x_val.shape: {x_val.shape}")
+        # print(f"x_train: {x_train}")
+        # print(f"x_val: {x_val}")
+        # print(f"x_train[training_features]: {x_train[training_features]}")
         x_train[other_columns] = df_train[other_columns]
         x_val[other_columns] = df_val[other_columns]
         x_eval[other_columns] = df_eval[other_columns]
@@ -235,14 +246,15 @@ def classifier_train(df, args):
                                 verbose=1,
                                 validation_data=(x_val[training_features], y_val), shuffle=True)
             
-            util.save(history.history, f"output/trained_models/history_{label}_dnn.coffea")
-            y_pred = model.predict(x_val).ravel()
+            # util.save(history.history, f"output/trained_models/history_{label}_dnn.coffea")
+            
+            y_pred = model.predict(x_val[training_features]).ravel()
             nn_fpr_keras, nn_tpr_keras, nn_thresholds_keras = roc_curve(y_val, y_pred)
             auc_keras = auc(nn_fpr_keras, nn_tpr_keras)
             #plt.plot(nn_fpr_keras, nn_tpr_keras, marker='.', label='Neural Network (auc = %0.3f)' % auc_keras)
-            roc_auc_gus = auc(nn_fpr_keras,nn_tpr_keras)
+            # roc_auc_gus = auc(nn_fpr_keras,nn_tpr_keras)
             fig, ax = plt.subplots(1,1)
-            ax.plot(nn_fpr_keras, nn_tpr_keras, label='Raw ROC curve (area = %0.2f)' % roc_auc)
+            ax.plot(nn_fpr_keras, nn_tpr_keras, label='Raw ROC curve (area = %0.2f)' % auc_keras)
             #ax.plot(fpr_gus, tpr_gus, label='Gaussian ROC curve (area = %0.2f)' % roc_auc_gus)
             ax.plot([0, 1], [0, 1], 'k--')
             ax.set_xlim([0.0, 1.0])
@@ -251,8 +263,15 @@ def classifier_train(df, args):
             ax.set_ylabel('True Positive Rate')
             ax.set_title('Receiver operating characteristic example')
             ax.legend(loc="lower right")
-            fig.savefig(f"output/trained_models/test_{label}.png")
-            model.save(f"output/trained_models/test_{label}.h5")        
+            output_path = args["output_path"]
+            print(f"output_path: {output_path}")
+            print(f"name: {name}")
+            # save_path = f'{output_path}/{name}_{year}/scalers_{name}_{label}'
+            save_path = f"{output_path}/{name}_{year}/trained_models"
+            if not os.path.exists(save_path):
+                os.makedirs(save_path)
+            fig.savefig(f"{save_path}/test_{label}.png")
+            model.save(f"{save_path}/test_{label}.h5")        
         if args['bdt']:
             seed = 7
             xp_train = x_train[training_features].values
@@ -432,7 +451,10 @@ def evaluation(df, args):
                 
                 eval_filter = df.event.mod(nfolds).isin(eval_folds)
                 
-                scalers_path = f'output/trained_models/scalers_{label}.npy'
+                # scalers_path = f'output/trained_models/scalers_{label}.npy'
+                output_path = args["output_path"]
+                print(f"output_path: {output_path}")
+                scalers_path = f"{output_path}/{name}_{year}/scalers_{name}_{eval_label}.npy"
                 scalers = np.load(scalers_path)
                 model_path = f'output/trained_models/test_{label}.h5'
                 dnn_model = load_model(model_path)
@@ -459,19 +481,28 @@ def evaluation(df, args):
                 label = f"allyears_{args['label']}_{i}"
             else:
                 label = f"{args['year']}_{args['label']}{i}"
-            eval_label = f"{args['year']}_{args['label']}0"
+            
+            
             train_folds = [(i+f)%nfolds for f in [0,1]]
             val_folds = [(i+f)%nfolds for f in [2]]
             eval_folds = [(i+f)%nfolds for f in [3]]
             
             eval_filter = df.event.mod(nfolds).isin(eval_folds)
+
+            print(f"train_folds: {train_folds}")
+            print(f"val_folds: {val_folds}")
+            print(f"eval_folds: {eval_folds}")
+
+            eval_label = f"{args['year']}_{args['label']}{eval_folds[0]}"
+            print(f"eval_label: {eval_label}")
             
             # scalers_path = f"{output_path}/{name}_{year}/scalers_{name}_{eval_label}.npy"
             # start_path = "/depot/cms/hmm/copperhead/trained_models/"
             output_path = args["output_path"]
             print(f"output_path: {output_path}")
             scalers_path = f"{output_path}/{name}_{year}/scalers_{name}_{eval_label}.npy"
-            
+
+            print(f"scalers_path: {scalers_path}")
             #scalers_path = f'output/trained_models_nest10000/scalers_{label}.npy'
             scalers = np.load(scalers_path)
 
@@ -516,21 +547,30 @@ if __name__ == "__main__":
     default="2018",
     action="store",
     help="Year to process (2016preVFP, 2016postVFP, 2017 or 2018)",
-)
+    )
     parser.add_argument(
-    "-n",
-    "--name",
-    dest="name",
-    default="test",
-    action="store",
-    help="Name of classifier",
-)
+        "-n",
+        "--name",
+        dest="name",
+        default="test",
+        action="store",
+        help="Name of classifier",
+    )
+    parser.add_argument(
+        "--vbf",
+        dest="is_vbf",
+        default=False, 
+        action=argparse.BooleanOptionalAction,
+        help="If true we filter out for VBF production mode category, if not, cut for ggH category",
+    )
     sysargs = parser.parse_args()
     year = sysargs.year
     name = sysargs.name
     args = {
         "dnn": False,
         "bdt": True,
+        # "dnn": True,
+        # "bdt": False,
         "year": year,
         "name": name,
         "do_massscan": False,
@@ -595,10 +635,11 @@ if __name__ == "__main__":
     # new code start --------------------------------------------------------------------------------------------
     load_path = "/depot/cms/users/yun79/results/stage1/DNN_test2/2018/f1_0"
     zip_ggh = dak.from_parquet(load_path+"/ggh_powheg/*/*.parquet")
-    df_ggh = convert2df(zip_ggh, "ggh_powheg")
+    is_vbf = sysargs.is_vbf
+    df_ggh = convert2df(zip_ggh, "ggh_powheg", is_vbf=is_vbf)
     zip_dy = dak.from_parquet(load_path+"/dy_M-100To200/*/*.parquet")
-    df_dy = convert2df(zip_dy, "dy_M-100To200")
-    # df_dy = convert2df(zip_ggh, "dy_M-100To200")
+    df_dy = convert2df(zip_dy, "dy_M-100To200", is_vbf=is_vbf)
+    # df_dy = convert2df(zip_ggh, "dy_M-100To200", is_vbf=is_vbf)
     df_total = pd.concat([df_ggh,df_dy],ignore_index=True)
     print(f"len(df_dy.index): {len(df_dy.index)}")
     print(f"len(df_ggh.index): {len(df_ggh.index)}")
@@ -614,12 +655,7 @@ if __name__ == "__main__":
     #print([ x for x in df.columns if "nominal" in x])
     # print(df[df['dataset']=="dy_M-100To200"])
     # print(df[df['dataset']=="ggh_powheg"])
-    """
-    for col in training_features:
-        print(col)
-        print(np.isinf(df[col]).values.sum())
-        print(df[col].isnull().sum())
-    """
+
     classifier_train(df_total, args)
     evaluation(df_total, args)
     #df.to_pickle('/depot/cms/hmm/purohita/coffea/eval_dataset.pickle')
@@ -627,25 +663,3 @@ if __name__ == "__main__":
     
 
 
-
-"""
-test_bdt = XGBClassifier(
-    max_depth=7,  # for 2018
-    # max_depth=6,previous value
-    n_estimators=100,
-    # n_estimators=100,
-    # objective='multi:softmax',
-    objective="binary:logistic",
-    num_class=1,
-    # learning_rate=0.001,#for 2018
-    # learning_rate=0.0034,#previous value
-    # reg_alpha=0.680159426755822,
-    # colsample_bytree=0.47892268305051233,
-    min_child_weight=20,
-    # subsample=0.5606,
-    # reg_lambda=16.6,
-    # gamma=24.505,
-    # n_jobs=5,
-    tree_method="hist",
-)
-"""
