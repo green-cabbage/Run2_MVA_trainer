@@ -96,7 +96,20 @@ def prepare_dataset(df, ds_dict):
     # df.loc[:,'mu2_pt_over_mass'] = np.divide(df['mu2_pt'], df['dimuon_mass'])
     # df[df['njets']<2]['jj_dPhi'] = -1
     #df[df['dataset']=="ggh_amcPS"].loc[:,'wgt_nominal_total'] = np.divide(df[df['dataset']=="ggh_amcPS"]['wgt_nominal_total'], df[df['dataset']=="ggh_amcPS"]['dimuon_ebe_mass_res'])
-    df.loc[df['dataset']=="ggh_powheg",'wgt_nominal_total'] = np.divide(df[df['dataset']=="ggh_powheg"]['wgt_nominal_total'], df[df['dataset']=="ggh_powheg"]['dimuon_ebe_mass_res'])
+
+    # apply dimuon_ebe_mass_res to the weights
+    # original start -----------------------------------------------
+    # df.loc[df['dataset']=="ggh_powheg",'wgt_nominal_total'] = np.divide(df[df['dataset']=="ggh_powheg"]['wgt_nominal_total'], df[df['dataset']=="ggh_powheg"]['dimuon_ebe_mass_res'])
+    # original end -----------------------------------------------
+
+    # test start -----------------------------------------------
+    is_signal = df['dataset']=="ggh_powheg"
+    df.loc[is_signal,'wgt_nominal_total'] = np.divide(1, df[df['dataset']=="ggh_powheg"]['dimuon_ebe_mass_res'])
+    df.loc[~is_signal,'wgt_nominal_total'] = 1
+    print(f"df[wgt_nominal_total]: {df['wgt_nominal_total']}")
+    # test end -----------------------------------------------
+
+    
     df.fillna(-99,inplace=True)
     #print(df.head)
     columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
@@ -152,7 +165,7 @@ def classifier_train(df, args):
         import pickle
 
     nfolds = 4
-    classes = df.dataset.unique()
+    # classes = df.dataset.unique()
     #print(df["class"])
     #cls_idx_map = {dataset:idx for idx,dataset in enumerate(classes)}
     add_year = (args['year']=='')
@@ -198,8 +211,14 @@ def classifier_train(df, args):
         # print(f"y_val: {y_val}")
         # print(f"y_eval: {y_eval}")
         print(f"df_train: {df_train.head()}")
-        
-        for icls, cls in enumerate(classes):
+        classes = {
+            0 : 'dy_M-100To200',
+            1 : 'ggh_powheg',
+        }
+        print(f"classes: {classes}")
+        # for icls, cls in enumerate(classes):
+        # original start -------------------------------------------------------
+        for icls, cls in classes.items():
             print(f"icls: {icls}")
             train_evts = len(y_train[y_train==icls])
             df_train.loc[y_train==icls,'cls_avg_wgt'] = df_train.loc[y_train==icls,'wgt_nominal_total'].values.mean()
@@ -213,6 +232,15 @@ def classifier_train(df, args):
         df_train.loc[:,'training_wgt'] = df_train['wgt_nominal_total']/df_train['cls_avg_wgt']
         df_val.loc[:,'training_wgt'] = df_val['wgt_nominal_total']/df_val['cls_avg_wgt']
         df_eval.loc[:,'training_wgt'] = df_eval['wgt_nominal_total']/df_eval['cls_avg_wgt']
+        # original end -------------------------------------------------------
+
+        # test start -------------------------------------------------------
+        # # just take the wgt_nominal_total values 
+        # df_train.loc[:,'training_wgt'] = df_train['wgt_nominal_total']
+        # df_val.loc[:,'training_wgt'] = df_val['wgt_nominal_total']
+        # df_eval.loc[:,'training_wgt'] = df_eval['wgt_nominal_total']
+        # test end -------------------------------------------------------
+
         
         # scale data
         #x_train, x_val = scale_data(training_features, x_train, x_val, df_train, label)#Last used
@@ -573,10 +601,10 @@ if __name__ == "__main__":
     year = sysargs.year
     name = sysargs.name
     args = {
-        "dnn": False,
-        "bdt": True,
-        # "dnn": True,
-        # "bdt": False,
+        # "dnn": False,
+        # "bdt": True,
+        "dnn": True,
+        "bdt": False,
         "year": year,
         "name": name,
         "do_massscan": False,
@@ -644,8 +672,8 @@ if __name__ == "__main__":
     is_vbf = sysargs.is_vbf
     df_ggh = convert2df(zip_ggh, "ggh_powheg", is_vbf=is_vbf)
     zip_dy = dak.from_parquet(load_path+"/dy_M-100To200/*/*.parquet")
-    df_dy = convert2df(zip_dy, "dy_M-100To200", is_vbf=is_vbf)
-    # df_dy = convert2df(zip_ggh, "dy_M-100To200", is_vbf=is_vbf)
+    # df_dy = convert2df(zip_dy, "dy_M-100To200", is_vbf=is_vbf)
+    df_dy = convert2df(zip_ggh, "dy_M-100To200", is_vbf=is_vbf)
     df_total = pd.concat([df_ggh,df_dy],ignore_index=True)
     # print(f"df_total b4 shuffle: {df_total}")
     
