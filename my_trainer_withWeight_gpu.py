@@ -13,17 +13,34 @@ import tqdm
 from distributed import LocalCluster, Client, progress
 import os
 import coffea.util as util
+import time
 
 #training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_ebe_mass_res', 'dimuon_ebe_mass_res_rel', 'dimuon_eta', 'dimuon_mass', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta nominal', 'jet1_phi nominal', 'jet1_pt nominal', 'jet1_qgl nominal', 'jet2_eta nominal', 'jet2_phi nominal', 'jet2_pt nominal', 'jet2_qgl nominal', 'jj_dEta nominal', 'jj_dPhi nominal', 'jj_eta nominal', 'jj_mass nominal', 'jj_mass_log nominal', 'jj_phi nominal', 'jj_pt nominal', 'll_zstar_log nominal', 'mmj1_dEta nominal', 'mmj1_dPhi nominal', 'mmj2_dEta nominal', 'mmj2_dPhi nominal', 'mmj_min_dEta nominal', 'mmj_min_dPhi nominal', 'mmjj_eta nominal', 'mmjj_mass nominal', 'mmjj_phi nominal', 'mmjj_pt nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt', 'mu2_pt_over_mass', 'zeppenfeld nominal']
 #training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_eta', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta_nominal', 'jet1_phi_nominal', 'jet1_pt_nominal', 'jet1_qgl_nominal', 'jet2_eta_nominal', 'jet2_phi_nominal', 'jet2_pt_nominal', 'jet2_qgl_nominal', 'jj_dEta_nominal', 'jj_dPhi_nominal', 'jj_eta_nominal', 'jj_mass_nominal', 'jj_mass_log_nominal', 'jj_phi_nominal', 'jj_pt_nominal', 'll_zstar_log_nominal', 'mmj1_dEta_nominal', 'mmj1_dPhi_nominal', 'mmj2_dEta_nominal', 'mmj2_dPhi_nominal', 'mmj_min_dEta_nominal', 'mmj_min_dPhi_nominal', 'mmjj_eta_nominal', 'mmjj_mass_nominal', 'mmjj_phi_nominal', 'mmjj_pt_nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt_over_mass', 'zeppenfeld_nominal']
 
-training_features = ['dimuon_cos_theta_cs', 'dimuon_eta', 'dimuon_phi_cs', 'dimuon_pt', 'jet1_eta', 'jet1_pt', 'jet2_eta', 'jet2_pt', 'jj_dEta', 'jj_dPhi', 'jj_mass', 'mmj1_dEta', 'mmj1_dPhi',  'mmj_min_dEta', 'mmj_min_dPhi', 'mu1_eta', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_pt_over_mass', 'zeppenfeld', 'njets']  # AN 19-124
+# training_features = ['dimuon_cos_theta_cs', 'dimuon_eta', 'dimuon_phi_cs', 'dimuon_pt', 'jet1_eta', 'jet1_pt', 'jet2_eta', 'jet2_pt', 'jj_dEta', 'jj_dPhi', 'jj_mass', 'mmj1_dEta', 'mmj1_dPhi',  'mmj_min_dEta', 'mmj_min_dPhi', 'mu1_eta', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_pt_over_mass', 'zeppenfeld', 'njets']  # AN 19-124
+
+
+training_features = ['dimuon_cos_theta_cs', 'dimuon_eta', 'dimuon_phi_cs', 'dimuon_pt', 'jet1_eta', 'jet1_pt', 'jet2_eta', 'jet2_pt', 'jj_dEta', 'jj_dPhi', 'jj_mass', 'mmj1_dEta', 'mmj1_dPhi',  'mmj_min_dEta', 'mmj_min_dPhi', 'mu1_eta', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_pt_over_mass', 'zeppenfeld', 'njets', "jet1_qgl", "jet2_qgl"] 
+
 
 #training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_eta', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta_nominal', 'jet1_phi_nominal', 'jet1_pt_nominal', 'jet2_eta_nominal', 'jet2_phi_nominal', 'jet2_pt_nominal',  'jj_dEta_nominal', 'jj_dPhi_nominal', 'jj_eta_nominal', 'jj_mass_nominal', 'jj_mass_log_nominal', 'jj_phi_nominal', 'jj_pt_nominal', 'll_zstar_log_nominal', 'mmj1_dEta_nominal', 'mmj1_dPhi_nominal', 'mmj2_dEta_nominal', 'mmj2_dPhi_nominal', 'mmj_min_dEta_nominal', 'mmj_min_dPhi_nominal', 'mmjj_eta_nominal', 'mmjj_mass_nominal', 'mmjj_phi_nominal', 'mmjj_pt_nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt_over_mass', 'zeppenfeld_nominal']
 
 training_samples = {
-        "background": ["dy_M-100To200"],
-        "signal": ["ggh_powheg"],
+        "background": [
+            "dy_M-100To200", 
+            "ttjets_dl",
+            "ttjets_sl",
+            "st_tw_top",
+            "st_tw_antitop",
+            "ww_2l2nu",
+            "wz_1l1nu2q",
+            "wz_2l2q",
+            "wz_3lnu",
+            "zz",
+            "ewk_lljj_mll50_mjj120",
+        ],
+        "signal": ["ggh_powheg", "vbf_powheg"],
         
         #"ignore": [
         #    "tttj",
@@ -67,7 +84,10 @@ def convert2df(dak_zip, dataset: str, is_vbf=False):
     # add columns
     df["dataset"] = dataset 
     df["cls_avg_wgt"] = -1.0
-    df["wgt_nominal_total"] = np.abs(df["wgt_nominal_total"]) # enforce poisitive weights
+    # df["wgt_nominal_total"] = np.abs(df["wgt_nominal_total"]) # enforce poisitive weights
+    # drop negative values
+    positive_wgts = df["wgt_nominal_total"] > 0 
+    df = df.loc[positive_wgts]
     
     return df
     
@@ -89,6 +109,7 @@ def prepare_dataset(df, ds_dict):
     
     # Assign numerical classes to each event
     cls_map = dict(df_info[["dataset", "iclass"]].values)
+    print(f"cls_map: {cls_map}")
     cls_name_map = dict(df_info[["dataset", "class_name"]].values)
     df["class"] = df.dataset.map(cls_map)
     df["class_name"] = df.dataset.map(cls_name_map)
@@ -99,14 +120,15 @@ def prepare_dataset(df, ds_dict):
 
     # apply dimuon_ebe_mass_res to the weights
     # original start -----------------------------------------------
-    # df.loc[df['dataset']=="ggh_powheg",'wgt_nominal_total'] = np.divide(df[df['dataset']=="ggh_powheg"]['wgt_nominal_total'], df[df['dataset']=="ggh_powheg"]['dimuon_ebe_mass_res'])
+    df.loc[df['dataset']=="ggh_powheg",'wgt_nominal_total'] = np.divide(df[df['dataset']=="ggh_powheg"]['wgt_nominal_total'], df[df['dataset']=="ggh_powheg"]['dimuon_ebe_mass_res'])
+    df.loc[df['dataset']=="vbf_powheg",'wgt_nominal_total'] = np.divide(df[df['dataset']=="vbf_powheg"]['wgt_nominal_total'], df[df['dataset']=="vbf_powheg"]['dimuon_ebe_mass_res'])
     # original end -----------------------------------------------
 
     # test start -----------------------------------------------
-    is_signal = df['dataset']=="ggh_powheg"
-    df.loc[is_signal,'wgt_nominal_total'] = np.divide(1, df[df['dataset']=="ggh_powheg"]['dimuon_ebe_mass_res'])
-    df.loc[~is_signal,'wgt_nominal_total'] = 1
-    print(f"df[wgt_nominal_total]: {df['wgt_nominal_total']}")
+    # is_signal = df['dataset']=="ggh_powheg"
+    # df.loc[is_signal,'wgt_nominal_total'] = np.divide(1, df[df['dataset']=="ggh_powheg"]['dimuon_ebe_mass_res'])
+    # df.loc[~is_signal,'wgt_nominal_total'] = 1
+    # # print(f"df[wgt_nominal_total]: {df['wgt_nominal_total']}")
     # test end -----------------------------------------------
 
     
@@ -120,16 +142,16 @@ def prepare_dataset(df, ds_dict):
     # with open("df2.txt", "w") as f:
     #     print(df[columns2], file=f)
     # print(df[df['dataset']=="ggh_powheg"].head)
-    print(f"prepare_dataset df: {df.head()}")
+    print(f"prepare_dataset df: {df["dataset","class_name", "iclass"]}")
     return df
 
-def scale_data(inputs, x_train, x_val, df_train, label):
-    x_mean = np.mean(x_train[inputs].values,axis=0)
-    x_std = np.std(x_train[inputs].values,axis=0)
-    training_data = (x_train[inputs]-x_mean)/x_std
-    validation_data = (x_val[inputs]-x_mean)/x_std
-    np.save(f"{output_path}/{name}_{year}/scalers_{name}_{year}_{label}", [x_mean, x_std])
-    return training_data, validation_data
+# def scale_data(inputs, x_train, x_val, df_train, label):
+#     x_mean = np.mean(x_train[inputs].values,axis=0)
+#     x_std = np.std(x_train[inputs].values,axis=0)
+#     training_data = (x_train[inputs]-x_mean)/x_std
+#     validation_data = (x_val[inputs]-x_mean)/x_std
+#     np.save(f"{output_path}/{name}_{year}/scalers_{name}_{year}_{label}", [x_mean, x_std])
+#     return training_data, validation_data
 def scale_data_withweight(inputs, x_train, x_val, df_train, label):
     masked_x_train = np.ma.masked_array(x_train[x_train[inputs]!=-99][inputs], np.isnan(x_train[x_train[inputs]!=-99][inputs]))
     #x_mean = np.average(x_train[inputs].values,axis=0, weights=df_train['training_wgt'].values)
@@ -147,7 +169,7 @@ def scale_data_withweight(inputs, x_train, x_val, df_train, label):
     output_path = args["output_path"]
     print(f"output_path: {output_path}")
     print(f"name: {name}")
-    save_path = f'{output_path}/{name}_{year}'
+    save_path = f'{output_path}/bdt_{name}_{year}'
     print(f"scalar save_path: {save_path}")
     if not os.path.exists(save_path):
         os.makedirs(save_path)
@@ -210,7 +232,7 @@ def classifier_train(df, args):
         # print(f"y_train: {y_train}")
         # print(f"y_val: {y_val}")
         # print(f"y_eval: {y_eval}")
-        print(f"df_train: {df_train.head()}")
+        # print(f"df_train: {df_train.head()}")
         classes = {
             0 : 'dy_M-100To200',
             1 : 'ggh_powheg',
@@ -225,7 +247,7 @@ def classifier_train(df, args):
             df_val.loc[y_val==icls,'cls_avg_wgt'] = df_val.loc[y_val==icls,'wgt_nominal_total'].values.mean()
             df_eval.loc[y_eval==icls,'cls_avg_wgt'] = df_eval.loc[y_eval==icls,'wgt_nominal_total'].values.mean()
             print(f"{train_evts} training events in class {cls}")
-        
+
         # df_train['training_wgt'] = df_train['wgt_nominal_total']/df_train['cls_avg_wgt']
         # df_val['training_wgt'] = df_val['wgt_nominal_total']/df_val['cls_avg_wgt']
         # df_eval['training_wgt'] = df_eval['wgt_nominal_total']/df_eval['cls_avg_wgt']
@@ -301,11 +323,18 @@ def classifier_train(df, args):
             print(f"output_path: {output_path}")
             print(f"name: {name}")
             # save_path = f'{output_path}/{name}_{year}/scalers_{name}_{label}'
-            save_path = f"{output_path}/{name}_{year}/trained_models"
-            if not os.path.exists(save_path):
-                os.makedirs(save_path)
-            fig.savefig(f"{save_path}/test_{label}.png")
-            model.save(f"{save_path}/test_{label}.h5")        
+            local_save_path = f"ouput/dnn_{name}_{year}"
+            if not os.path.exists(local_save_path):
+                os.makedirs(local_save_path)
+            
+            fig.savefig(f"{local_save_path}/test_{label}.png")
+
+            
+          
+            model_save_path = f"{output_path}/dnn_{name}_{year}/"
+            if not os.path.exists(model_save_path):
+                os.makedirs(model_save_path)
+            model.save(f'{model_save_path}/{name}_{eval_label}.h5')        
         if args['bdt']:
             seed = 7
             xp_train = x_train[training_features].values
@@ -336,7 +365,7 @@ def classifier_train(df, args):
             w_train = w_train[shuf_ind_tr]
             w_val = w_val[shuf_ind_val]
             #data_dmatrix = xgb.DMatrix(data=X,label=y)
-                
+            # # original start ---------------------------------------------------------------   
             model = xgb.XGBClassifier(max_depth=4,#for 2018
                                       #max_depth=6,previous value
                                       n_estimators=100000,
@@ -355,8 +384,28 @@ def classifier_train(df, args):
                                       #n_jobs=35,
                                       tree_method='hist')
                                       #tree_method='hist')
-
+            # # original end ---------------------------------------------------------------
+            
+            # AN Model start ---------------------------------------------------------------   
+            # model = xgb.XGBClassifier(max_depth=4,
+            #                           n_estimators=1000,
+            #                           early_stopping_rounds=80, 
+            #                           eval_metric="logloss",
+            #                           #learning_rate=0.001,#for 2018
+            #                           learning_rate=0.1,#previous value
+            #                           #reg_alpha=0.680159426755822,
+            #                           #colsample_bytree=0.47892268305051233,
+            #                           colsample_bytree=0.5,
+            #                           min_child_weight=3,
+            #                           subsample=0.5,
+            #                           #reg_lambda=16.6,
+            #                           #gamma=24.505,
+            #                           #n_jobs=35,
+            #                           tree_method='hist')
+            # AN Model end ---------------------------------------------------------------
+            
             print(model)
+            print(f"negative w_train: {w_train[w_train <0]}")
 
             eval_set = [(xp_train, y_train), (xp_val, y_val)]#Last used
 
@@ -374,7 +423,7 @@ def classifier_train(df, args):
             plt.hist(y_pred_bkg_train, bins=50, alpha=0.5, color='firebrick', label='Training BKG')
 
             ax1.legend(loc="upper right")
-            save_path = f"output/{name}_{year}"
+            save_path = f"output/bdt_{name}_{year}"
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
             fig1.savefig(f"{save_path}/Validation_{label}.png")
@@ -389,7 +438,15 @@ def classifier_train(df, args):
             print("y_pred_______________________________________________________________")
             print("y_pred_______________________________________________________________")
             print(y_val)
-            nn_fpr_xgb, nn_tpr_xgb, nn_thresholds_xgb = roc_curve(y_val.ravel(), y_pred, sample_weight=w_val)
+            # original start ------------------------------------------------------------------------------
+            nn_fpr_xgb, nn_tpr_xgb, nn_thresholds_xgb = roc_curve(y_val.ravel(), y_pred, sample_weight=w_val) 
+            # original end ------------------------------------------------------------------------------
+
+            # test start ------------------------------------------------------------------------------
+            # nn_fpr_xgb, nn_tpr_xgb, nn_thresholds_xgb = roc_curve(y_val.ravel(), y_pred) # test
+            # test end ------------------------------------------------------------------------------
+            
+            np.save(f"test_roc_curve", [y_val.ravel(), y_pred]) 
             print(nn_fpr_xgb)
             print(nn_tpr_xgb)
             print(nn_thresholds_xgb)
@@ -412,7 +469,7 @@ def classifier_train(df, args):
             #plt.plot(nn_fpr_xgb, nn_tpr_xgb, marker='.', label='Neural Network (auc = %0.3f)' % auc_xgb)
             #roc_auc_gus = auc(nn_fpr_xgb,nn_tpr_xgb)
             fig, ax = plt.subplots(1,1)
-            ax.plot(nn_fpr_xgb, nn_tpr_xgb, marker='.', label='Neural Network (auc = %0.3f)' % auc_xgb)
+            ax.plot(nn_fpr_xgb, nn_tpr_xgb, marker='.', label='BDT (auc = %0.3f)' % auc_xgb)
             #ax.plot(nn_fpr_xgb, nn_tpr_xgb, label='Raw ROC curve (area = %0.2f)' % roc_auc)
             #ax.plot(fpr_gus, tpr_gus, label='Gaussian ROC curve (area = %0.2f)' % roc_auc_gus)
             ax.plot([0, 1], [0, 1], 'k--')
@@ -422,15 +479,48 @@ def classifier_train(df, args):
             ax.set_ylabel('True Positive Rate')
             ax.set_title('Receiver operating characteristic')
             ax.legend(loc="lower right")
-            fig.savefig(f"output/{name}_{year}/auc_{label}.png")
+            fig.savefig(f"output/bdt_{name}_{year}/auc_{label}.png")
             plt.clf()
+
+            
+            # Also save ROC curve for evaluation just in case start --------------
+            shuf_ind_eval = np.arange(len(xp_eval))
+            xp_eval = xp_eval[shuf_ind_eval]
+            y_eval = y_eval[shuf_ind_eval]
+            y_eval_pred = model.predict_proba(xp_eval)[:, 1].ravel()
+            nn_fpr_xgb, nn_tpr_xgb, nn_thresholds_xgb = roc_curve(y_eval.ravel(), y_eval_pred)
+            sorted_index = np.argsort(nn_fpr_xgb)
+            fpr_sorted =  np.array(nn_fpr_xgb)[sorted_index]
+            tpr_sorted = np.array(nn_tpr_xgb)[sorted_index]
+            #auc_xgb = auc(nn_fpr_xgb[:-2], nn_tpr_xgb[:-2])
+            auc_xgb = auc(fpr_sorted, tpr_sorted)
+            #auc_xgb = roc_auc_score(y_val, y_pred, sample_weight=w_val)
+            print("The AUC score is:", auc_xgb)
+            #plt.plot(nn_fpr_xgb, nn_tpr_xgb, marker='.', label='Neural Network (auc = %0.3f)' % auc_xgb)
+            #roc_auc_gus = auc(nn_fpr_xgb,nn_tpr_xgb)
+            fig, ax = plt.subplots(1,1)
+            ax.plot(nn_fpr_xgb, nn_tpr_xgb, marker='.', label='eval data BDT (auc = %0.3f)' % auc_xgb)
+            #ax.plot(nn_fpr_xgb, nn_tpr_xgb, label='Raw ROC curve (area = %0.2f)' % roc_auc)
+            #ax.plot(fpr_gus, tpr_gus, label='Gaussian ROC curve (area = %0.2f)' % roc_auc_gus)
+            ax.plot([0, 1], [0, 1], 'k--')
+            ax.set_xlim([0.0, 1.0])
+            ax.set_ylim([0.0, 1.05])
+            ax.set_xlabel('False Positive Rate')
+            ax.set_ylabel('True Positive Rate')
+            ax.set_title('Receiver operating characteristic')
+            ax.legend(loc="lower right")
+            fig.savefig(f"output/bdt_{name}_{year}/eval_auc_{label}.png")
+            plt.clf()
+            # Also save ROC curve for evaluation just in case end --------------
+
+            
             results = model.evals_result()
             print(results.keys())
             plt.plot(results['validation_0']['logloss'], label='train')
             plt.plot(results['validation_1']['logloss'], label='test')
             # show the legend
             plt.legend()
-            plt.savefig(f"output/{name}_{year}/Loss_{label}.png")
+            plt.savefig(f"output/bdt_{name}_{year}/Loss_{label}.png")
 
             feature_important = model.get_booster().get_score(importance_type='gain')
             keys = list(feature_important.keys())
@@ -444,7 +534,7 @@ def classifier_train(df, args):
             #save('weight_val_{label}.npy', df_val['training_wgt'].values)
             output_path = args["output_path"]
             #util.save(history.history, f"output/trained_models/history_{label}_bdt.coffea")            
-            save_path = f"{output_path}/{name}_{year}"
+            save_path = f"{output_path}/bdt_{name}_{year}"
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
             model_fname = (f"{save_path}/{name}_{label}.pkl")
@@ -484,13 +574,15 @@ def evaluation(df, args):
                 eval_folds = [(i+f)%nfolds for f in [3]]
                 
                 eval_filter = df.event.mod(nfolds).isin(eval_folds)
-                
+                eval_label = f"{args['year']}_{args['label']}{eval_folds[0]}"
+                print(f"eval_label: {eval_label}")
                 # scalers_path = f'output/trained_models/scalers_{label}.npy'
                 output_path = args["output_path"]
                 print(f"output_path: {output_path}")
-                scalers_path = f"{output_path}/{name}_{year}/scalers_{name}_{eval_label}.npy"
+                scalers_path = f"{output_path}/dnn_{name}_{year}/scalers_{name}_{eval_label}.npy"
                 scalers = np.load(scalers_path)
-                model_path = f'output/trained_models/test_{label}.h5'
+                # model_path = f'output/trained_models/test_{label}.h5'
+                model_path = f'{output_path}/dnn_{name}_{year}/{name}_{eval_label}.h5'
                 dnn_model = load_model(model_path)
                 df_i = df[eval_filter]
                 #if args['r']!='h-peak':
@@ -499,7 +591,8 @@ def evaluation(df, args):
                 #    df_i['dimuon_mass'] = df_i['dimuon_mass']+mass_shift
 
                 df_i = (df_i[training_features]-scalers[0])/scalers[1]
-                prediction = np.array(dnn_model.predict(df_i)).ravel()
+                print(f"DNN evaluation df_i: {df_i}")
+                prediction = np.array(dnn_model.predict(df_i[training_features])).ravel()
                 df.loc[eval_filter,'dnn_score'] = np.arctanh((prediction))
     if args['bdt']:
         import xgboost as xgb
@@ -528,22 +621,22 @@ def evaluation(df, args):
             # print(f"eval_folds: {eval_folds}")
 
             eval_label = f"{args['year']}_{args['label']}{eval_folds[0]}"
-            # print(f"eval_label: {eval_label}")
+            print(f"eval_label: {eval_label}")
             
             # scalers_path = f"{output_path}/{name}_{year}/scalers_{name}_{eval_label}.npy"
             # start_path = "/depot/cms/hmm/copperhead/trained_models/"
             output_path = args["output_path"]
             print(f"output_path: {output_path}")
-            scalers_path = f"{output_path}/{name}_{year}/scalers_{name}_{eval_label}.npy"
+            scalers_path = f"{output_path}/bdt_{name}_{year}/scalers_{name}_{eval_label}.npy"
 
             print(f"scalers_path: {scalers_path}")
             #scalers_path = f'output/trained_models_nest10000/scalers_{label}.npy'
             scalers = np.load(scalers_path)
 
-            model_path = f"{output_path}/{name}_{year}/{name}_{label}.pkl"
+            model_path = f"{output_path}/bdt_{name}_{year}/{name}_{label}.pkl"
             #model_path = f'output/trained_models_nest10000/BDT_model_earlystop50_{label}.pkl'
             bdt_model = pickle.load(open(model_path, "rb"))
-            print(bdt_model.classes_)
+            print(f"bdt_model.classes_: {bdt_model.classes_}")
             df_i = df[eval_filter]
             #if args['r']!='h-peak':
             #    df_i['dimuon_mass'] = 125.
@@ -563,7 +656,7 @@ def evaluation(df, args):
 
 
             ax1.legend(loc="upper right")
-            save_path = f"output/{name}_{year}"
+            save_path = f"output/bdt_{name}_{year}"
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
             fig1.savefig(f"{save_path}/Validation_{label}.png")
@@ -601,10 +694,10 @@ if __name__ == "__main__":
     year = sysargs.year
     name = sysargs.name
     args = {
-        # "dnn": False,
-        # "bdt": True,
-        "dnn": True,
-        "bdt": False,
+        "dnn": False,
+        "bdt": True,
+        # "dnn": True,
+        # "bdt": False,
         "year": year,
         "name": name,
         "do_massscan": False,
@@ -612,74 +705,41 @@ if __name__ == "__main__":
         "output_path": "/depot/cms/users/yun79/hmm/trained_MVAs",
         "label": ""
     }
+    start_time = time.time()
     client =  Client(n_workers=31,  threads_per_worker=1, processes=True, memory_limit='4 GiB') 
-    # old code start --------------------------------------------------------------------------------------------
-    # #df = pd.read_pickle("/depot/cms/hmm/coffea/training_dataset.pickle")
-    # df = pd.read_pickle(f"/depot/cms/hmm/vscheure/training_dataset_ggHnew_{year}.pickle")
-    # #df = pd.read_pickle("/depot/cms/hmm/purohita/coffea/training_dataset100FromEach_may14.pickle")
-    # #df = pd.read_pickle("/depot/cms/hmm/purohita/coffea/my_training_signal_sample.pickle")
-    # #df = pd.read_pickle("/depot/cms/hmm/purohita/coffea/my_training_sample.pickle")
-    # print(df)
-    # print(df['dataset'].unique())
-    # #df = df[:100000]
-    # #df = df.sample(frac = 0.1)
-    # #df.replace([np.inf, -np.inf], np.nan, inplace=True)
-    # #df = df.dropna()
-    # #df = df.fillna(0)
-    # #print(np.isinf(df).any())
-    # """
-    # for col in training_features:
-    #     print(col)
-    #     print(np.isinf(df[col]).values.sum())
-    #     print(df[col].isnull().sum())
-    # """
-    # #split_into_channels(df, "nominal")
-    # #df["channel"] = df["channel_nominal"]
-   
-    # vbf_filter = (
-    #     (df[f"nBtagLoose_nominal"] < 2) &
-    #     (df[f"nBtagMedium_nominal"] < 1) &
-    #     (df[f"jj_mass_nominal"] > 400) &
-    #     (df[f"jj_dEta_nominal"] > 2.5) &
-    #     (df[f"jet1_pt_nominal"] > 35)
-    # )
-    # df = df[vbf_filter==False]
 
-    # """
-    # ggh_filter = (((df['njets_nominal'] == 0) | 
-    #               ((df['njets_nominal'] == 1) & ((df['jj_mass_nominal'] <= 400) | (df['jj_dEta_nominal'] <= 2.5) | (df['jet1_pt_nominal']< 35))) | 
-    #               ((df['njets_nominal'] >= 2) & ((df['jj_mass_nominal'] <= 400) | (df['jj_dEta_nominal'] <= 2.5) | (df['jet1_pt_nominal']< 35)))
-    #            ) & ((df['dimuon_mass'] > 115) & (df['dimuon_mass'] < 135)))
-    # """
-    # print(df['njets_nominal'])
-    # df['njets_nominal']= df['njets_nominal'].fillna(0)
-    # print(df['njets_nominal'])
-    # ggh_filter = (  (df[f"nBtagLoose_nominal"] < 2) &
-    #                 (df[f"nBtagMedium_nominal"] < 1) &
-    #                 #(df['njets_nominal'] > 0) & #temp for testing
-    #              ((df['dimuon_mass'] > 115) & (df['dimuon_mass'] < 135)))
-    # df = df[ggh_filter]
-    # #print(df.shape)
-    # df['wgt_nominal'] = np.abs(df['wgt_nominal'])
-    # print("aftergghfiletr")
 
-    # df = prepare_dataset(df[df['region']=='h-peak'], training_samples)
-    # old code end --------------------------------------------------------------------------------------------
-
-    # new code start --------------------------------------------------------------------------------------------
-    load_path = "/depot/cms/users/yun79/results/stage1/DNN_test2/2018/f1_0"
-    zip_ggh = dak.from_parquet(load_path+"/ggh_powheg/*/*.parquet")
-    is_vbf = sysargs.is_vbf
-    df_ggh = convert2df(zip_ggh, "ggh_powheg", is_vbf=is_vbf)
-    zip_dy = dak.from_parquet(load_path+"/dy_M-100To200/*/*.parquet")
-    # df_dy = convert2df(zip_dy, "dy_M-100To200", is_vbf=is_vbf)
-    df_dy = convert2df(zip_ggh, "dy_M-100To200", is_vbf=is_vbf)
-    df_total = pd.concat([df_ggh,df_dy],ignore_index=True)
-    # print(f"df_total b4 shuffle: {df_total}")
     
+    load_path = "/depot/cms/users/yun79/results/stage1/DNN_test2/2018/f1_0"
+    sample_l = training_samples["background"] + training_samples["signal"]
+    # old code start --------------------------------------------------------------------------------------------
+    # zip_ggh = dak.from_parquet(load_path+"/ggh_powheg/*/*.parquet")
+    # is_vbf = sysargs.is_vbf
+    # df_ggh = convert2df(zip_ggh, "ggh_powheg", is_vbf=is_vbf)
+    # zip_dy = dak.from_parquet(load_path+"/dy_M-100To200/*/*.parquet")
+
+    
+    # # df_dy = convert2df(zip_dy, "dy_M-100To200", is_vbf=is_vbf) # for full run
+    # df_dy = convert2df(zip_ggh, "dy_M-100To200", is_vbf=is_vbf) # for quick test
+
+    
+    
+    
+    # df_total = pd.concat([df_ggh,df_dy],ignore_index=True)
+    # old code end --------------------------------------------------------------------------------------------
+    # new code start --------------------------------------------------------------------------------------------
+    df_l = []
+    print(f"sample_l: {sample_l}")
+    for sample in sample_l:
+        zip_sample = dak.from_parquet(load_path+f"/{sample}/*/*.parquet")
+        is_vbf = sysargs.is_vbf
+        df_sample = convert2df(zip_sample, sample, is_vbf=is_vbf)
+        df_l.append(df_sample)
+    df_total = pd.concat(df_l,ignore_index=True)   
+    # new code end --------------------------------------------------------------------------------------------
     # apply random shuffle, so that signal and bkg samples get mixed up well
     df_total = df_total.sample(frac=1, random_state=123)
-    print(f"df_total after shuffle: {df_total}")
+    # print(f"df_total after shuffle: {df_total}")
     
     print(f"len(df_dy.index): {len(df_dy.index)}")
     print(f"len(df_ggh.index): {len(df_ggh.index)}")
@@ -688,9 +748,11 @@ if __name__ == "__main__":
     # print(f"df_total: {df_total}")
     print("starting prepare_dataset")
     df_total = prepare_dataset(df_total, training_samples)
+    df_total.to_csv("test.csv")
+    raise ValueError
     print("prepare_dataset done")
     # raise ValueError
-    # new code end --------------------------------------------------------------------------------------------
+    
     #print(df["class"])
     #print([ x for x in df.columns if "nominal" in x])
     # print(df[df['dataset']=="dy_M-100To200"])
@@ -700,6 +762,7 @@ if __name__ == "__main__":
     evaluation(df_total, args)
     #df.to_pickle('/depot/cms/hmm/purohita/coffea/eval_dataset.pickle')
     #print(df)
-    
+    runtime = int(time.time()-start_time)
+    print(f"run time is {runtime} seconds")
 
 
