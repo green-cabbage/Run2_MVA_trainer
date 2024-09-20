@@ -15,6 +15,92 @@ import os
 import coffea.util as util
 import time
 
+def get6_5(label, pred, weight, save_path:str, name: str):
+    # seperate signal and background
+    binning = np.linspace(start=0,stop=1, num=60) 
+    bkg_filter = (label ==0)
+    bkg_pred = pred[bkg_filter]
+    bkg_wgt = weight[bkg_filter]
+    bkg_wgt = bkg_wgt / np.sum(bkg_wgt) # normalize
+    bkg_hist, edges = np.histogram(bkg_pred, bins=binning, weights=bkg_wgt)
+    sig_filter = (label ==1)
+    sig_pred = pred[sig_filter]
+    sig_wgt = weight[sig_filter]
+    sig_wgt = sig_wgt / np.sum(sig_wgt) # normalize
+    sig_hist, _ = np.histogram(sig_pred, bins=binning, weights=sig_wgt)
+    plt.stairs(bkg_hist, edges, label = "background")
+    plt.stairs(sig_hist, edges, label = "signal")
+    plt.xlabel('BDT Score')
+    plt.legend()
+    plt.savefig(f"{save_path}/6_5_{name}.png")
+    plt.clf()
+    
+    
+
+def customROC_curve_AN(label, pred, weight):
+    """
+    generates signal and background efficiency consistent with the AN,
+    as described by Fig 4.6 of Dmitry's PhD thesis
+    """
+    # we assume sigmoid output with labels 0 = background, 1 = signal
+    thresholds = np.linspace(start=0,stop=1, num=500) 
+    effBkg_total = -99*np.ones_like(thresholds) # effBkg = false positive rate
+    effSig_total = -99*np.ones_like(thresholds) # effSig = true positive rate
+    for ix in range(len(thresholds)):
+        threshold = thresholds[ix]
+        # get FP and TP
+        positive_filter = (pred > threshold)
+        falsePositive_filter = positive_filter & (label == 0)
+        FP = np.sum(weight[falsePositive_filter])#  FP = false positive
+        truePositive_filter = positive_filter & (label == 1)
+        TP = np.sum(weight[truePositive_filter])#  TP = true positive
+        
+
+        # get TN and FN
+        negative_filter = (pred <= threshold) # just picked negative to be <=
+        trueNegative_filter = negative_filter & (label == 0)
+        TN = np.sum(weight[trueNegative_filter])#  TN = true negative
+        falseNegative_filter = negative_filter & (label == 1)
+        FN = np.sum(weight[falseNegative_filter])#  FN = false negative
+
+        
+
+        # effBkg = TN / (FN + TN)
+        # effSig = TP / (TP + FP)
+        # effBkg = TN / (FP + TN)
+        # effSig = TP / (TP + FN)
+        effBkg = TN / (TN + FP)
+        effSig = FN / (FN + TP)
+        effBkg_total[ix] = effBkg
+        effSig_total[ix] = effSig
+
+        # print(f"ix: {ix}") 
+        # print(f"threshold: {threshold}")
+        # print(f"effBkg: {effBkg}")
+        # print(f"effSig: {effSig}")
+        
+        
+        # sanity check
+        assert ((np.sum(positive_filter) + np.sum(negative_filter)) == len(pred))
+        total_yield = FP + TP + FN + TN
+        assert(np.isclose(total_yield, np.sum(weight)))
+        # print(f"total_yield: {total_yield}")
+        # print(f"np.sum(weight): {np.sum(weight)}")
+    
+    # print(f"np.sum(effBkg_total ==-99) : {np.sum(effBkg_total ==-99)}")
+    # print(f"np.sum(effSig_total ==-99) : {np.sum(effSig_total ==-99)}")
+    # neither_zeroNorOne = ~((label == 0) | (label == 1))
+    # print(f"np.sum(neither_zeroNorOne) : {np.sum(neither_zeroNorOne)}")
+    effBkg_total[np.isnan(effBkg_total)] = 1
+    effSig_total[np.isnan(effSig_total)] = 1
+    # print(f"effBkg_total: {effBkg_total}")
+    # print(f"effSig_total: {effSig_total}")
+    # print(f"thresholds: {thresholds}")
+    # raise ValueError
+    return (effBkg_total, effSig_total, thresholds)
+
+
+
 #training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_ebe_mass_res', 'dimuon_ebe_mass_res_rel', 'dimuon_eta', 'dimuon_mass', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta nominal', 'jet1_phi nominal', 'jet1_pt nominal', 'jet1_qgl nominal', 'jet2_eta nominal', 'jet2_phi nominal', 'jet2_pt nominal', 'jet2_qgl nominal', 'jj_dEta nominal', 'jj_dPhi nominal', 'jj_eta nominal', 'jj_mass nominal', 'jj_mass_log nominal', 'jj_phi nominal', 'jj_pt nominal', 'll_zstar_log nominal', 'mmj1_dEta nominal', 'mmj1_dPhi nominal', 'mmj2_dEta nominal', 'mmj2_dPhi nominal', 'mmj_min_dEta nominal', 'mmj_min_dPhi nominal', 'mmjj_eta nominal', 'mmjj_mass nominal', 'mmjj_phi nominal', 'mmjj_pt nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt', 'mu2_pt_over_mass', 'zeppenfeld nominal']
 #training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_eta', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta_nominal', 'jet1_phi_nominal', 'jet1_pt_nominal', 'jet1_qgl_nominal', 'jet2_eta_nominal', 'jet2_phi_nominal', 'jet2_pt_nominal', 'jet2_qgl_nominal', 'jj_dEta_nominal', 'jj_dPhi_nominal', 'jj_eta_nominal', 'jj_mass_nominal', 'jj_mass_log_nominal', 'jj_phi_nominal', 'jj_pt_nominal', 'll_zstar_log_nominal', 'mmj1_dEta_nominal', 'mmj1_dPhi_nominal', 'mmj2_dEta_nominal', 'mmj2_dPhi_nominal', 'mmj_min_dEta_nominal', 'mmj_min_dPhi_nominal', 'mmjj_eta_nominal', 'mmjj_mass_nominal', 'mmjj_phi_nominal', 'mmjj_pt_nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt_over_mass', 'zeppenfeld_nominal']
 
@@ -142,7 +228,7 @@ def prepare_dataset(df, ds_dict):
     # with open("df2.txt", "w") as f:
     #     print(df[columns2], file=f)
     # print(df[df['dataset']=="ggh_powheg"].head)
-    print(f"prepare_dataset df: {df["dataset","class_name", "iclass"]}")
+    # print(f"prepare_dataset df: {df["dataset","class"]}")
     return df
 
 # def scale_data(inputs, x_train, x_val, df_train, label):
@@ -233,6 +319,7 @@ def classifier_train(df, args):
         # print(f"y_val: {y_val}")
         # print(f"y_eval: {y_eval}")
         # print(f"df_train: {df_train.head()}")
+        # TODO: fix this!
         classes = {
             0 : 'dy_M-100To200',
             1 : 'ggh_powheg',
@@ -347,14 +434,29 @@ def classifier_train(df, args):
             w_train = df_train['training_wgt'].values
             w_val = df_val['training_wgt'].values
             w_eval = df_eval['training_wgt'].values
+
+            weight_nom_train = df_train['wgt_nominal_total'].values
+            weight_nom_val = df_val['wgt_nominal_total'].values
+            weight_nom_eval = df_eval['wgt_nominal_total'].values
+            
             shuf_ind_tr = np.arange(len(xp_train))
             np.random.shuffle(shuf_ind_tr)
             shuf_ind_val = np.arange(len(xp_val))
             np.random.shuffle(shuf_ind_val)
+            shuf_ind_eval = np.arange(len(xp_eval))
+            np.random.shuffle(shuf_ind_eval)
             xp_train = xp_train[shuf_ind_tr]
             xp_val = xp_val[shuf_ind_val]
             y_train = y_train[shuf_ind_tr]
             y_val = y_val[shuf_ind_val]
+
+            
+            xp_eval = xp_eval[shuf_ind_eval]
+            y_eval = y_eval[shuf_ind_eval]
+
+            weight_nom_train = weight_nom_train[shuf_ind_tr]
+            weight_nom_val = weight_nom_val[shuf_ind_val]
+            weight_nom_eval = weight_nom_eval[shuf_ind_eval]
             #print(np.isnan(xp_train).any())
             #print(np.isnan(y_train).any())
             #print(np.isinf(xp_train).any())
@@ -366,29 +468,10 @@ def classifier_train(df, args):
             w_val = w_val[shuf_ind_val]
             #data_dmatrix = xgb.DMatrix(data=X,label=y)
             # # original start ---------------------------------------------------------------   
-            model = xgb.XGBClassifier(max_depth=4,#for 2018
-                                      #max_depth=6,previous value
-                                      n_estimators=100000,
-                                      #n_estimators=100,
-                                      early_stopping_rounds=80, 
-                                      eval_metric="logloss",
-                                      #learning_rate=0.001,#for 2018
-                                      learning_rate=0.1,#previous value
-                                      #reg_alpha=0.680159426755822,
-                                      #colsample_bytree=0.47892268305051233,
-                                      colsample_bytree=0.5,
-                                      min_child_weight=3,
-                                      subsample=0.5,
-                                      #reg_lambda=16.6,
-                                      #gamma=24.505,
-                                      #n_jobs=35,
-                                      tree_method='hist')
-                                      #tree_method='hist')
-            # # original end ---------------------------------------------------------------
-            
-            # AN Model start ---------------------------------------------------------------   
-            # model = xgb.XGBClassifier(max_depth=4,
-            #                           n_estimators=1000,
+            # model = xgb.XGBClassifier(max_depth=4,#for 2018
+            #                           #max_depth=6,previous value
+            #                           n_estimators=100000,
+            #                           #n_estimators=100,
             #                           early_stopping_rounds=80, 
             #                           eval_metric="logloss",
             #                           #learning_rate=0.001,#for 2018
@@ -402,7 +485,42 @@ def classifier_train(df, args):
             #                           #gamma=24.505,
             #                           #n_jobs=35,
             #                           tree_method='hist')
+            #                           #tree_method='hist')
+            # # original end ---------------------------------------------------------------
+            
+            # AN Model start ---------------------------------------------------------------   
+            # model = xgb.XGBClassifier(max_depth=4,
+            #                           n_estimators=1000, # number of trees
+            #                           early_stopping_rounds=80, 
+            #                           eval_metric="logloss", # cross entropy
+            #                           learning_rate=0.1,# shrinkage?
+            #                           #reg_alpha=0.680159426755822,
+            #                           #colsample_bytree=0.47892268305051233,
+            #                           colsample_bytree=0.5,
+            #                           min_child_weight=3,
+            #                           subsample=0.5, # Bagged sample fraction ?
+            #                           #reg_lambda=16.6,
+            #                           #gamma=24.505,
+            #                           #n_jobs=35,
+            #                           tree_method='hist')
             # AN Model end ---------------------------------------------------------------
+
+            # AN Model new start ---------------------------------------------------------------   
+            model = xgb.XGBClassifier(max_depth=4,
+                                      n_estimators=1000, # number of trees
+                                      early_stopping_rounds=15, 
+                                      eval_metric="logloss", # cross entropy
+                                      learning_rate=0.1,# shrinkage?
+                                      #reg_alpha=0.680159426755822,
+                                      #colsample_bytree=0.47892268305051233,
+                                      # colsample_bytree=0.5,
+                                      # min_child_weight=3,
+                                      subsample=0.5, # Bagged sample fraction ?
+                                      #reg_lambda=16.6,
+                                      #gamma=24.505,
+                                      #n_jobs=35,
+                                      tree_method='hist')
+            # AN Model new end ---------------------------------------------------------------
             
             print(model)
             print(f"negative w_train: {w_train[w_train <0]}")
@@ -430,6 +548,7 @@ def classifier_train(df, args):
             
             y_pred = model.predict_proba(xp_val)[:, 1].ravel()
             y_pred_train = model.predict_proba(xp_train)[:, 1].ravel()
+            y_eval_pred = model.predict_proba(xp_eval)[:, 1].ravel()
             print("y_pred_______________________________________________________________")
             print("y_pred_______________________________________________________________")
             print("y_pred_______________________________________________________________")
@@ -482,12 +601,41 @@ def classifier_train(df, args):
             fig.savefig(f"output/bdt_{name}_{year}/auc_{label}.png")
             plt.clf()
 
+            # superimposed log ROC start --------------------------------------------------------------------------
+            eff_bkg_train, eff_sig_train, thresholds_train = customROC_curve_AN(y_train.ravel(), y_pred_train, weight_nom_train)
+            eff_bkg_val, eff_sig_val, thresholds_val = customROC_curve_AN(y_val.ravel(), y_pred, weight_nom_val)
+            eff_bkg_eval, eff_sig_eval, thresholds_eval = customROC_curve_AN(y_eval.ravel(), y_eval_pred, weight_nom_eval)
+            plt.plot(eff_sig_train, eff_bkg_train, label="Stage2 ROC Curve (Train)")
+            plt.plot(eff_sig_val, eff_bkg_val, label="Stage2 ROC Curve (Val)")
+            plt.plot(eff_sig_eval, eff_bkg_eval, label="Stage2 ROC Curve (Eval)")
+            # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
+            plt.vlines(np.linspace(0,1,11), 0, 1, linestyle="dashed", color="grey")
+            plt.hlines(np.logspace(-4,0,5), 0, 1, linestyle="dashed", color="grey")
+            # plt.hlines(eff_bkg, 0, eff_sig, linestyle="dashed")
+            plt.xlim([0.0, 1.0])
+            # plt.ylim([0.0, 1.0])
+            plt.xlabel('Signal eff')
+            plt.ylabel('Background eff')
+            plt.yscale("log")
+            plt.ylim([0.0001, 1.0])
+            
+            plt.legend(loc="lower right")
+            plt.title(f'ROC curve for ggH BDT {year}')
+            fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}.png")
+            plt.clf()
+            # superimposed log ROC end --------------------------------------------------------------------------
+            
+            # do fig 6.5 start --------------------------------------------------------------
+            save_path = f"output/bdt_{name}_{year}" 
+            get6_5(y_eval.ravel(), y_eval_pred, weight_nom_eval, save_path, f"eval_{label}")
+            get6_5(y_val.ravel(), y_pred, weight_nom_val, save_path, f"val_{label}")
+            # do fig 6.5 end --------------------------------------------------------------
             
             # Also save ROC curve for evaluation just in case start --------------
-            shuf_ind_eval = np.arange(len(xp_eval))
-            xp_eval = xp_eval[shuf_ind_eval]
-            y_eval = y_eval[shuf_ind_eval]
-            y_eval_pred = model.predict_proba(xp_eval)[:, 1].ravel()
+            # shuf_ind_eval = np.arange(len(xp_eval))
+            # xp_eval = xp_eval[shuf_ind_eval]
+            # y_eval = y_eval[shuf_ind_eval]
+            # y_eval_pred = model.predict_proba(xp_eval)[:, 1].ravel()
             nn_fpr_xgb, nn_tpr_xgb, nn_thresholds_xgb = roc_curve(y_eval.ravel(), y_eval_pred)
             sorted_index = np.argsort(nn_fpr_xgb)
             fpr_sorted =  np.array(nn_fpr_xgb)[sorted_index]
@@ -741,15 +889,11 @@ if __name__ == "__main__":
     df_total = df_total.sample(frac=1, random_state=123)
     # print(f"df_total after shuffle: {df_total}")
     
-    print(f"len(df_dy.index): {len(df_dy.index)}")
-    print(f"len(df_ggh.index): {len(df_ggh.index)}")
-    del df_ggh # delete redundant df to save memory. Not sure if this is necessary
-    del df_dy # delete redundant df to save memory. Not sure if this is necessary
+
+    del df_l # delete redundant df to save memory. Not sure if this is necessary
     # print(f"df_total: {df_total}")
     print("starting prepare_dataset")
     df_total = prepare_dataset(df_total, training_samples)
-    df_total.to_csv("test.csv")
-    raise ValueError
     print("prepare_dataset done")
     # raise ValueError
     
