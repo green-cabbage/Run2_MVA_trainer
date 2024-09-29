@@ -107,7 +107,54 @@ def customROC_curve_AN(label, pred, weight):
 # training_features = ['dimuon_cos_theta_cs', 'dimuon_eta', 'dimuon_phi_cs', 'dimuon_pt', 'jet1_eta', 'jet1_pt', 'jet2_eta', 'jet2_pt', 'jj_dEta', 'jj_dPhi', 'jj_mass', 'mmj1_dEta', 'mmj1_dPhi',  'mmj_min_dEta', 'mmj_min_dPhi', 'mu1_eta', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_pt_over_mass', 'zeppenfeld', 'njets']  # AN 19-124
 
 
-training_features = ['dimuon_cos_theta_cs', 'dimuon_eta', 'dimuon_phi_cs', 'dimuon_pt', 'jet1_eta', 'jet1_pt', 'jet2_eta', 'jet2_pt', 'jj_dEta', 'jj_dPhi', 'jj_mass', 'mmj1_dEta', 'mmj1_dPhi',  'mmj_min_dEta', 'mmj_min_dPhi', 'mu1_eta', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_pt_over_mass', 'zeppenfeld', 'njets', "jet1_qgl", "jet2_qgl"] 
+# training_features = ['dimuon_cos_theta_cs', 'dimuon_eta', 'dimuon_phi_cs', 'dimuon_pt', 'jet1_eta', 'jet1_pt', 'jet2_eta', 'jet2_pt', 'jj_dEta', 'jj_dPhi', 'jj_mass', 'mmj1_dEta', 'mmj1_dPhi',  'mmj_min_dEta', 'mmj_min_dPhi', 'mu1_eta', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_pt_over_mass', 'zeppenfeld', 'njets', "jet1_qgl", "jet2_qgl"] 
+
+# features exactly matching BDT from AN
+training_features = [
+    'dimuon_pt', 
+    'dimuon_rapidity',
+    'dimuon_cos_theta_cs', 
+    'dimuon_phi_cs', 
+    'mu1_pt_over_mass', 
+    'mu1_eta', 
+    'mu2_pt_over_mass', 
+    'mu2_eta', 
+    'jet1_eta', 
+    'jet1_pt', 
+    'jet2_pt', 
+    'mmj1_dEta', 
+    'mmj1_dPhi',  
+    'jj_dEta', 
+    'jj_dPhi', 
+    'jj_mass', 
+    'zeppenfeld', 
+    'mmj_min_dEta', 
+    'mmj_min_dPhi', 
+    'njets'
+]  # WgtON_original_AN_BDT_Sept27
+
+training_features = [
+    'dimuon_pt', 
+    'dimuon_cos_theta_cs', 
+    'dimuon_phi_cs', 
+    'mu1_pt_over_mass', 
+    'mu1_eta', 
+    'mu2_pt_over_mass', 
+    'mu2_eta', 
+    'jet1_eta', 
+    'jet1_pt', 
+    'jet2_pt', 
+    'mmj1_dEta', 
+    'mmj1_dPhi',  
+    'jj_dEta', 
+    'jj_dPhi', 
+    'jj_mass', 
+    'zeppenfeld', 
+    'mmj_min_dEta', 
+    'mmj_min_dPhi', 
+    'njets'
+]  # WgtON_original_AN_BDT_noDimuRap_Sept27
+
 
 
 #training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_eta', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta_nominal', 'jet1_phi_nominal', 'jet1_pt_nominal', 'jet2_eta_nominal', 'jet2_phi_nominal', 'jet2_pt_nominal',  'jj_dEta_nominal', 'jj_dPhi_nominal', 'jj_eta_nominal', 'jj_mass_nominal', 'jj_mass_log_nominal', 'jj_phi_nominal', 'jj_pt_nominal', 'll_zstar_log_nominal', 'mmj1_dEta_nominal', 'mmj1_dPhi_nominal', 'mmj2_dEta_nominal', 'mmj2_dPhi_nominal', 'mmj_min_dEta_nominal', 'mmj_min_dPhi_nominal', 'mmjj_eta_nominal', 'mmjj_mass_nominal', 'mmjj_phi_nominal', 'mmjj_pt_nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt_over_mass', 'zeppenfeld_nominal']
@@ -151,12 +198,18 @@ def convert2df(dak_zip, dataset: str, is_vbf=False):
     ggH production mode
     """
     # filter out arrays not in h_peak
-    is_hpeak = dak_zip.h_peak
-    vbf_cut = ak.fill_none(dak_zip.vbf_cut, value=False)
+    is_hpeak = dak_zip.h_peak # line 1169 of the AN: when training, we apply a tigher cut
+    print(f"convert2df is_hpeak:{is_hpeak}")
+    # not entirely sure if this is what we use for ROC curve, however
+    # vbf_cut = ak.fill_none(dak_zip.vbf_cut, value=False)
+    vbf_cut = (dak_zip.jj_mass > 400) & (dak_zip.jj_dEta > 2.5) 
+    vbf_cut = ak.fill_none(vbf_cut, value=False)
+    
     if is_vbf: # VBF
-        prod_cat_cut =  vbf_cut
+        prod_cat_cut =  vbf_cut & dak_zip.jet1_pt > 35
     else: # ggH
         prod_cat_cut =  ~vbf_cut
+        
     btag_cut = ak.fill_none((dak_zip.nBtagLoose >= 2), value=False) | ak.fill_none((dak_zip.nBtagMedium >= 1), value=False)
     
     category_selection = (
@@ -165,8 +218,32 @@ def convert2df(dak_zip, dataset: str, is_vbf=False):
         ~btag_cut # btag cut is for VH and ttH categories
     )
     computed_zip = dak_zip[category_selection].compute()
+
+    # recalculate BDT variables that you're not certain is up to date from stage 1 start -----------------
+    min_dEta_filter  = ak.fill_none((computed_zip.mmj1_dEta < computed_zip.mmj2_dEta), value=True)
+    computed_zip["mmj_min_dEta"]  = ak.where(
+        min_dEta_filter,
+        computed_zip.mmj1_dEta,
+        computed_zip.mmj2_dEta,
+    )
+    min_dPhi_filter = ak.fill_none((computed_zip.mmj1_dPhi < computed_zip.mmj2_dPhi), value=True)
+    computed_zip["mmj_min_dPhi"] = ak.where(
+        min_dPhi_filter,
+        computed_zip.mmj1_dPhi,
+        computed_zip.mmj2_dPhi,
+    )
+    # recalculate BDT variables that you're not certain is up to date from stage 1 end -----------------
     df = ak.to_dataframe(computed_zip)
-    df.fillna(-99,inplace=True)
+
+    # make sure to replace nans with zeros,  unless it's delta phis, in which case it's -1, as specified in line 1117 of the AN
+    dPhis = [] # collect all dPhi features
+    for field in df.columns:
+        if "dPhi" in field:
+            dPhis.append(field)
+    print(f"dPhis: {dPhis}")
+    # fill none values in dPhis with -1, then 0 for rest
+    df.fillna({field: -1 for field in dPhis},inplace=True)
+    df.fillna(0,inplace=True)
     # add columns
     df["dataset"] = dataset 
     df["cls_avg_wgt"] = -1.0
@@ -206,19 +283,16 @@ def prepare_dataset(df, ds_dict):
 
     # apply dimuon_ebe_mass_res to the weights
     # original start -----------------------------------------------
-    df.loc[df['dataset']=="ggh_powheg",'wgt_nominal_total'] = np.divide(df[df['dataset']=="ggh_powheg"]['wgt_nominal_total'], df[df['dataset']=="ggh_powheg"]['dimuon_ebe_mass_res'])
-    df.loc[df['dataset']=="vbf_powheg",'wgt_nominal_total'] = np.divide(df[df['dataset']=="vbf_powheg"]['wgt_nominal_total'], df[df['dataset']=="vbf_powheg"]['dimuon_ebe_mass_res'])
-    # original end -----------------------------------------------
-
-    # test start -----------------------------------------------
-    # is_signal = df['dataset']=="ggh_powheg"
-    # df.loc[is_signal,'wgt_nominal_total'] = np.divide(1, df[df['dataset']=="ggh_powheg"]['dimuon_ebe_mass_res'])
-    # df.loc[~is_signal,'wgt_nominal_total'] = 1
-    # # print(f"df[wgt_nominal_total]: {df['wgt_nominal_total']}")
-    # test end -----------------------------------------------
-
+    # df.loc[df['dataset']=="ggh_powheg",'wgt_nominal_total'] = np.divide(df[df['dataset']=="ggh_powheg"]['wgt_nominal_total'], df[df['dataset']=="ggh_powheg"]['dimuon_ebe_mass_res'])
+    # df.loc[df['dataset']=="vbf_powheg",'wgt_nominal_total'] = np.divide(df[df['dataset']=="vbf_powheg"]['wgt_nominal_total'], df[df['dataset']=="vbf_powheg"]['dimuon_ebe_mass_res'])
     
-    df.fillna(-99,inplace=True)
+    # initialze the training wgts
+    df["training_wgt"] = df["wgt_nominal_total"]
+    # multiply by dimuon mass resolutions if signal
+    df.loc[df['dataset']=="ggh_powheg",'training_wgt'] = np.divide(df[df['dataset']=="ggh_powheg"]['training_wgt'], df[df['dataset']=="ggh_powheg"]['dimuon_ebe_mass_res'])
+    df.loc[df['dataset']=="vbf_powheg",'training_wgt'] = np.divide(df[df['dataset']=="vbf_powheg"]['training_wgt'], df[df['dataset']=="vbf_powheg"]['dimuon_ebe_mass_res']) 
+    # original end -----------------------------------------------
+    
     #print(df.head)
     columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
     columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta','jet2_pt']
@@ -238,16 +312,36 @@ def prepare_dataset(df, ds_dict):
 #     validation_data = (x_val[inputs]-x_mean)/x_std
 #     np.save(f"{output_path}/{name}_{year}/scalers_{name}_{year}_{label}", [x_mean, x_std])
 #     return training_data, validation_data
+# def scale_data_withweight(inputs, x_train, x_val, df_train, label):
+#     masked_x_train = np.ma.masked_array(x_train[x_train[inputs]!=-99][inputs], np.isnan(x_train[x_train[inputs]!=-99][inputs]))
+#     #x_mean = np.average(x_train[inputs].values,axis=0, weights=df_train['training_wgt'].values)
+#     x_mean = np.average(masked_x_train,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
+#     #x_std = np.std(x_train[inputs].values,axis=0)
+#     #masked_x_std = np.ma.masked_array(x_train[x_train[inputs]!=-99][inputs], np.isnan(x_train[x_train[inputs]!=-99][inputs]))
+#     #x_std = np.average((x_train[inputs].values-x_mean)**2,axis=0, weights=df_train['training_wgt'].values)
+#     x_std = np.average((masked_x_train-x_mean)**2,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
+#     sumw2 = (df_train['training_wgt']**2).sum()
+#     sumw = df_train['training_wgt'].sum()
+    
+#     x_std = np.sqrt(x_std/(1-sumw2/sumw**2))
+#     training_data = (x_train[inputs]-x_mean)/x_std
+#     validation_data = (x_val[inputs]-x_mean)/x_std
+#     output_path = args["output_path"]
+#     print(f"output_path: {output_path}")
+#     print(f"name: {name}")
+#     save_path = f'{output_path}/bdt_{name}_{year}'
+#     print(f"scalar save_path: {save_path}")
+#     if not os.path.exists(save_path):
+#         os.makedirs(save_path)
+#     np.save(save_path + f"/scalers_{name}_{label}", [x_mean, x_std]) #label contains year
+#     return training_data, validation_data
+
 def scale_data_withweight(inputs, x_train, x_val, df_train, label):
     masked_x_train = np.ma.masked_array(x_train[x_train[inputs]!=-99][inputs], np.isnan(x_train[x_train[inputs]!=-99][inputs]))
-    #x_mean = np.average(x_train[inputs].values,axis=0, weights=df_train['training_wgt'].values)
-    x_mean = np.average(masked_x_train,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
-    #x_std = np.std(x_train[inputs].values,axis=0)
-    #masked_x_std = np.ma.masked_array(x_train[x_train[inputs]!=-99][inputs], np.isnan(x_train[x_train[inputs]!=-99][inputs]))
-    #x_std = np.average((x_train[inputs].values-x_mean)**2,axis=0, weights=df_train['training_wgt'].values)
-    x_std = np.average((masked_x_train-x_mean)**2,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
-    sumw2 = (df_train['training_wgt']**2).sum()
-    sumw = df_train['training_wgt'].sum()
+    x_mean = np.average(masked_x_train,axis=0, weights=df_train['wgt_nominal_total'].values).filled(np.nan)
+    x_std = np.average((masked_x_train-x_mean)**2,axis=0, weights=df_train['wgt_nominal_total'].values).filled(np.nan)
+    sumw2 = (df_train['wgt_nominal_total']**2).sum()
+    sumw = df_train['wgt_nominal_total'].sum()
     
     x_std = np.sqrt(x_std/(1-sumw2/sumw**2))
     training_data = (x_train[inputs]-x_mean)/x_std
@@ -262,7 +356,8 @@ def scale_data_withweight(inputs, x_train, x_val, df_train, label):
     np.save(save_path + f"/scalers_{name}_{label}", [x_mean, x_std]) #label contains year
     return training_data, validation_data
 
-def classifier_train(df, args):
+
+def classifier_train(df, args, training_samples):
     if args['dnn']:
         from tensorflow.keras.models import Model
         from tensorflow.keras.layers import Dense, Activation, Input, Dropout, Concatenate, Lambda, BatchNormalization
@@ -319,14 +414,17 @@ def classifier_train(df, args):
         # print(f"y_val: {y_val}")
         # print(f"y_eval: {y_eval}")
         # print(f"df_train: {df_train.head()}")
-        # TODO: fix this!
+        
+        # original start -------------------------------------------------------
         classes = {
-            0 : 'dy_M-100To200',
-            1 : 'ggh_powheg',
+            # 0 : 'dy_M-100To200',
+            # 1 : 'ggh_powheg',
+            0 : 'background',
+            1 : 'signal',
         }
         print(f"classes: {classes}")
         # for icls, cls in enumerate(classes):
-        # original start -------------------------------------------------------
+        
         for icls, cls in classes.items():
             print(f"icls: {icls}")
             train_evts = len(y_train[y_train==icls])
@@ -334,22 +432,23 @@ def classifier_train(df, args):
             df_val.loc[y_val==icls,'cls_avg_wgt'] = df_val.loc[y_val==icls,'wgt_nominal_total'].values.mean()
             df_eval.loc[y_eval==icls,'cls_avg_wgt'] = df_eval.loc[y_eval==icls,'wgt_nominal_total'].values.mean()
             print(f"{train_evts} training events in class {cls}")
-
+        # original end -------------------------------------------------------
+        # test start -------------------------------------------------------
+        # bkg_l = training_samples["background"]
+        # sig_l = training_samples["signal"]
+        
+        # df_train.loc[filter, "training_wgt"] = df_train.loc[filter,"training_wgt"]/df_train.loc[filter,"cls_avg_wgt"]
+        # test end -------------------------------------------------------
+        
         # df_train['training_wgt'] = df_train['wgt_nominal_total']/df_train['cls_avg_wgt']
         # df_val['training_wgt'] = df_val['wgt_nominal_total']/df_val['cls_avg_wgt']
         # df_eval['training_wgt'] = df_eval['wgt_nominal_total']/df_eval['cls_avg_wgt']
-        df_train.loc[:,'training_wgt'] = df_train['wgt_nominal_total']/df_train['cls_avg_wgt']
-        df_val.loc[:,'training_wgt'] = df_val['wgt_nominal_total']/df_val['cls_avg_wgt']
-        df_eval.loc[:,'training_wgt'] = df_eval['wgt_nominal_total']/df_eval['cls_avg_wgt']
-        # original end -------------------------------------------------------
+        df_train.loc[:,'training_wgt'] = df_train['training_wgt']/df_train['cls_avg_wgt']
+        df_val.loc[:,'training_wgt'] = df_val['training_wgt']/df_val['cls_avg_wgt']
+        df_eval.loc[:,'training_wgt'] = df_eval['training_wgt']/df_eval['cls_avg_wgt']
+        
 
-        # test start -------------------------------------------------------
-        # # just take the wgt_nominal_total values 
-        # df_train.loc[:,'training_wgt'] = df_train['wgt_nominal_total']
-        # df_val.loc[:,'training_wgt'] = df_val['wgt_nominal_total']
-        # df_eval.loc[:,'training_wgt'] = df_eval['wgt_nominal_total']
-        # test end -------------------------------------------------------
-
+        
         
         # scale data
         #x_train, x_val = scale_data(training_features, x_train, x_val, df_train, label)#Last used
@@ -565,7 +664,7 @@ def classifier_train(df, args):
             # nn_fpr_xgb, nn_tpr_xgb, nn_thresholds_xgb = roc_curve(y_val.ravel(), y_pred) # test
             # test end ------------------------------------------------------------------------------
             
-            np.save(f"test_roc_curve", [y_val.ravel(), y_pred]) 
+            # np.save(f"test_roc_curve", [y_val.ravel(), y_pred]) 
             print(nn_fpr_xgb)
             print(nn_tpr_xgb)
             print(nn_thresholds_xgb)
@@ -605,9 +704,10 @@ def classifier_train(df, args):
             eff_bkg_train, eff_sig_train, thresholds_train = customROC_curve_AN(y_train.ravel(), y_pred_train, weight_nom_train)
             eff_bkg_val, eff_sig_val, thresholds_val = customROC_curve_AN(y_val.ravel(), y_pred, weight_nom_val)
             eff_bkg_eval, eff_sig_eval, thresholds_eval = customROC_curve_AN(y_eval.ravel(), y_eval_pred, weight_nom_eval)
+            plt.plot(eff_sig_eval, eff_bkg_eval, label="Stage2 ROC Curve (Eval)")
             plt.plot(eff_sig_train, eff_bkg_train, label="Stage2 ROC Curve (Train)")
             plt.plot(eff_sig_val, eff_bkg_val, label="Stage2 ROC Curve (Val)")
-            plt.plot(eff_sig_eval, eff_bkg_eval, label="Stage2 ROC Curve (Eval)")
+            
             # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
             plt.vlines(np.linspace(0,1,11), 0, 1, linestyle="dashed", color="grey")
             plt.hlines(np.logspace(-4,0,5), 0, 1, linestyle="dashed", color="grey")
@@ -624,6 +724,30 @@ def classifier_train(df, args):
             fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}.png")
             plt.clf()
             # superimposed log ROC end --------------------------------------------------------------------------
+
+            # superimposed flipped log ROC start --------------------------------------------------------------------------
+            plt.plot(1-eff_sig_eval, 1-eff_bkg_eval, label="Stage2 ROC Curve (Eval)")
+            plt.plot(1-eff_sig_train, 1-eff_bkg_train, label="Stage2 ROC Curve (Train)")
+            plt.plot(1-eff_sig_val, 1-eff_bkg_val, label="Stage2 ROC Curve (Val)")
+            
+            # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
+            plt.vlines(np.linspace(0,1,11), 0, 1, linestyle="dashed", color="grey")
+            plt.hlines(np.logspace(-4,0,5), 0, 1, linestyle="dashed", color="grey")
+            # plt.hlines(eff_bkg, 0, eff_sig, linestyle="dashed")
+            plt.xlim([0.0, 1.0])
+            # plt.ylim([0.0, 1.0])
+            plt.xlabel('1 - Signal eff')
+            plt.ylabel('1- Background eff')
+            plt.yscale("log")
+            plt.ylim([0.0001, 1.0])
+            
+            plt.legend(loc="lower right")
+            plt.title(f'ROC curve for ggH BDT {year}')
+            fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}.png")
+            fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}.pdf")
+            plt.clf()
+            # superimposed flipped log ROC end --------------------------------------------------------------------------
+            
             
             # do fig 6.5 start --------------------------------------------------------------
             save_path = f"output/bdt_{name}_{year}" 
@@ -673,10 +797,12 @@ def classifier_train(df, args):
             feature_important = model.get_booster().get_score(importance_type='gain')
             keys = list(feature_important.keys())
             values = list(feature_important.values())
+            print(f"feat importance value b4 sorting: {values}")
+            print(f"feat importance training_features b4 sorting: {training_features}")
 
             data = pd.DataFrame(data=values, index=training_features, columns=["score"]).sort_values(by = "score", ascending=True)
             data.nlargest(50, columns="score").plot(kind='barh', figsize = (20,10))
-            plt.savefig(f"test.png")
+            plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}.png")
             #save('x_val_{label}.npy', x_val[training_features])
             #save('y_val_{label}.npy', y_val)
             #save('weight_val_{label}.npy', df_val['training_wgt'].values)
@@ -902,7 +1028,7 @@ if __name__ == "__main__":
     # print(df[df['dataset']=="dy_M-100To200"])
     # print(df[df['dataset']=="ggh_powheg"])
 
-    classifier_train(df_total, args)
+    classifier_train(df_total, args, training_samples)
     evaluation(df_total, args)
     #df.to_pickle('/depot/cms/hmm/purohita/coffea/eval_dataset.pickle')
     #print(df)
