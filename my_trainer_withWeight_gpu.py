@@ -164,34 +164,59 @@ def customROC_curve_AN(label, pred, weight):
 #training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_eta', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta_nominal', 'jet1_phi_nominal', 'jet1_pt_nominal', 'jet2_eta_nominal', 'jet2_phi_nominal', 'jet2_pt_nominal',  'jj_dEta_nominal', 'jj_dPhi_nominal', 'jj_eta_nominal', 'jj_mass_nominal', 'jj_mass_log_nominal', 'jj_phi_nominal', 'jj_pt_nominal', 'll_zstar_log_nominal', 'mmj1_dEta_nominal', 'mmj1_dPhi_nominal', 'mmj2_dEta_nominal', 'mmj2_dPhi_nominal', 'mmj_min_dEta_nominal', 'mmj_min_dPhi_nominal', 'mmjj_eta_nominal', 'mmjj_mass_nominal', 'mmjj_phi_nominal', 'mmjj_pt_nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt_over_mass', 'zeppenfeld_nominal']
 
 
+# training_features = [
+#     'dimuon_cos_theta_cs_pisa', 
+#     'dimuon_eta', 
+#     'dimuon_phi_cs_pisa', 
+#     'dimuon_pt', 
+#     'jet1_eta_nominal', 
+#     'jet1_pt_nominal', 
+#     'jet2_pt_nominal', 
+#     'jj_dEta_nominal', 
+#     'jj_dPhi_nominal', 
+#     'jj_mass_nominal', 
+#     'mmj1_dEta_nominal', 
+#     'mmj1_dPhi_nominal',  
+#     'mmj_min_dEta_nominal', 
+#     'mmj_min_dPhi_nominal', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld_nominal',
+#     'njets_nominal'
+# ]
+# # PhiFixed_rereco_yun
+
 training_features = [
-    'dimuon_cos_theta_cs_pisa', 
+    'dimuon_cos_theta_cs', 
     'dimuon_eta', 
-    'dimuon_phi_cs_pisa', 
+    'dimuon_phi_cs', 
     'dimuon_pt', 
-    'jet1_eta_nominal', 
-    'jet1_pt_nominal', 
-    'jet2_pt_nominal', 
-    'jj_dEta_nominal', 
-    'jj_dPhi_nominal', 
-    'jj_mass_nominal', 
-    'mmj1_dEta_nominal', 
-    'mmj1_dPhi_nominal',  
-    'mmj_min_dEta_nominal', 
-    'mmj_min_dPhi_nominal', 
+    'jet1_eta', 
+    'jet1_pt', 
+    'jet2_pt', 
+    'jj_dEta', 
+    'jj_dPhi', 
+    'jj_mass', 
+    'mmj1_dEta', 
+    'mmj1_dPhi',  
+    'mmj_min_dEta', 
+    'mmj_min_dPhi', 
     'mu1_eta', 
     'mu1_pt_over_mass', 
     'mu2_eta', 
     'mu2_pt_over_mass', 
-    'zeppenfeld_nominal',
-    'njets_nominal'
+    'zeppenfeld',
+    'njets'
 ]
-# PhiFixed_rereco_yun
+# PhiFixed UL
+
 
 training_samples = {
         "background": [
-            # "dy_M-100To200", 
-            "dy_m105_160_amc",
+            "dy_M-100To200", 
+            # "dy_m105_160_amc",
             # "ttjets_dl",
             # "ttjets_sl",
             # "st_tw_top",
@@ -203,12 +228,12 @@ training_samples = {
             # "zz",
             # "ewk_lljj_mll50_mjj120",
         ],
-        # "signal": ["ggh_powheg", "vbf_powheg"],
-        "signal": [
-            "ggh_amcPS", 
-            # "vbf_powheg",
-            "vbf_powheg_dipole",
-        ],
+        "signal": ["ggh_powheg", "vbf_powheg"],
+        # "signal": [
+        #     "ggh_amcPS", 
+        #     # "vbf_powheg",
+        #     "vbf_powheg_dipole",
+        # ],
         
         #"ignore": [
         #    "tttj",
@@ -239,9 +264,10 @@ def convert2df(dak_zip, dataset: str, is_vbf=False):
     print(f"convert2df is_hpeak:{is_hpeak}")
     # not entirely sure if this is what we use for ROC curve, however
     # vbf_cut = ak.fill_none(dak_zip.vbf_cut, value=False)
-    # vbf_cut = (dak_zip.jj_mass > 400) & (dak_zip.jj_dEta > 2.5) # for ggH
-    vbf_cut = (dak_zip.jj_mass_nominal > 400) & (dak_zip.jj_dEta_nominal > 2.5) # for ggH
-    jet1_cut =  ak.fill_none((dak_zip.jet1_pt_nominal > 35), value=False) # this is vbf specific, but valerie's code uses it
+    vbf_cut = (dak_zip.jj_mass > 400) & (dak_zip.jj_dEta > 2.5) # for ggH copperheadV2
+    # vbf_cut = (dak_zip.jj_mass_nominal > 400) & (dak_zip.jj_dEta_nominal > 2.5) # for ggH copperheadV1
+    # jet1_cut =  ak.fill_none((dak_zip.jet1_pt_nominal > 35), value=False) # this is vbf specific, but valerie's code uses it copperheadV1
+    jet1_cut =  ak.fill_none((dak_zip.jet1_pt > 35), value=False) # this is vbf specific, but valerie's code uses it copperheadV2
     vbf_cut = ak.fill_none((vbf_cut &jet1_cut), value=False)
     
     if is_vbf: # VBF
@@ -249,8 +275,8 @@ def convert2df(dak_zip, dataset: str, is_vbf=False):
     else: # ggH
         prod_cat_cut =  ~vbf_cut
         
-    # btag_cut = ak.fill_none((dak_zip.nBtagLoose >= 2), value=False) | ak.fill_none((dak_zip.nBtagMedium >= 1), value=False)
-    btag_cut = ak.fill_none((dak_zip.nBtagLoose_nominal >= 2), value=False) | ak.fill_none((dak_zip.nBtagMedium_nominal >= 1), value=False)
+    btag_cut = ak.fill_none((dak_zip.nBtagLoose >= 2), value=False) | ak.fill_none((dak_zip.nBtagMedium >= 1), value=False) # copperheadV2
+    # btag_cut = ak.fill_none((dak_zip.nBtagLoose_nominal >= 2), value=False) | ak.fill_none((dak_zip.nBtagMedium_nominal >= 1), value=False) # copperheadV1
     mu2_exists = ak.fill_none(dak_zip.mu2_pt >0, value=False) # somehow some events have mu2 pt as nan
    
     category_selection = (
@@ -264,30 +290,30 @@ def convert2df(dak_zip, dataset: str, is_vbf=False):
     computed_zip = dak_zip[category_selection]
 
     # recalculate BDT variables that you're not certain is up to date from stage 1 start -----------------
-    # min_dEta_filter  = ak.fill_none((computed_zip.mmj1_dEta < computed_zip.mmj2_dEta), value=True)
-    # computed_zip["mmj_min_dEta"]  = ak.where(
-    #     min_dEta_filter,
-    #     computed_zip.mmj1_dEta,
-    #     computed_zip.mmj2_dEta,
-    # )
-    # min_dPhi_filter = ak.fill_none((computed_zip.mmj1_dPhi < computed_zip.mmj2_dPhi), value=True)
-    # computed_zip["mmj_min_dPhi"] = ak.where(
-    #     min_dPhi_filter,
-    #     computed_zip.mmj1_dPhi,
-    #     computed_zip.mmj2_dPhi,
-    # )
-    min_dEta_filter  = ak.fill_none((computed_zip.mmj1_dEta_nominal < computed_zip.mmj2_dEta_nominal), value=True)
-    computed_zip["mmj_min_dEta_nominal"]  = ak.where(
+    min_dEta_filter  = ak.fill_none((computed_zip.mmj1_dEta < computed_zip.mmj2_dEta), value=True)
+    computed_zip["mmj_min_dEta"]  = ak.where(
         min_dEta_filter,
-        computed_zip.mmj1_dEta_nominal,
-        computed_zip.mmj2_dEta_nominal,
+        computed_zip.mmj1_dEta,
+        computed_zip.mmj2_dEta,
     )
-    min_dPhi_filter = ak.fill_none((computed_zip.mmj1_dPhi_nominal < computed_zip.mmj2_dPhi_nominal), value=True)
-    computed_zip["mmj_min_dPhi_nominal"] = ak.where(
+    min_dPhi_filter = ak.fill_none((computed_zip.mmj1_dPhi < computed_zip.mmj2_dPhi), value=True)
+    computed_zip["mmj_min_dPhi"] = ak.where(
         min_dPhi_filter,
-        computed_zip.mmj1_dPhi_nominal,
-        computed_zip.mmj2_dPhi_nominal,
+        computed_zip.mmj1_dPhi,
+        computed_zip.mmj2_dPhi,
     )
+    # min_dEta_filter  = ak.fill_none((computed_zip.mmj1_dEta_nominal < computed_zip.mmj2_dEta_nominal), value=True)
+    # computed_zip["mmj_min_dEta_nominal"]  = ak.where(
+    #     min_dEta_filter,
+    #     computed_zip.mmj1_dEta_nominal,
+    #     computed_zip.mmj2_dEta_nominal,
+    # )
+    # min_dPhi_filter = ak.fill_none((computed_zip.mmj1_dPhi_nominal < computed_zip.mmj2_dPhi_nominal), value=True)
+    # computed_zip["mmj_min_dPhi_nominal"] = ak.where(
+    #     min_dPhi_filter,
+    #     computed_zip.mmj1_dPhi_nominal,
+    #     computed_zip.mmj2_dPhi_nominal,
+    # )
     # recalculate BDT variables that you're not certain is up to date from stage 1 end -----------------
     print(f"computed_zip : {computed_zip}")
     # for copperheadV1, you gotta fill none b4 and store them in a dictionary b4 converting to dataframe
@@ -326,8 +352,8 @@ def convert2df(dak_zip, dataset: str, is_vbf=False):
     # add columns
     df["dataset"] = dataset 
     df["cls_avg_wgt"] = -1.0
-    df["wgt_nominal"] = np.abs(df["wgt_nominal"])
-    # df["wgt_nominal_total"] = np.abs(df["wgt_nominal_total"]) # enforce poisitive weights OR:
+    # df["wgt_nominal"] = np.abs(df["wgt_nominal"])
+    df["wgt_nominal_total"] = np.abs(df["wgt_nominal_total"]) # enforce poisitive weights OR:
     # # drop negative values
     # if "wgt_nominal" in df.columns:
     #     df["wgt_nominal_total"] = df["wgt_nominal"] 
@@ -369,11 +395,12 @@ def prepare_dataset(df, ds_dict):
     # df.loc[df['dataset']=="vbf_powheg",'wgt_nominal_total'] = np.divide(df[df['dataset']=="vbf_powheg"]['wgt_nominal_total'], df[df['dataset']=="vbf_powheg"]['dimuon_ebe_mass_res'])
     
     # initialze the training wgts
-    # df["wgt_nominal"] = copy.deepcopy(df["wgt_nominal_total"])
+    df["wgt_nominal"] = copy.deepcopy(df["wgt_nominal_total"])
     df["wgt_nominal_orig"] = copy.deepcopy(df["wgt_nominal"])
     # multiply by dimuon mass resolutions if signal
     # sig_datasets = training_samples["signal"]
-    sig_datasets = ["ggh_amcPS"]
+    # sig_datasets = ["ggh_amcPS"]
+    sig_datasets = ["ggh_powheg"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     for dataset in sig_datasets:
         df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
@@ -1126,24 +1153,41 @@ if __name__ == "__main__":
 
 
     
-    # load_path = f"{sysargs.load_path}/{year}/f1_0" # copperheadV2
-    load_path = f"{sysargs.load_path}/{year}/" # copperheadV1
+    load_path = f"{sysargs.load_path}/{year}/f1_0" # copperheadV2
+    # load_path = f"{sysargs.load_path}/{year}/" # copperheadV1
     print(f"load_path: {load_path}")
     sample_l = training_samples["background"] + training_samples["signal"]
 
 
-    fields2load = [
+    # fields2load = [ # copperheadV1
+    #     "dimuon_mass",
+    #     "jj_mass_nominal",
+    #     "jj_dEta_nominal",
+    #     "jet1_pt_nominal",
+    #     "nBtagLoose_nominal",
+    #     "nBtagMedium_nominal",
+    #     "mmj1_dEta_nominal",
+    #     "mmj2_dEta_nominal",
+    #     "mmj1_dPhi_nominal",
+    #     "mmj2_dPhi_nominal",
+    #     "wgt_nominal",
+    #     "dimuon_ebe_mass_res",
+    #     "event",
+    #     "mu1_pt",
+    #     "mu2_pt",
+    # ]
+    fields2load = [ # copperheadV2
         "dimuon_mass",
-        "jj_mass_nominal",
-        "jj_dEta_nominal",
-        "jet1_pt_nominal",
-        "nBtagLoose_nominal",
-        "nBtagMedium_nominal",
-        "mmj1_dEta_nominal",
-        "mmj2_dEta_nominal",
-        "mmj1_dPhi_nominal",
-        "mmj2_dPhi_nominal",
-        "wgt_nominal",
+        "jj_mass",
+        "jj_dEta",
+        "jet1_pt",
+        "nBtagLoose",
+        "nBtagMedium",
+        "mmj1_dEta",
+        "mmj2_dEta",
+        "mmj1_dPhi",
+        "mmj2_dPhi",
+        "wgt_nominal_total",
         "dimuon_ebe_mass_res",
         "event",
         "mu1_pt",
@@ -1161,8 +1205,8 @@ if __name__ == "__main__":
     print(f"sample_l: {sample_l}")
     print(f"training_features: {training_features}")
     for sample in sample_l:
-        # zip_sample = dak.from_parquet(load_path+f"/{sample}/*/*.parquet") 
-        zip_sample = dak.from_parquet(load_path+f"/{sample}/*.parquet") # copperheadV1
+        zip_sample = dak.from_parquet(load_path+f"/{sample}/*/*.parquet") 
+        # zip_sample = dak.from_parquet(load_path+f"/{sample}/*.parquet") # copperheadV1
         zip_sample = ak.zip({
             field : zip_sample[field] for field in fields2load
         }).compute()
