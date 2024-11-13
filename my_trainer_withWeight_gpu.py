@@ -17,6 +17,8 @@ import coffea.util as util
 import time
 from xgboost import plot_importance
 import copy
+from xgboost import plot_tree
+
 
 def get6_5(label, pred, weight, save_path:str, name: str):
     # seperate signal and background
@@ -239,7 +241,8 @@ def convert2df(dak_zip, dataset: str, is_vbf=False):
     # vbf_cut = ak.fill_none(dak_zip.vbf_cut, value=False)
     # vbf_cut = (dak_zip.jj_mass > 400) & (dak_zip.jj_dEta > 2.5) # for ggH
     vbf_cut = (dak_zip.jj_mass_nominal > 400) & (dak_zip.jj_dEta_nominal > 2.5) # for ggH
-    vbf_cut = ak.fill_none(vbf_cut, value=False)
+    jet1_cut =  ak.fill_none((dak_zip.jet1_pt_nominal > 35), value=False) # this is vbf specific, but valerie's code uses it
+    vbf_cut = ak.fill_none((vbf_cut &jet1_cut), value=False)
     
     if is_vbf: # VBF
         prod_cat_cut =  vbf_cut & dak_zip.jet1_pt > 35
@@ -249,7 +252,7 @@ def convert2df(dak_zip, dataset: str, is_vbf=False):
     # btag_cut = ak.fill_none((dak_zip.nBtagLoose >= 2), value=False) | ak.fill_none((dak_zip.nBtagMedium >= 1), value=False)
     btag_cut = ak.fill_none((dak_zip.nBtagLoose_nominal >= 2), value=False) | ak.fill_none((dak_zip.nBtagMedium_nominal >= 1), value=False)
     mu2_exists = ak.fill_none(dak_zip.mu2_pt >0, value=False) # somehow some events have mu2 pt as nan
-    
+   
     category_selection = (
         prod_cat_cut & 
         is_hpeak &
@@ -297,7 +300,7 @@ def convert2df(dak_zip, dataset: str, is_vbf=False):
             computed_dict[field] = ak.fill_none(computed_zip[field], value=-1.0)
         else:
             computed_dict[field] = ak.fill_none(computed_zip[field], value=0.0)
-        print(f"computed_dict[{field}] : {computed_dict[field]}")
+        # print(f"computed_dict[{field}] : {computed_dict[field]}")
         
     # recalculate pt over masses. They're all inf and zeros for copperheadV1
     computed_dict["mu1_pt_over_mass"] = computed_dict["mu1_pt"] / computed_dict["dimuon_mass"]
@@ -305,8 +308,8 @@ def convert2df(dak_zip, dataset: str, is_vbf=False):
     
     mu1_pt_over_mass = computed_dict["mu1_pt_over_mass"]
     mu2_pt_over_mass = computed_dict["mu2_pt_over_mass"]
-    print(f"mu1_pt_over_mass : {mu1_pt_over_mass}")
-    print(f"mu2_pt_over_mass : {mu2_pt_over_mass}")
+    # print(f"mu1_pt_over_mass : {mu1_pt_over_mass}")
+    # print(f"mu2_pt_over_mass : {mu2_pt_over_mass}")
     # df = ak.to_dataframe(computed_zip) 
     df = pd.DataFrame(computed_dict)
     # print(f"df : {df.head()}")
@@ -323,13 +326,14 @@ def convert2df(dak_zip, dataset: str, is_vbf=False):
     # add columns
     df["dataset"] = dataset 
     df["cls_avg_wgt"] = -1.0
-    # df["wgt_nominal_total"] = np.abs(df["wgt_nominal_total"]) # enforce poisitive weights
-    # drop negative values
-    if "wgt_nominal" in df.columns:
-        df["wgt_nominal_total"] = df["wgt_nominal"] 
-    positive_wgts = df["wgt_nominal_total"] > 0 
-    df = df.loc[positive_wgts]
-    
+    df["wgt_nominal"] = np.abs(df["wgt_nominal"])
+    # df["wgt_nominal_total"] = np.abs(df["wgt_nominal_total"]) # enforce poisitive weights OR:
+    # # drop negative values
+    # if "wgt_nominal" in df.columns:
+    #     df["wgt_nominal_total"] = df["wgt_nominal"] 
+    # positive_wgts = df["wgt_nominal_total"] > 0 
+    # df = df.loc[positive_wgts]
+    print(f"df.dataset.unique(): {df.dataset.unique()}")
     return df
     
 
@@ -365,13 +369,14 @@ def prepare_dataset(df, ds_dict):
     # df.loc[df['dataset']=="vbf_powheg",'wgt_nominal_total'] = np.divide(df[df['dataset']=="vbf_powheg"]['wgt_nominal_total'], df[df['dataset']=="vbf_powheg"]['dimuon_ebe_mass_res'])
     
     # initialze the training wgts
-    df["training_wgt"] = copy.deepcopy(df["wgt_nominal_total"])
+    # df["wgt_nominal"] = copy.deepcopy(df["wgt_nominal_total"])
+    df["wgt_nominal_orig"] = copy.deepcopy(df["wgt_nominal"])
     # multiply by dimuon mass resolutions if signal
-    sig_datasets = training_samples["signal"]
+    # sig_datasets = training_samples["signal"]
+    sig_datasets = ["ggh_amcPS"]
+    print(f"df.dataset.unique(): {df.dataset.unique()}")
     for dataset in sig_datasets:
-        df.loc[df['dataset']==dataset,'training_wgt'] = np.divide(df[df['dataset']==dataset]['training_wgt'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
-    # df.loc[df['dataset']=="ggh_powheg",'training_wgt'] = np.divide(df[df['dataset']=="ggh_powheg"]['training_wgt'], df[df['dataset']=="ggh_powheg"]['dimuon_ebe_mass_res'])
-    # df.loc[df['dataset']=="vbf_powheg",'training_wgt'] = np.divide(df[df['dataset']=="vbf_powheg"]['training_wgt'], df[df['dataset']=="vbf_powheg"]['dimuon_ebe_mass_res']) 
+        df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
     # original end -----------------------------------------------
     
     #print(df.head)
@@ -419,10 +424,10 @@ def prepare_dataset(df, ds_dict):
 
 def scale_data_withweight(inputs, x_train, x_val, x_eval, df_train, label):
     masked_x_train = np.ma.masked_array(x_train[x_train[inputs]!=-99][inputs], np.isnan(x_train[x_train[inputs]!=-99][inputs]))
-    x_mean = np.average(masked_x_train,axis=0, weights=df_train['wgt_nominal_total'].values).filled(np.nan)
-    x_std = np.average((masked_x_train-x_mean)**2,axis=0, weights=df_train['wgt_nominal_total'].values).filled(np.nan)
-    sumw2 = (df_train['wgt_nominal_total']**2).sum()
-    sumw = df_train['wgt_nominal_total'].sum()
+    x_mean = np.average(masked_x_train,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
+    x_std = np.average((masked_x_train-x_mean)**2,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
+    sumw2 = (df_train['training_wgt']**2).sum()
+    sumw = df_train['training_wgt'].sum()
     
     x_std = np.sqrt(x_std/(1-sumw2/sumw**2))
     training_data = (x_train[inputs]-x_mean)/x_std
@@ -510,9 +515,9 @@ def classifier_train(df, args, training_samples):
         for icls, cls in classes.items():
             print(f"icls: {icls}")
             train_evts = len(y_train[y_train==icls])
-            df_train.loc[y_train==icls,'cls_avg_wgt'] = df_train.loc[y_train==icls,'wgt_nominal_total'].values.mean()
-            df_val.loc[y_val==icls,'cls_avg_wgt'] = df_val.loc[y_val==icls,'wgt_nominal_total'].values.mean()
-            df_eval.loc[y_eval==icls,'cls_avg_wgt'] = df_eval.loc[y_eval==icls,'wgt_nominal_total'].values.mean()
+            df_train.loc[y_train==icls,'cls_avg_wgt'] = df_train.loc[y_train==icls,'wgt_nominal'].values.mean()
+            df_val.loc[y_val==icls,'cls_avg_wgt'] = df_val.loc[y_val==icls,'wgt_nominal'].values.mean()
+            df_eval.loc[y_eval==icls,'cls_avg_wgt'] = df_eval.loc[y_eval==icls,'wgt_nominal'].values.mean()
             print(f"{train_evts} training events in class {cls}")
         # original end -------------------------------------------------------
         # test start -------------------------------------------------------
@@ -525,9 +530,14 @@ def classifier_train(df, args, training_samples):
         # df_train['training_wgt'] = df_train['wgt_nominal_total']/df_train['cls_avg_wgt']
         # df_val['training_wgt'] = df_val['wgt_nominal_total']/df_val['cls_avg_wgt']
         # df_eval['training_wgt'] = df_eval['wgt_nominal_total']/df_eval['cls_avg_wgt']
-        df_train.loc[:,'training_wgt'] = df_train['training_wgt']/df_train['cls_avg_wgt']
-        df_val.loc[:,'training_wgt'] = df_val['training_wgt']/df_val['cls_avg_wgt']
-        df_eval.loc[:,'training_wgt'] = df_eval['training_wgt']/df_eval['cls_avg_wgt']
+        # df_train.loc[:,'training_wgt'] = df_train['training_wgt']/df_train['cls_avg_wgt']
+        # df_val.loc[:,'training_wgt'] = df_val['training_wgt']/df_val['cls_avg_wgt']
+        # df_eval.loc[:,'training_wgt'] = df_eval['training_wgt']/df_eval['cls_avg_wgt']
+
+
+        df_train['training_wgt'] = df_train['wgt_nominal']/df_train['cls_avg_wgt']
+        df_val['training_wgt'] = df_val['wgt_nominal']/df_val['cls_avg_wgt']
+        df_eval['training_wgt'] = df_eval['wgt_nominal']/df_eval['cls_avg_wgt']
         
 
         
@@ -619,9 +629,9 @@ def classifier_train(df, args, training_samples):
             w_val = df_val['training_wgt'].values
             w_eval = df_eval['training_wgt'].values
 
-            weight_nom_train = df_train['wgt_nominal_total'].values
-            weight_nom_val = df_val['wgt_nominal_total'].values
-            weight_nom_eval = df_eval['wgt_nominal_total'].values
+            weight_nom_train = df_train['wgt_nominal_orig'].values
+            weight_nom_val = df_val['wgt_nominal_orig'].values
+            weight_nom_eval = df_eval['wgt_nominal_orig'].values
             
             shuf_ind_tr = np.arange(len(xp_train))
             np.random.shuffle(shuf_ind_tr)
@@ -656,7 +666,7 @@ def classifier_train(df, args, training_samples):
                                       #max_depth=6,previous value
                                       n_estimators=100000,
                                       #n_estimators=100,
-                                      early_stopping_rounds=3, # 80
+                                      early_stopping_rounds=15, # 80
                                       eval_metric="logloss",
                                       #learning_rate=0.001,#for 2018
                                       learning_rate=0.1,#previous value
@@ -711,9 +721,7 @@ def classifier_train(df, args, training_samples):
 
             eval_set = [(xp_train, y_train), (xp_val, y_val)]#Last used
             
-            model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=True)
-            # plot_tree(model)
-            # plt.show()
+            model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
 
             y_pred_signal_val = model.predict_proba(xp_val)[:, 1].ravel()
             y_pred_signal_train = model.predict_proba(xp_train)[:, 1]
@@ -882,6 +890,12 @@ def classifier_train(df, args, training_samples):
 
             labels = [feat.replace("_nominal","") for feat in training_features]
             model.get_booster().feature_names = labels # set my training features as feature names
+            
+            # plot trees
+            plot_tree(model)
+            plt.savefig(f"output/bdt_{name}_{year}/{name}_{year}_TreePlot_{i}.png",dpi=1200)
+            
+            # plot importance
             # plot_importance(model, importance_type='weight', xlabel="Score by weight",show_values=False)
             # plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byWeight.png")
             # plt.clf()
