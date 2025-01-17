@@ -11,8 +11,10 @@ import pandas as pd
 import pickle
 
 from python.io import load_dataframe
-from stage2.categorizer import split_into_channels
+# from stage2.categorizer import split_into_channels
 from stage2.quick_train import train_dnn
+import dask_awkward as dak
+import awkward as ak
 
 __all__ = ["dask"]
 
@@ -22,28 +24,22 @@ parser.add_argument(
     "-y", "--years", nargs="+", help="Years to process", default=["2018"]
 )
 parser.add_argument(
-    "-sl",
-    "--slurm",
-    dest="slurm_port",
-    default=None,
-    action="store",
-    help="Slurm cluster port (if not specified, will create a local cluster)",
-)
+    "--use_gateway",
+    dest="use_gateway",
+    default=False, 
+    action=argparse.BooleanOptionalAction,
+    help="If true, uses dask gateway client instead of local",
+    )
 args = parser.parse_args()
 
 # Dask client settings
-use_local_cluster = args.slurm_port is None
-#node_ip = "128.211.149.133"
-#node_ip = "172.18.36.39"
-node_ip = "127.0.0.1"
-
+use_local_cluster = args.use_gateway is False
 if use_local_cluster:
-    ncpus_local = 4
-    dashboard_address = f"{node_ip}:34875"
-    slurm_cluster_ip = ""
+    client = Client(n_workers=41,  threads_per_worker=1, processes=True, memory_limit='4 GiB') 
+            print("Local scale Client created")
 else:
-    slurm_cluster_ip =f"{node_ip}:{args.slurm_port}"
-    dashboard_address = f"{node_ip}:8787"
+    print("not supported yet")
+    raise ValueError
 
 #model_name = "pytorch_may24_pisa"
 model_name = "ValerieDNNtest3"
