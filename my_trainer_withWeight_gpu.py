@@ -218,8 +218,10 @@ def customROC_curve_AN(label, pred, weight):
 
 training_features = [
     'dimuon_cos_theta_cs', 
-    'dimuon_eta', 
     'dimuon_phi_cs', 
+    "dimuon_cos_theta_eta",
+    "dimuon_phi_eta",
+    'dimuon_rapidity', 
     'dimuon_pt', 
     'jet1_eta', 
     'jet1_pt', 
