@@ -19,7 +19,23 @@ import time
 from xgboost import plot_importance
 import copy
 from xgboost import plot_tree
+import json
 
+def prepare_features(events, features, variation="nominal"):
+    features_var = []
+    for trf in features:
+        if "soft" in trf:
+            variation_current = "nominal"
+        else:
+            variation_current = variation
+        
+        if f"{trf}_{variation_current}" in events.fields:
+            features_var.append(f"{trf}_{variation_current}")
+        elif trf in events.fields:
+            features_var.append(trf)
+        else:
+            print(f"Variable {trf} not found in training dataframe!")
+    return features_var
 
 def deactivateWgts(wgt_arr, events, wgts2deactivate):
     """
@@ -219,8 +235,8 @@ def customROC_curve_AN(label, pred, weight):
 training_features = [
     'dimuon_cos_theta_cs', 
     'dimuon_phi_cs', 
-    "dimuon_cos_theta_eta",
-    "dimuon_phi_eta",
+    # "dimuon_cos_theta_eta",
+    # "dimuon_phi_eta",
     'dimuon_rapidity', 
     'dimuon_pt', 
     'jet1_eta', 
@@ -240,7 +256,7 @@ training_features = [
     'zeppenfeld',
     'njets'
 ]
-# PhiFixed UL
+# V2 Jan 18 UL
 
 training_samples = {
         "background": [
@@ -258,11 +274,7 @@ training_samples = {
             # "zz",
             # "ewk_lljj_mll50_mjj120",
         ],
-        "signal": ["ggh_powheg", "vbf_powheg"], # copperheadV2
-        # "signal": [ # copperheadV1
-        #     "ggh_amcPS", 
-        #     # "vbf_powheg",
-        #     "vbf_powheg_dipole",
+        "signal": ["ggh_powhegPS", "vbf_powheg_dipole"], # copperheadV2
         # ],
         
         #"ignore": [
@@ -288,33 +300,27 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     ggH production mode
     """
     # filter out arrays not in h_peak
-    # is_hpeak = dak_zip.h_peak # line 1169 of the AN: when training, we apply a tigher cut
-    is_hpeak = (dak_zip.dimuon_mass > 115.03) & (dak_zip.dimuon_mass < 135.03) # line 1169 of the AN: when training, we apply a tigher cut
-    is_hpeak = ak.fill_none(is_hpeak, value=False)
-    print(f"convert2df is_hpeak:{is_hpeak}")
+    train_region = (dak_zip.dimuon_mass > 115.03) & (dak_zip.dimuon_mass < 135.03) # line 1169 of the AN: when training, we apply a tigher cut
+    train_region = ak.fill_none(train_region, value=False)
+    # print(f"is_vbf: {is_vbf}")
+    # print(f"convert2df train_region:{train_region}")
     # not entirely sure if this is what we use for ROC curve, however
-    if is_UL:
-        vbf_cut = (dak_zip.jj_mass > 400) & (dak_zip.jj_dEta > 2.5) # for ggH
-        jet1_cut =  ak.fill_none((dak_zip.jet1_pt > 35), value=False) # this is vbf specific, but valerie's code uses it
-    else:
-        vbf_cut = (dak_zip.jj_mass_nominal > 400) & (dak_zip.jj_dEta_nominal > 2.5) # for ggH
-        jet1_cut =  ak.fill_none((dak_zip.jet1_pt_nominal > 35), value=False) # this is vbf specific, but valerie's code uses it
-    vbf_cut = ak.fill_none((vbf_cut &jet1_cut), value=False)
+
+    vbf_cut = ak.fill_none(dak_zip.jj_mass_nominal > 400, value=False) & ak.fill_none(dak_zip.jj_dEta_nominal > 2.5, value=False) # for ggH $ VBF
+    jet1_cut =  ak.fill_none((dak_zip.jet1_pt_nominal > 35), value=False) # for VBF only
     
     if is_vbf: # VBF
-        prod_cat_cut =  vbf_cut & dak_zip.jet1_pt > 35
+        prod_cat_cut =  vbf_cut & jet1_cut
     else: # ggH
         prod_cat_cut =  ~vbf_cut
 
-    if is_UL:
-        btag_cut = ak.fill_none((dak_zip.nBtagLoose >= 2), value=False) | ak.fill_none((dak_zip.nBtagMedium >= 1), value=False)
-    else:
-        btag_cut = ak.fill_none((dak_zip.nBtagLoose_nominal >= 2), value=False) | ak.fill_none((dak_zip.nBtagMedium_nominal >= 1), value=False)
+    
+    btag_cut = ak.fill_none((dak_zip.nBtagLoose_nominal >= 2), value=False) | ak.fill_none((dak_zip.nBtagMedium_nominal >= 1), value=False)
     mu2_exists = ak.fill_none(dak_zip.mu2_pt >0, value=False) # somehow some events have mu2 pt as nan
    
     category_selection = (
         prod_cat_cut & 
-        is_hpeak &
+        train_region &
         ~btag_cut # btag cut is for VH and ttH categories
         # & mu2_exists
     )
@@ -323,35 +329,36 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     computed_zip = dak_zip[category_selection]
 
     # recalculate BDT variables that you're not certain is up to date from stage 1 start -----------------
-    if is_UL:
-        # copperheadV2
-        min_dEta_filter  = ak.fill_none((computed_zip.mmj1_dEta < computed_zip.mmj2_dEta), value=True)
-        computed_zip["mmj_min_dEta"]  = ak.where(
-            min_dEta_filter,
-            computed_zip.mmj1_dEta,
-            computed_zip.mmj2_dEta,
-        )
-        min_dPhi_filter = ak.fill_none((computed_zip.mmj1_dPhi < computed_zip.mmj2_dPhi), value=True)
-        computed_zip["mmj_min_dPhi"] = ak.where(
-            min_dPhi_filter,
-            computed_zip.mmj1_dPhi,
-            computed_zip.mmj2_dPhi,
-        )
-    else:
-        # copperheadV1
-        min_dEta_filter  = ak.fill_none((computed_zip.mmj1_dEta_nominal < computed_zip.mmj2_dEta_nominal), value=True)
-        computed_zip["mmj_min_dEta_nominal"]  = ak.where(
-            min_dEta_filter,
-            computed_zip.mmj1_dEta_nominal,
-            computed_zip.mmj2_dEta_nominal,
-        )
-        min_dPhi_filter = ak.fill_none((computed_zip.mmj1_dPhi_nominal < computed_zip.mmj2_dPhi_nominal), value=True)
-        computed_zip["mmj_min_dPhi_nominal"] = ak.where(
-            min_dPhi_filter,
-            computed_zip.mmj1_dPhi_nominal,
-            computed_zip.mmj2_dPhi_nominal,
-        )
+    # if is_UL:
+    #     # copperheadV2
+    #     min_dEta_filter  = ak.fill_none((computed_zip.mmj1_dEta < computed_zip.mmj2_dEta), value=True)
+    #     computed_zip["mmj_min_dEta"]  = ak.where(
+    #         min_dEta_filter,
+    #         computed_zip.mmj1_dEta,
+    #         computed_zip.mmj2_dEta,
+    #     )
+    #     min_dPhi_filter = ak.fill_none((computed_zip.mmj1_dPhi < computed_zip.mmj2_dPhi), value=True)
+    #     computed_zip["mmj_min_dPhi"] = ak.where(
+    #         min_dPhi_filter,
+    #         computed_zip.mmj1_dPhi,
+    #         computed_zip.mmj2_dPhi,
+    #     )
+    # else:
+    #     # copperheadV1
+    #     min_dEta_filter  = ak.fill_none((computed_zip.mmj1_dEta_nominal < computed_zip.mmj2_dEta_nominal), value=True)
+    #     computed_zip["mmj_min_dEta_nominal"]  = ak.where(
+    #         min_dEta_filter,
+    #         computed_zip.mmj1_dEta_nominal,
+    #         computed_zip.mmj2_dEta_nominal,
+    #     )
+    #     min_dPhi_filter = ak.fill_none((computed_zip.mmj1_dPhi_nominal < computed_zip.mmj2_dPhi_nominal), value=True)
+    #     computed_zip["mmj_min_dPhi_nominal"] = ak.where(
+    #         min_dPhi_filter,
+    #         computed_zip.mmj1_dPhi_nominal,
+    #         computed_zip.mmj2_dPhi_nominal,
+    #     )
     # recalculate BDT variables that you're not certain is up to date from stage 1 end -----------------
+    
     print(f"computed_zip : {computed_zip}")
     # for copperheadV1, you gotta fill none b4 and store them in a dictionary b4 converting to dataframe
     computed_dict = {}
@@ -365,17 +372,15 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
             computed_dict[field] = ak.fill_none(computed_zip[field], value=0.0)
         # print(f"computed_dict[{field}] : {computed_dict[field]}")
         
-    # recalculate pt over masses. They're all inf and zeros for copperheadV1
-    computed_dict["mu1_pt_over_mass"] = computed_dict["mu1_pt"] / computed_dict["dimuon_mass"]
-    computed_dict["mu2_pt_over_mass"] = computed_dict["mu2_pt"] / computed_dict["dimuon_mass"]
+    # # recalculate pt over masses. They're all inf and zeros for copperheadV1
+    # computed_dict["mu1_pt_over_mass"] = computed_dict["mu1_pt"] / computed_dict["dimuon_mass"]
+    # computed_dict["mu2_pt_over_mass"] = computed_dict["mu2_pt"] / computed_dict["dimuon_mass"]
     
-    mu1_pt_over_mass = computed_dict["mu1_pt_over_mass"]
-    mu2_pt_over_mass = computed_dict["mu2_pt_over_mass"]
-    # print(f"mu1_pt_over_mass : {mu1_pt_over_mass}")
-    # print(f"mu2_pt_over_mass : {mu2_pt_over_mass}")
+    # mu1_pt_over_mass = computed_dict["mu1_pt_over_mass"]
+    # mu2_pt_over_mass = computed_dict["mu2_pt_over_mass"]
     # df = ak.to_dataframe(computed_zip) 
     df = pd.DataFrame(computed_dict)
-    # print(f"df : {df.head()}")
+    print(f"df : {df.head()}")
 
     # make sure to replace nans with zeros,  unless it's delta phis, in which case it's -1, as specified in line 1117 of the AN
     dPhis = [] # collect all dPhi features
@@ -389,10 +394,11 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     # add columns
     df["dataset"] = dataset 
     df["cls_avg_wgt"] = -1.0
-    if is_UL:
-        df["wgt_nominal"] = np.abs(df["wgt_nominal_total"])
-    else:
-        df["wgt_nominal"] = np.abs(df["wgt_nominal"])
+    # if is_UL:
+    #     df["wgt_nominal"] = np.abs(df["wgt_nominal_total"])
+    # else:
+    df["wgt_nominal_orig"] = copy.deepcopy(df["wgt_nominal"])
+    df["wgt_nominal"] = np.abs(df["wgt_nominal"])
     # df["wgt_nominal_total"] = np.abs(df["wgt_nominal_total"]) # enforce poisitive weights OR:
     # # drop negative values
     # if "wgt_nominal" in df.columns:
@@ -429,20 +435,13 @@ def prepare_dataset(df, ds_dict):
     # df[df['njets']<2]['jj_dPhi'] = -1
     #df[df['dataset']=="ggh_amcPS"].loc[:,'wgt_nominal_total'] = np.divide(df[df['dataset']=="ggh_amcPS"]['wgt_nominal_total'], df[df['dataset']=="ggh_amcPS"]['dimuon_ebe_mass_res'])
 
-    # apply dimuon_ebe_mass_res to the weights
-    # original start -----------------------------------------------
-    # df.loc[df['dataset']=="ggh_powheg",'wgt_nominal_total'] = np.divide(df[df['dataset']=="ggh_powheg"]['wgt_nominal_total'], df[df['dataset']=="ggh_powheg"]['dimuon_ebe_mass_res'])
-    # df.loc[df['dataset']=="vbf_powheg",'wgt_nominal_total'] = np.divide(df[df['dataset']=="vbf_powheg"]['wgt_nominal_total'], df[df['dataset']=="vbf_powheg"]['dimuon_ebe_mass_res'])
-    
-    # initialze the training wgts
-    # --------------------------------------------------------
     
     # --------------------------------------------------------
-    df["wgt_nominal_orig"] = copy.deepcopy(df["wgt_nominal"])
+    # df["wgt_nominal_orig"] = copy.deepcopy(df["wgt_nominal"])
     # multiply by dimuon mass resolutions if signal
     # sig_datasets = training_samples["signal"]
     # sig_datasets = ["ggh_amcPS"]
-    sig_datasets = ["ggh_powheg"]
+    sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     for dataset in sig_datasets:
         df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
@@ -491,25 +490,53 @@ def prepare_dataset(df, ds_dict):
 #     np.save(save_path + f"/scalers_{name}_{label}", [x_mean, x_std]) #label contains year
 #     return training_data, validation_data
 
-def scale_data_withweight(inputs, x_train, x_val, x_eval, df_train, label):
-    masked_x_train = np.ma.masked_array(x_train[x_train[inputs]!=-99][inputs], np.isnan(x_train[x_train[inputs]!=-99][inputs]))
-    x_mean = np.average(masked_x_train,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
-    x_std = np.average((masked_x_train-x_mean)**2,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
-    sumw2 = (df_train['training_wgt']**2).sum()
-    sumw = df_train['training_wgt'].sum()
+# def scale_data_withweight(inputs, x_train, x_val, x_eval, df_train, label): # old method tahat I don't agree with
+#     masked_x_train = np.ma.masked_array(x_train[x_train[inputs]!=-99][inputs], np.isnan(x_train[x_train[inputs]!=-99][inputs]))
+#     x_mean = np.average(masked_x_train,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
+#     x_std = np.average((masked_x_train-x_mean)**2,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
+#     sumw2 = (df_train['training_wgt']**2).sum()
+#     sumw = df_train['training_wgt'].sum()
     
-    x_std = np.sqrt(x_std/(1-sumw2/sumw**2))
+#     x_std = np.sqrt(x_std/(1-sumw2/sumw**2))
+#     training_data = (x_train[inputs]-x_mean)/x_std
+#     validation_data = (x_val[inputs]-x_mean)/x_std
+#     evaluation_data = (x_eval[inputs]-x_mean)/x_std
+#     output_path = args["output_path"]
+#     print(f"output_path: {output_path}/scalers_{name}_{label}")
+#     print(f"name: {name}")
+#     save_path = f'{output_path}/bdt_{name}_{year}'
+#     print(f"scalar save_path: {save_path}/scalers_{name}_{label}")
+#     if not os.path.exists(save_path):
+#         os.makedirs(save_path)
+#     np.save(save_path + f"/scalers_{name}_{label}", [x_mean, x_std]) #label contains year
+#     return training_data, validation_data, evaluation_data
+
+
+
+def scale_data_withweight(inputs, x_train, x_val, x_eval, df_train, fold_label):
+    """
+    NOTE: Scaling is not used any more since BDTs don't need it
+    """
+    # scale data, save the mean and std. This has to be done b4 mixup
+
+    wgt_train = df_train["wgt_nominal_orig"].values
+    x_mean = np.average(x_train,axis=0, weights=wgt_train)
+    x_std = weighted_std(x_train, wgt_train)
+
+    print(f"x_mean: {x_mean}")
+    print(f"x_std: {x_std}")
+    
     training_data = (x_train[inputs]-x_mean)/x_std
     validation_data = (x_val[inputs]-x_mean)/x_std
     evaluation_data = (x_eval[inputs]-x_mean)/x_std
     output_path = args["output_path"]
-    print(f"output_path: {output_path}/scalers_{name}_{label}")
+    print(f"scalar output_path: {output_path}/scalers_{name}_{fold_label}")
     print(f"name: {name}")
     save_path = f'{output_path}/bdt_{name}_{year}'
-    print(f"scalar save_path: {save_path}/scalers_{name}_{label}")
+    print(f"scalar save_path: {save_path}/scalers_{name}_{fold_label}")
     if not os.path.exists(save_path):
         os.makedirs(save_path)
-    np.save(save_path + f"/scalers_{name}_{label}", [x_mean, x_std]) #label contains year
+    np.save(save_path + f"/scalers_{name}_{fold_label}", [x_mean, x_std]) 
     return training_data, validation_data, evaluation_data
 
 
@@ -531,6 +558,17 @@ def classifier_train(df, args, training_samples):
     #df = prepare_features(df, args, add_year)
     #df['cls_idx'] = df['dataset'].map(cls_idx_map)
     print("Training features: ", training_features)
+
+    save_path = f"output/bdt_{name}_{year}"
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
+    # save training features as json for readability
+    with open(f'{save_path}/training_features.json', 'w') as file:
+        json.dump(training_features, file)
+    
+    
+    
     for i in range(nfolds):
         if args['year']=='':
             label = f"allyears_{args['label']}_{i}"
@@ -573,8 +611,6 @@ def classifier_train(df, args, training_samples):
         
         # original start -------------------------------------------------------
         classes = {
-            # 0 : 'dy_M-100To200',
-            # 1 : 'ggh_powheg',
             0 : 'background',
             1 : 'signal',
         }
@@ -613,7 +649,9 @@ def classifier_train(df, args, training_samples):
         
         # scale data
         #x_train, x_val = scale_data(training_features, x_train, x_val, df_train, label)#Last used
-        x_train, x_val, x_eval = scale_data_withweight(training_features, x_train, x_val, x_eval, df_train, label)
+        # x_train, x_val, x_eval = scale_data_withweight(training_features, x_train, x_val, x_eval, df_train, label)
+
+        
         # print(f"x_train.shape: {x_train.shape}")
         # print(f"x_val.shape: {x_val.shape}")
         # print(f"x_train: {x_train}")
@@ -803,9 +841,7 @@ def classifier_train(df, args, training_samples):
             plt.hist(y_pred_bkg_train, bins=50, alpha=0.5, color='firebrick', label='Training BKG')
 
             ax1.legend(loc="upper right")
-            save_path = f"output/bdt_{name}_{year}"
-            if not os.path.exists(save_path):
-                os.makedirs(save_path)
+            
             fig1.savefig(f"{save_path}/Validation_{label}.png")
             
             y_pred = model.predict_proba(xp_val)[:, 1].ravel()
@@ -1308,26 +1344,44 @@ if __name__ == "__main__":
     is_UL = True
     
     
-    if is_UL:
-        fields2load = [ # copperheadV2
-            "dimuon_mass",
-            "jj_mass",
-            "jj_dEta",
-            "jet1_pt",
-            "nBtagLoose",
-            "nBtagMedium",
-            "mmj1_dEta",
-            "mmj2_dEta",
-            "mmj1_dPhi",
-            "mmj2_dPhi",
-            "wgt_nominal_total",
-            "dimuon_ebe_mass_res",
-            "event",
-            "mu1_pt",
-            "mu2_pt",
-        ]
-    else:
-        fields2load = [ # copperheadV1
+    # if is_UL:
+    #     fields2load = [ # copperheadV2
+    #         "dimuon_mass",
+    #         "jj_mass",
+    #         "jj_dEta",
+    #         "jet1_pt",
+    #         "nBtagLoose",
+    #         "nBtagMedium",
+    #         "mmj1_dEta",
+    #         "mmj2_dEta",
+    #         "mmj1_dPhi",
+    #         "mmj2_dPhi",
+    #         "wgt_nominal_total",
+    #         "dimuon_ebe_mass_res",
+    #         "event",
+    #         "mu1_pt",
+    #         "mu2_pt",
+    #     ]
+    # else:
+    #     fields2load = [ # copperheadV1
+    #         "dimuon_mass",
+    #         "jj_mass_nominal",
+    #         "jj_dEta_nominal",
+    #         "jet1_pt_nominal",
+    #         "nBtagLoose_nominal",
+    #         "nBtagMedium_nominal",
+    #         "mmj1_dEta_nominal",
+    #         "mmj2_dEta_nominal",
+    #         "mmj1_dPhi_nominal",
+    #         "mmj2_dPhi_nominal",
+    #         "wgt_nominal",
+    #         "dimuon_ebe_mass_res",
+    #         "event",
+    #         "mu1_pt",
+    #         "mu2_pt",
+    #     ]
+
+    fields2load = [ 
             "dimuon_mass",
             "jj_mass_nominal",
             "jj_dEta_nominal",
@@ -1365,30 +1419,32 @@ if __name__ == "__main__":
 
         if "dy" in sample:
             wgts2load = []
-            for field in zip_sample.fields:
-                if "wgt" in field:
-                    wgts2load.append(field)
-            print(f"wgts2load: {wgts2load}")
-            wgts2load = list(set(fields2load + wgts2load))
+            # for field in zip_sample.fields:
+            #     if "wgt" in field:
+            #         wgts2load.append(field)
+            # print(f"wgts2load: {wgts2load}")
+            fields2load = list(set(fields2load + wgts2load))
+            fields2load = prepare_features(zip_sample, fields2load) # add variation to the name
+            training_features = prepare_features(zip_sample, training_features) # do the same thing to training features
             zip_sample = ak.zip({
-                field : zip_sample[field] for field in wgts2load
+                field : zip_sample[field] for field in fields2load
             }).compute()
-            wgts2deactivate = [
-                # 'wgt_nominal_btag_wgt',
-                # 'wgt_nominal_pu',
-                'wgt_nominal_zpt_wgt',
-                # 'wgt_nominal_muID',
-                # 'wgt_nominal_muIso',
-                # 'wgt_nominal_muTrig',
-                # 'wgt_nominal_LHERen',
-                # 'wgt_nominal_LHEFac',
-                # 'wgt_nominal_pdf_2rms',
-                # 'wgt_nominal_jetpuid_wgt',
-                # 'wgt_nominal_qgl'
-            ]
-            wgt_nominal = zip_sample["wgt_nominal_total"]
-            print(f"wgt_nominal: {wgt_nominal}")
-            zip_sample["wgt_nominal_total"] = deactivateWgts(wgt_nominal, zip_sample, wgts2deactivate)
+            # wgts2deactivate = [
+            #     # 'wgt_nominal_btag_wgt',
+            #     # 'wgt_nominal_pu',
+            #     'wgt_nominal_zpt_wgt',
+            #     # 'wgt_nominal_muID',
+            #     # 'wgt_nominal_muIso',
+            #     # 'wgt_nominal_muTrig',
+            #     # 'wgt_nominal_LHERen',
+            #     # 'wgt_nominal_LHEFac',
+            #     # 'wgt_nominal_pdf_2rms',
+            #     # 'wgt_nominal_jetpuid_wgt',
+            #     # 'wgt_nominal_qgl'
+            # ]
+            # wgt_nominal = zip_sample["wgt_nominal_total"]
+            # print(f"wgt_nominal: {wgt_nominal}")
+            # zip_sample["wgt_nominal_total"] = deactivateWgts(wgt_nominal, zip_sample, wgts2deactivate)
         else:
             zip_sample = ak.zip({
                 field : zip_sample[field] for field in fields2load
