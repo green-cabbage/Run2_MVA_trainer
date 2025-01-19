@@ -263,10 +263,10 @@ training_samples = {
             "dy_M-100To200", 
             # "dy_m105_160_amc",
             # "dy_m100_200_UL",
-            # "ttjets_dl",
-            # "ttjets_sl",
-            # "st_tw_top",
-            # "st_tw_antitop",
+            "ttjets_dl",
+            "ttjets_sl",
+            "st_tw_top",
+            "st_tw_antitop",
             # "ww_2l2nu",
             # "wz_1l1nu2q",
             # "wz_2l2q",
@@ -1417,6 +1417,10 @@ if __name__ == "__main__":
         zip_sample = dak.from_parquet(load_path+f"/{sample}/*/*.parquet") 
         # zip_sample = dak.from_parquet(load_path+f"/{sample}/*.parquet") # copperheadV1
 
+        # temporary introduction of mu_pt_over_mass variables. Some tt and top samples don't have them
+        zip_sample["mu1_pt_over_mass"] = zip_sample["mu1_pt"] / zip_sample["dimuon_mass"]
+        zip_sample["mu2_pt_over_mass"] = zip_sample["mu2_pt"] / zip_sample["dimuon_mass"]
+
         if "dy" in sample:
             wgts2load = []
             # for field in zip_sample.fields:
@@ -1465,7 +1469,7 @@ if __name__ == "__main__":
     df_total = prepare_dataset(df_total, training_samples)
     print("prepare_dataset done")
     # raise ValueError
-    
+    print(f"len(df_total): {len(df_total)}")
 
 
     classifier_train(df_total, args, training_samples)
