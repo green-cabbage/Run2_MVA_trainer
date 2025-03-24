@@ -267,14 +267,17 @@ training_samples = {
             "ttjets_sl",
             "st_tw_top",
             "st_tw_antitop",
-            # "ww_2l2nu",
-            # "wz_1l1nu2q",
-            # "wz_2l2q",
-            # "wz_3lnu",
-            # "zz",
-            # "ewk_lljj_mll50_mjj120",
+            "ww_2l2nu",
+            "wz_1l1nu2q",
+            "wz_2l2q",
+            "wz_3lnu",
+            "zz",
+            "ewk_lljj_mll50_mjj120",
         ],
-        "signal": ["ggh_powhegPS", "vbf_powheg_dipole"], # copperheadV2
+        "signal": [
+            "ggh_powhegPS", 
+            "vbf_powheg_dipole", # adding vbf only makes BDT concentrate on vbf for some reason
+        ], # copperheadV2
         # ],
         
         #"ignore": [
@@ -312,7 +315,8 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     if is_vbf: # VBF
         prod_cat_cut =  vbf_cut & jet1_cut
     else: # ggH
-        prod_cat_cut =  ~vbf_cut
+        # prod_cat_cut =  ~vbf_cut
+        prod_cat_cut =  ~(vbf_cut & jet1_cut)
 
     
     btag_cut = ak.fill_none((dak_zip.nBtagLoose_nominal >= 2), value=False) | ak.fill_none((dak_zip.nBtagMedium_nominal >= 1), value=False)
@@ -322,7 +326,6 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
         prod_cat_cut & 
         train_region &
         ~btag_cut # btag cut is for VH and ttH categories
-        # & mu2_exists
     )
     print(f"category_selection: {category_selection}")
     # computed_zip = dak_zip[category_selection].compute() # original
@@ -387,7 +390,7 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     for field in df.columns:
         if "dPhi" in field:
             dPhis.append(field)
-    print(f"dPhis: {dPhis}")
+    # print(f"dPhis: {dPhis}")
     # fill none values in dPhis with -1, then 0 for rest
     df.fillna({field: -1 for field in dPhis},inplace=True)
     df.fillna(0,inplace=True)
@@ -820,7 +823,8 @@ def classifier_train(df, args, training_samples):
                                       #reg_lambda=16.6,
                                       #gamma=24.505,
                                       #n_jobs=35,
-                                      tree_method='hist')
+                                      tree_method='hist',
+                                     )
             # AN Model new end ---------------------------------------------------------------
             
             print(model)
@@ -1197,8 +1201,8 @@ def evaluation(df, args):
                 # scalers_path = f'output/trained_models/scalers_{label}.npy'
                 output_path = args["output_path"]
                 print(f"output_path: {output_path}")
-                scalers_path = f"{output_path}/dnn_{name}_{year}/scalers_{name}_{eval_label}.npy"
-                scalers = np.load(scalers_path)
+                # scalers_path = f"{output_path}/dnn_{name}_{year}/scalers_{name}_{eval_label}.npy"
+                # scalers = np.load(scalers_path)
                 # model_path = f'output/trained_models/test_{label}.h5'
                 model_path = f'{output_path}/dnn_{name}_{year}/{name}_{eval_label}.h5'
                 dnn_model = load_model(model_path)
@@ -1208,7 +1212,7 @@ def evaluation(df, args):
                 #if args['do_massscan']:
                 #    df_i['dimuon_mass'] = df_i['dimuon_mass']+mass_shift
 
-                df_i = (df_i[training_features]-scalers[0])/scalers[1]
+                # df_i = (df_i[training_features]-scalers[0])/scalers[1]
                 print(f"DNN evaluation df_i: {df_i}")
                 prediction = np.array(dnn_model.predict(df_i[training_features])).ravel()
                 df.loc[eval_filter,'dnn_score'] = np.arctanh((prediction))
@@ -1246,11 +1250,11 @@ def evaluation(df, args):
             # start_path = "/depot/cms/hmm/copperhead/trained_models/"
             output_path = args["output_path"]
             print(f"output_path: {output_path}")
-            scalers_path = f"{output_path}/bdt_{name}_{year}/scalers_{name}_{eval_label}.npy"
+            # scalers_path = f"{output_path}/bdt_{name}_{year}/scalers_{name}_{eval_label}.npy"
 
-            print(f"scalers_path: {scalers_path}")
+            # print(f"scalers_path: {scalers_path}")
             #scalers_path = f'output/trained_models_nest10000/scalers_{label}.npy'
-            scalers = np.load(scalers_path)
+            # scalers = np.load(scalers_path)
 
             model_path = f"{output_path}/bdt_{name}_{year}/{name}_{label}.pkl"
             #model_path = f'output/trained_models_nest10000/BDT_model_earlystop50_{label}.pkl'
@@ -1264,13 +1268,12 @@ def evaluation(df, args):
             #print("Scaler 0 ",scalers[0])
             #print("Scaler 1 ",scalers[1])
             #print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++",df_i.head())
-            df_i = (df_i[training_features]-scalers[0])/scalers[1]
+            # df_i = (df_i[training_features]-scalers[0])/scalers[1]
             #print("************************************************************",df_i.head())
             prediction_sig = np.array(bdt_model.predict_proba(df_i.values)[:, 1]).ravel()
             prediction_bkg = np.array(bdt_model.predict_proba(df_i.values)[:, 0]).ravel()
             fig1, ax1 = plt.subplots(1,1)
             plt.hist(prediction_sig, bins=50, alpha=0.5, color='blue', label='Validation Sig')
-            
             plt.hist(prediction_bkg, bins=50, alpha=0.5, color='red', label='Validation BKG')
 
 
@@ -1335,7 +1338,7 @@ if __name__ == "__main__":
     start_time = time.time()
     client =  Client(n_workers=31,  threads_per_worker=1, processes=True, memory_limit='4 GiB') 
 
-
+    
     
     load_path = f"{sysargs.load_path}/{year}/f1_0" # copperheadV2
     # load_path = f"{sysargs.load_path}/{year}/" # copperheadV1
@@ -1416,12 +1419,11 @@ if __name__ == "__main__":
     for sample in sample_l:
         zip_sample = dak.from_parquet(load_path+f"/{sample}/*/*.parquet") 
         # zip_sample = dak.from_parquet(load_path+f"/{sample}/*.parquet") # copperheadV1
-
         # temporary introduction of mu_pt_over_mass variables. Some tt and top samples don't have them
         zip_sample["mu1_pt_over_mass"] = zip_sample["mu1_pt"] / zip_sample["dimuon_mass"]
         zip_sample["mu2_pt_over_mass"] = zip_sample["mu2_pt"] / zip_sample["dimuon_mass"]
 
-        if "dy" in sample:
+        if "dy" in sample: # NOTE: not sure what this if statement is for
             wgts2load = []
             # for field in zip_sample.fields:
             #     if "wgt" in field:
@@ -1450,6 +1452,8 @@ if __name__ == "__main__":
             # print(f"wgt_nominal: {wgt_nominal}")
             # zip_sample["wgt_nominal_total"] = deactivateWgts(wgt_nominal, zip_sample, wgts2deactivate)
         else:
+            fields2load = prepare_features(zip_sample, fields2load) # add variation to the name
+            training_features = prepare_features(zip_sample, training_features) # do the same thing to training features
             zip_sample = ak.zip({
                 field : zip_sample[field] for field in fields2load
             }).compute()
@@ -1473,9 +1477,9 @@ if __name__ == "__main__":
 
 
     classifier_train(df_total, args, training_samples)
-    evaluation(df_total, args)
+    # evaluation(df_total, args)
     #df.to_pickle('/depot/cms/hmm/purohita/coffea/eval_dataset.pickle')
     #print(df)
     runtime = int(time.time()-start_time)
-    print(f"run time is {runtime} seconds")
+    print(f"Success! run time is {runtime} seconds")
 
