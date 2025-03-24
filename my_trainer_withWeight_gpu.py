@@ -649,9 +649,21 @@ def classifier_train(df, args, training_samples):
         # df_train['training_wgt'] = df_train['wgt_nominal']/df_train['cls_avg_wgt']
         # df_val['training_wgt'] = df_val['wgt_nominal']/df_val['cls_avg_wgt']
         # df_eval['training_wgt'] = df_eval['wgt_nominal']/df_eval['cls_avg_wgt']
-        df_train['training_wgt'] = np.ones_like(df_train['wgt_nominal'])
-        df_val['training_wgt'] = np.ones_like(df_val['wgt_nominal'])
-        df_eval['training_wgt'] = np.ones_like(df_eval['wgt_nominal'])
+
+        
+        # df_train['training_wgt'] = np.ones_like(df_train['wgt_nominal'])
+        # df_val['training_wgt'] = np.ones_like(df_val['wgt_nominal'])
+        # df_eval['training_wgt'] = np.ones_like(df_eval['wgt_nominal'])
+
+        # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf
+        # df_train['training_wgt'] = np.ones_like(df_train['wgt_nominal']) / df_train['dimuon_ebe_mass_res']
+        # df_val['training_wgt'] = np.ones_like(df_val['wgt_nominal']) / df_val['dimuon_ebe_mass_res']
+        # df_eval['training_wgt'] = np.ones_like(df_eval['wgt_nominal']) / df_eval['dimuon_ebe_mass_res']
+
+        # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight
+        df_train['training_wgt'] = (df_train['wgt_nominal']) / df_train['dimuon_ebe_mass_res']
+        df_val['training_wgt'] = (df_val['wgt_nominal']) / df_val['dimuon_ebe_mass_res']
+        df_eval['training_wgt'] = (df_eval['wgt_nominal']) / df_eval['dimuon_ebe_mass_res']
         
 
         
@@ -816,8 +828,10 @@ def classifier_train(df, args, training_samples):
             # AN Model end ---------------------------------------------------------------
 
             # AN Model new start ---------------------------------------------------------------   
-            # verbosity=2
-            # scale_pos_weight = 0.2 # float(np.sum(label == 0)) / np.sum(label == 1)
+            verbosity=2
+            label = y_train
+            scale_pos_weight = float(np.sum(label == 0)) / np.sum(label == 1)
+            print(f"scale_pos_weight: {scale_pos_weight}")
             model = xgb.XGBClassifier(max_depth=4,
                                       n_estimators=1000, # number of trees
                                       early_stopping_rounds=15, #15
