@@ -861,11 +861,11 @@ def classifier_train(df, args, training_samples):
                 max_depth=4,                 # Max depth
                 learning_rate=0.10,          # Shrinkage
                 subsample=0.5,               # Bagged sample fraction
-                min_child_weight=0.03 * len(x_train),  # Minimum node size as 3% of training samples
+                # min_child_weight=0.03 * len(x_train),  # NOTE: this causes AUC == 0.5
                 tree_method='hist',          # Needed for max_bin
                 max_bin=30,                  # Number of cuts
-                objective='binary:logistic', # CrossEntropy (logloss)
-                use_label_encoder=False,     # Optional: suppress warning
+                # objective='binary:logistic', # CrossEntropy (logloss)
+                # use_label_encoder=False,     # Optional: suppress warning
                 eval_metric='logloss',       # Ensures logloss used during training
                 n_jobs=-1,                   # Use all CPU cores
                 scale_pos_weight=scale_pos_weight,
