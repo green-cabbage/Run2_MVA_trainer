@@ -660,10 +660,10 @@ def classifier_train(df, args, training_samples):
         # df_val['training_wgt'] = np.ones_like(df_val['wgt_nominal']) / df_val['dimuon_ebe_mass_res']
         # df_eval['training_wgt'] = np.ones_like(df_eval['wgt_nominal']) / df_eval['dimuon_ebe_mass_res']
 
-        # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight
-        df_train['training_wgt'] = (df_train['wgt_nominal']) / df_train['dimuon_ebe_mass_res']
-        df_val['training_wgt'] = (df_val['wgt_nominal']) / df_val['dimuon_ebe_mass_res']
-        df_eval['training_wgt'] = (df_eval['wgt_nominal']) / df_eval['dimuon_ebe_mass_res']
+        # # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight
+        df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
+        df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) / df_val['dimuon_ebe_mass_res']
+        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig']) / df_eval['dimuon_ebe_mass_res']
         
 
         
@@ -829,9 +829,14 @@ def classifier_train(df, args, training_samples):
 
             # AN Model new start ---------------------------------------------------------------   
             verbosity=2
-            label = y_train
-            scale_pos_weight = float(np.sum(label == 0)) / np.sum(label == 1)
-            print(f"scale_pos_weight: {scale_pos_weight}")
+            # print(f"y_train: {y_train}")
+            # scale_pos_weight = float(np.sum(weight_nom_train[y_train == 0]))
+            # print(f"scale_pos_weight: {scale_pos_weight}")
+            # scale_pos_weight = scale_pos_weight/ np.sum(weight_nom_train[y_train == 1]) 
+            # print(f"scale_pos_weight: {scale_pos_weight}")
+            # raise ValueError
+            scale_pos_weight = float(np.sum(weight_nom_train[y_train == 0])) / np.sum(weight_nom_train[y_train == 1]) 
+            # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight
             model = xgb.XGBClassifier(max_depth=4,
                                       n_estimators=1000, # number of trees
                                       early_stopping_rounds=15, #15
@@ -844,11 +849,31 @@ def classifier_train(df, args, training_samples):
                                       # subsample=0.5, # Bagged sample fraction ?
                                       #reg_lambda=16.6,
                                       #gamma=24.505,
-                                      #n_jobs=35,
+                                      n_jobs=-1,
                                       # tree_method='hist',
-                                      # verbosity=verbosity,
-                                      # scale_pos_weight=scale_pos_weight,
+                                      verbosity=verbosity,
+                                      scale_pos_weight=scale_pos_weight,
                                      )
+            
+            
+            # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
+            # print(f"len(x_train): {len(x_train)}")
+            # raise ValueError
+            # model = XGBClassifier(
+            #     n_estimators=1000,           # Number of trees
+            #     max_depth=4,                 # Max depth
+            #     learning_rate=0.10,          # Shrinkage
+            #     subsample=0.5,               # Bagged sample fraction
+            #     min_child_weight=0.03 * len(x_train),  # Minimum node size as 3% of training samples
+            #     tree_method='hist',          # Needed for max_bin
+            #     max_bin=30,                  # Number of cuts
+            #     objective='binary:logistic', # CrossEntropy (logloss)
+            #     use_label_encoder=False,     # Optional: suppress warning
+            #     eval_metric='logloss',       # Ensures logloss used during training
+            #     n_jobs=-1,                   # Use all CPU cores
+            #     early_stopping_rounds=15,
+            #     verbosity=verbosity
+            # )
             # AN Model new end ---------------------------------------------------------------
             
             print(model)
