@@ -327,7 +327,7 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
         train_region &
         ~btag_cut # btag cut is for VH and ttH categories
     )
-    print(f"category_selection: {category_selection}")
+    print(f"category_selection sum: {ak.sum(category_selection)}")
     # computed_zip = dak_zip[category_selection].compute() # original
     computed_zip = dak_zip[category_selection]
 
@@ -626,6 +626,9 @@ def classifier_train(df, args, training_samples):
             df_train.loc[y_train==icls,'cls_avg_wgt'] = df_train.loc[y_train==icls,'wgt_nominal'].values.mean()
             df_val.loc[y_val==icls,'cls_avg_wgt'] = df_val.loc[y_val==icls,'wgt_nominal'].values.mean()
             df_eval.loc[y_eval==icls,'cls_avg_wgt'] = df_eval.loc[y_eval==icls,'wgt_nominal'].values.mean()
+            # df_train.loc[y_train==icls,'cls_avg_wgt'] = df_train.loc[y_train==icls,'wgt_nominal'].values.sum()
+            # df_val.loc[y_val==icls,'cls_avg_wgt'] = df_val.loc[y_val==icls,'wgt_nominal'].values.sum()
+            # df_eval.loc[y_eval==icls,'cls_avg_wgt'] = df_eval.loc[y_eval==icls,'wgt_nominal'].values.sum()
             print(f"{train_evts} training events in class {cls}")
         # original end -------------------------------------------------------
         # test start -------------------------------------------------------
@@ -643,9 +646,12 @@ def classifier_train(df, args, training_samples):
         # df_eval.loc[:,'training_wgt'] = df_eval['training_wgt']/df_eval['cls_avg_wgt']
 
 
-        df_train['training_wgt'] = df_train['wgt_nominal']/df_train['cls_avg_wgt']
-        df_val['training_wgt'] = df_val['wgt_nominal']/df_val['cls_avg_wgt']
-        df_eval['training_wgt'] = df_eval['wgt_nominal']/df_eval['cls_avg_wgt']
+        # df_train['training_wgt'] = df_train['wgt_nominal']/df_train['cls_avg_wgt']
+        # df_val['training_wgt'] = df_val['wgt_nominal']/df_val['cls_avg_wgt']
+        # df_eval['training_wgt'] = df_eval['wgt_nominal']/df_eval['cls_avg_wgt']
+        df_train['training_wgt'] = np.ones_like(df_train['wgt_nominal'])
+        df_val['training_wgt'] = np.ones_like(df_val['wgt_nominal'])
+        df_eval['training_wgt'] = np.ones_like(df_eval['wgt_nominal'])
         
 
         
@@ -810,6 +816,8 @@ def classifier_train(df, args, training_samples):
             # AN Model end ---------------------------------------------------------------
 
             # AN Model new start ---------------------------------------------------------------   
+            # verbosity=2
+            # scale_pos_weight = 0.2 # float(np.sum(label == 0)) / np.sum(label == 1)
             model = xgb.XGBClassifier(max_depth=4,
                                       n_estimators=1000, # number of trees
                                       early_stopping_rounds=15, #15
@@ -819,11 +827,13 @@ def classifier_train(df, args, training_samples):
                                       #colsample_bytree=0.47892268305051233,
                                       # colsample_bytree=0.5,
                                       # min_child_weight=3,
-                                      subsample=0.5, # Bagged sample fraction ?
+                                      # subsample=0.5, # Bagged sample fraction ?
                                       #reg_lambda=16.6,
                                       #gamma=24.505,
                                       #n_jobs=35,
-                                      tree_method='hist',
+                                      # tree_method='hist',
+                                      # verbosity=verbosity,
+                                      # scale_pos_weight=scale_pos_weight,
                                      )
             # AN Model new end ---------------------------------------------------------------
             
@@ -854,11 +864,11 @@ def classifier_train(df, args, training_samples):
             print("y_pred_______________________________________________________________")
             print("y_pred_______________________________________________________________")
             print("y_pred_______________________________________________________________")
-            print(y_pred)
+            print(f"y_pred: {y_pred}")
             print("y_pred_______________________________________________________________")
             print("y_pred_______________________________________________________________")
             print("y_pred_______________________________________________________________")
-            print(y_val)
+            print(f"y_val: {y_val}")
             # original start ------------------------------------------------------------------------------
             nn_fpr_xgb, nn_tpr_xgb, nn_thresholds_xgb = roc_curve(y_val.ravel(), y_pred, sample_weight=w_val) 
             # original end ------------------------------------------------------------------------------
