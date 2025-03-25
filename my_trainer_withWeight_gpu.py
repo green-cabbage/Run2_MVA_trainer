@@ -661,6 +661,7 @@ def classifier_train(df, args, training_samples):
         # df_eval['training_wgt'] = np.ones_like(df_eval['wgt_nominal']) / df_eval['dimuon_ebe_mass_res']
 
         # # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight or V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
+        # AN-19-124 line 1156: "the final BDTs have been trained by flipping the sign of negative weighted events"
         df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
         df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) / df_val['dimuon_ebe_mass_res']
         df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig']) / df_eval['dimuon_ebe_mass_res']
@@ -827,13 +828,9 @@ def classifier_train(df, args, training_samples):
 
             # AN Model new start ---------------------------------------------------------------   
             verbosity=2
-            # print(f"y_train: {y_train}")
-            # scale_pos_weight = float(np.sum(weight_nom_train[y_train == 0]))
-            # print(f"scale_pos_weight: {scale_pos_weight}")
-            # scale_pos_weight = scale_pos_weight/ np.sum(weight_nom_train[y_train == 1]) 
-            # print(f"scale_pos_weight: {scale_pos_weight}")
-            # raise ValueError
-            scale_pos_weight = float(np.sum(weight_nom_train[y_train == 0])) / np.sum(weight_nom_train[y_train == 1]) 
+            
+            # AN-19-124 p 45: "a correction factor is introduced to ensure that the same amount of background events are expected when either negative weighted events are discarded or they are considered with a positive weight"
+            scale_pos_weight = float(np.sum(np.abs(weight_nom_train[y_train == 0]))) / np.sum(np.abs(weight_nom_train[y_train == 1])) 
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight
             # model = xgb.XGBClassifier(max_depth=4,
             #                           n_estimators=1000, # number of trees
@@ -869,7 +866,7 @@ def classifier_train(df, args, training_samples):
                 eval_metric='logloss',       # Ensures logloss used during training
                 n_jobs=-1,                   # Use all CPU cores
                 scale_pos_weight=scale_pos_weight,
-                early_stopping_rounds=15,
+                early_stopping_rounds=15,#15
                 verbosity=verbosity
             )
             # AN Model new end ---------------------------------------------------------------
@@ -1386,9 +1383,11 @@ if __name__ == "__main__":
     client =  Client(n_workers=31,  threads_per_worker=1, processes=True, memory_limit='4 GiB') 
 
     
-    
-    load_path = f"{sysargs.load_path}/{year}/f1_0" # copperheadV2
-    # load_path = f"{sysargs.load_path}/{year}/" # copperheadV1
+    if year == "2016":
+        load_path = f"{sysargs.load_path}/{year}*/f1_0" # copperheadV2
+    else:
+        load_path = f"{sysargs.load_path}/{year}/f1_0" # copperheadV2
+        # load_path = f"{sysargs.load_path}/{year}/" # copperheadV1
     print(f"load_path: {load_path}")
     sample_l = training_samples["background"] + training_samples["signal"]
     is_UL = True
