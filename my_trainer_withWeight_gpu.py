@@ -10,7 +10,6 @@ from sklearn.metrics import roc_curve, auc, roc_auc_score
 import matplotlib.pyplot as plt
 import mplhep as hep
 plt.style.use(hep.style.CMS)
-from xgboost import plot_tree
 import tqdm
 from distributed import LocalCluster, Client, progress
 import os
@@ -232,22 +231,200 @@ def customROC_curve_AN(label, pred, weight):
 # PhiFixed_rereco_yun
 
 
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     'jet1_pt', 
+#     # 'jet2_pt', 
+#     'jj_dEta', 
+#     'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ]
+# # V2_UL_Mar30_2025_DyMiNNLOGghVbf_removeJetVar
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     # 'mu2_eta', 
+#     # 'mu2_pt_over_mass', 
+#     # 'zeppenfeld',
+#     # 'njets'
+# ]
+# # #V2_UL_Mar30_2025_DyMiNNLOGghVbf_removeAllJetVar
+
+# training_features = [
+#     'dimuon_pt', 
+# ]
+# #V2_UL_Mar30_2025_DyMiNNLOGghVbf_justDimuPt
+
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     # 'zeppenfeld',
+#     # 'njets'
+# ]
+# # #V2_UL_Mar30_2025_DyMiNNLOGghVbf_onlyMuVar
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     # 'njets'
+# ]
+# # V2_UL_Mar30_2025_DyMiNNLOGghVbf_onlyMuVar_ZeppenJjMass
+
+
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     'mmj_min_dEta', 
+#     'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ]
+# # V2_UL_Mar30_2025_DyMiNNLOGghVbf_onlyMuVar_ZeppenJjMass_DeltaVars
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ]
+# # V2_UL_Mar30_2025_DyMiNNLOGghVbf_onlyMuVar_ZeppenJjMass_Njets
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     # "dimuon_cos_theta_eta",
+#     # "dimuon_phi_eta",
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     'jet1_eta', 
+#     'jet1_pt', 
+#     'jet2_pt', 
+#     'jj_dEta', 
+#     'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     'mmj_min_dEta', 
+#     'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ]
+# # V2 Jan 18 UL
+
+
 training_features = [
     'dimuon_cos_theta_cs', 
     'dimuon_phi_cs', 
-    # "dimuon_cos_theta_eta",
-    # "dimuon_phi_eta",
     'dimuon_rapidity', 
     'dimuon_pt', 
     'jet1_eta', 
+    'jet2_eta', 
     'jet1_pt', 
     'jet2_pt', 
     'jj_dEta', 
     'jj_dPhi', 
     'jj_mass', 
-    'mmj1_dEta', 
-    'mmj1_dPhi',  
-    'mmj_min_dEta', 
+    # 'mmj1_dEta', 
+    # 'mmj1_dPhi',  
+    # 'mmj_min_dEta', 
     'mmj_min_dPhi', 
     'mu1_eta', 
     'mu1_pt_over_mass', 
@@ -256,22 +433,32 @@ training_features = [
     'zeppenfeld',
     'njets'
 ]
-# V2 Jan 18 UL
+# V2_UL_Mar30_2025_DyMiNNLOGghVbf_onlyMuVar_ZeppenJjMass
+
+
+#---------------------------------------------------------------------------
 
 training_samples = {
         "background": [
             "dy_M-100To200", 
+            # "dy_M-100To200_MiNNLO",
             # "dy_m105_160_amc",
             # "dy_m100_200_UL",
             "ttjets_dl",
             "ttjets_sl",
             "st_tw_top",
             "st_tw_antitop",
+            # "st_t_top",
+            # "st_t_antitop",
             "ww_2l2nu",
             "wz_1l1nu2q",
             "wz_2l2q",
             "wz_3lnu",
             "zz",
+            # "www",
+            # "wwz",
+            # "wzz",
+            # "zzz",
             "ewk_lljj_mll50_mjj120",
         ],
         "signal": [
@@ -303,24 +490,22 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     ggH production mode
     """
     # filter out arrays not in h_peak
-    train_region = (dak_zip.dimuon_mass > 115.03) & (dak_zip.dimuon_mass < 135.03) # line 1169 of the AN: when training, we apply a tigher cut
+    train_region = (dak_zip.dimuon_mass > 115.0) & (dak_zip.dimuon_mass < 135.0) # line 1169 of the AN: when training, we apply a tigher cut
     train_region = ak.fill_none(train_region, value=False)
     # print(f"is_vbf: {is_vbf}")
     # print(f"convert2df train_region:{train_region}")
     # not entirely sure if this is what we use for ROC curve, however
 
     vbf_cut = ak.fill_none(dak_zip.jj_mass_nominal > 400, value=False) & ak.fill_none(dak_zip.jj_dEta_nominal > 2.5, value=False) # for ggH $ VBF
-    jet1_cut =  ak.fill_none((dak_zip.jet1_pt_nominal > 35), value=False) # for VBF only
+    jet1_cut =  ak.fill_none((dak_zip.jet1_pt_nominal > 35), value=False) 
     
     if is_vbf: # VBF
         prod_cat_cut =  vbf_cut & jet1_cut
     else: # ggH
-        # prod_cat_cut =  ~vbf_cut
         prod_cat_cut =  ~(vbf_cut & jet1_cut)
+        print("ggH cat!")
 
-    
     btag_cut = ak.fill_none((dak_zip.nBtagLoose_nominal >= 2), value=False) | ak.fill_none((dak_zip.nBtagMedium_nominal >= 1), value=False)
-    mu2_exists = ak.fill_none(dak_zip.mu2_pt >0, value=False) # somehow some events have mu2 pt as nan
    
     category_selection = (
         prod_cat_cut & 
@@ -852,20 +1037,20 @@ def classifier_train(df, args, training_samples):
             
             
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
-            print(f"len(x_train): {len(x_train)}")
+            # print(f"len(x_train): {len(x_train)}")
             model = XGBClassifier(
                 n_estimators=1000,           # Number of trees
                 max_depth=4,                 # Max depth
                 learning_rate=0.10,          # Shrinkage
                 subsample=0.5,               # Bagged sample fraction
-                # min_child_weight=0.03 * len(x_train),  # NOTE: this causes AUC == 0.5
+                min_child_weight=0.03 ,  # NOTE: this causes AUC == 0.5
                 tree_method='hist',          # Needed for max_bin
                 max_bin=30,                  # Number of cuts
                 # objective='binary:logistic', # CrossEntropy (logloss)
                 # use_label_encoder=False,     # Optional: suppress warning
                 eval_metric='logloss',       # Ensures logloss used during training
                 n_jobs=-1,                   # Use all CPU cores
-                scale_pos_weight=scale_pos_weight,
+                scale_pos_weight=scale_pos_weight*1.5,
                 early_stopping_rounds=15,#15
                 verbosity=verbosity
             )
@@ -898,11 +1083,11 @@ def classifier_train(df, args, training_samples):
             print("y_pred_______________________________________________________________")
             print("y_pred_______________________________________________________________")
             print("y_pred_______________________________________________________________")
-            print(f"y_pred: {y_pred}")
+            # print(f"y_pred: {y_pred}")
             print("y_pred_______________________________________________________________")
             print("y_pred_______________________________________________________________")
             print("y_pred_______________________________________________________________")
-            print(f"y_val: {y_val}")
+            # print(f"y_val: {y_val}")
             # original start ------------------------------------------------------------------------------
             nn_fpr_xgb, nn_tpr_xgb, nn_thresholds_xgb = roc_curve(y_val.ravel(), y_pred, sample_weight=w_val) 
             # original end ------------------------------------------------------------------------------
@@ -1152,7 +1337,7 @@ def classifier_train(df, args, training_samples):
             
             # plot trees
             plot_tree(model)
-            plt.savefig(f"output/bdt_{name}_{year}/{name}_{year}_TreePlot_{i}.png",dpi=1200)
+            plt.savefig(f"output/bdt_{name}_{year}/{name}_{year}_TreePlot_{i}.png",dpi=400)
             
             # plot importance
             # plot_importance(model, importance_type='weight', xlabel="Score by weight",show_values=False)
@@ -1437,10 +1622,10 @@ if __name__ == "__main__":
             "jet1_pt_nominal",
             "nBtagLoose_nominal",
             "nBtagMedium_nominal",
-            "mmj1_dEta_nominal",
-            "mmj2_dEta_nominal",
-            "mmj1_dPhi_nominal",
-            "mmj2_dPhi_nominal",
+            # "mmj1_dEta_nominal",
+            # "mmj2_dEta_nominal",
+            # "mmj1_dPhi_nominal",
+            # "mmj2_dPhi_nominal",
             "wgt_nominal",
             "dimuon_ebe_mass_res",
             "event",
@@ -1519,7 +1704,8 @@ if __name__ == "__main__":
     df_total = prepare_dataset(df_total, training_samples)
     print("prepare_dataset done")
     # raise ValueError
-    print(f"len(df_total): {len(df_total)}")
+    # print(f"len(df_total): {len(df_total)}")
+    print(f"df_total.columns: {df_total.columns}")
 
 
     classifier_train(df_total, args, training_samples)
