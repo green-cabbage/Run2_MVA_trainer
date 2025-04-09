@@ -21,6 +21,7 @@ from xgboost import plot_tree
 import json
 import cmsstyle as CMS
 import mplhep as hep
+import pickle
 
 def prepare_features(events, features, variation="nominal"):
     plt.style.use(hep.style.CMS)
@@ -65,23 +66,50 @@ def generate_normalized_histogram(values, weights, bins):
     return hist, bin_edges
 
 
+def transformBdtOut(pred):
+    """
+    change the BDT output range from [0,1] to [-1,1]
+    """
+    pred = pred *2 -1
+    return pred
+
 def get6_5(label, pred, weight, save_path:str, name: str):
     # seperate signal and background
-    binning = np.linspace(start=0,stop=1, num=60) 
+    with open("my_data.pkl", "wb") as f:
+        pickle.dump((label, pred, weight), f)  #
+        
+    # binning = np.linspace(start=0,stop=1, num=60) 
+    binning = np.linspace(start=-1,stop=1, num=41) 
     bkg_filter = (label ==0)
-    bkg_pred = pred[bkg_filter]
+    bkg_pred = transformBdtOut(pred[bkg_filter])
     bkg_wgt = weight[bkg_filter]
     bkg_wgt = bkg_wgt / np.sum(bkg_wgt) # normalize
     bkg_hist, edges = np.histogram(bkg_pred, bins=binning, weights=bkg_wgt)
     sig_filter = (label ==1)
-    sig_pred = pred[sig_filter]
+    sig_pred = transformBdtOut(pred[sig_filter])
     sig_wgt = weight[sig_filter]
     sig_wgt = sig_wgt / np.sum(sig_wgt) # normalize
     sig_hist, _ = np.histogram(sig_pred, bins=binning, weights=sig_wgt)
-    plt.stairs(bkg_hist, edges, label = "background")
-    plt.stairs(sig_hist, edges, label = "signal")
-    plt.xlabel('BDT Score')
-    plt.legend()
+    # plot
+    fig, ax_main = plt.subplots()
+    ax_main.stairs(bkg_hist, edges, label = "background", color="Red")
+    ax_main.stairs(sig_hist, edges, label = "signal", color="Blue")
+    
+    
+        
+    # Add legend and axis labels
+    ax_main.set_xlabel('BDT Score')
+    ax_main.set_ylabel("a.u.")
+    ax_main.legend()
+    
+    # Set Range
+    ax_main.set_xlim(-0.9, 0.9)
+    ax_main.set_xticks([ -0.8, -0.6, -0.4, -0.2 , 0. ,  0.2 , 0.4 , 0.6,  0.8])
+    ax_main.set_ylim(0, 0.09)
+    
+    # hep.cms.label(data=True, loc=0, label=status, com=CenterOfMass, lumi=lumi, ax=ax_main)
+    hep.cms.label(data=False, ax=ax_main)
+    
     plt.savefig(f"{save_path}/6_5_{name}.png")
     plt.clf()
     
@@ -468,8 +496,8 @@ training_features = [
 
 training_samples = {
         "background": [
-            "dy_M-100To200", 
-            # "dy_M-100To200_MiNNLO",
+            # "dy_M-100To200", 
+            "dy_M-100To200_MiNNLO",
             # "dy_m105_160_amc",
             # "dy_m100_200_UL",
             "ttjets_dl",
@@ -1078,6 +1106,7 @@ def classifier_train(df, args, training_samples):
                 # use_label_encoder=False,     # Optional: suppress warning
                 eval_metric='logloss',       # Ensures logloss used during training
                 n_jobs=-1,                   # Use all CPU cores
+                # scale_pos_weight=scale_pos_weight*0.005,
                 scale_pos_weight=scale_pos_weight*0.75,
                 early_stopping_rounds=15,#15
                 verbosity=verbosity
