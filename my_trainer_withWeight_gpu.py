@@ -19,8 +19,11 @@ from xgboost import plot_importance
 import copy
 from xgboost import plot_tree
 import json
+import cmsstyle as CMS
+import mplhep as hep
 
 def prepare_features(events, features, variation="nominal"):
+    plt.style.use(hep.style.CMS)
     features_var = []
     for trf in features:
         if "soft" in trf:
@@ -409,6 +412,31 @@ def customROC_curve_AN(label, pred, weight):
 # ]
 # # V2 Jan 18 UL
 
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     'jet1_eta', 
+#     'jet2_eta', 
+#     'jet1_pt', 
+#     'jet2_pt', 
+#     'jj_dEta', 
+#     'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ]
+# # V2_UL_Mar30_2025_DyMiNNLOGghVbf_onlyMuVar_ZeppenJjMass
+
 
 training_features = [
     'dimuon_cos_theta_cs', 
@@ -424,7 +452,7 @@ training_features = [
     'jj_mass', 
     # 'mmj1_dEta', 
     # 'mmj1_dPhi',  
-    # 'mmj_min_dEta', 
+    'mmj_min_dEta', 
     'mmj_min_dPhi', 
     'mu1_eta', 
     'mu1_pt_over_mass', 
@@ -433,7 +461,7 @@ training_features = [
     'zeppenfeld',
     'njets'
 ]
-# V2_UL_Mar30_2025_DyMiNNLOGghVbf_onlyMuVar_ZeppenJjMass
+# V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75
 
 
 #---------------------------------------------------------------------------
@@ -1050,7 +1078,7 @@ def classifier_train(df, args, training_samples):
                 # use_label_encoder=False,     # Optional: suppress warning
                 eval_metric='logloss',       # Ensures logloss used during training
                 n_jobs=-1,                   # Use all CPU cores
-                scale_pos_weight=scale_pos_weight*1.5,
+                scale_pos_weight=scale_pos_weight*0.75,
                 early_stopping_rounds=15,#15
                 verbosity=verbosity
             )
