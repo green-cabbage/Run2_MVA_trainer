@@ -22,8 +22,8 @@ set -e
 # model_name="V2_UL_Mar30_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt1_25"
 
 # model_name="V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75"
-model_name="V2_UL_Apr09_2025_DyMinnloTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75"
-# model_name="V2_UL_Apr09_2025_DyMinnloTtStVvEwkGghVbf_hyperParamOff"
+# model_name="V2_UL_Apr09_2025_DyMinnloTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75"
+model_name="V2_UL_Apr09_2025_DyMinnloTtStVvEwkGghVbf_hyperParamOff"
 
 
 
