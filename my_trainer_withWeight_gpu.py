@@ -497,7 +497,7 @@ training_features = [
 training_samples = {
         "background": [
             "dy_M-100To200", 
-            # "dy_M-100To200_MiNNLO",
+            "dy_M-100To200_MiNNLO",
             # "dy_m105_160_amc",
             # "dy_m100_200_UL",
             "ttjets_dl",
@@ -561,7 +561,10 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
         prod_cat_cut =  ~(vbf_cut & jet1_cut)
         print("ggH cat!")
 
-    btag_cut = ak.fill_none((dak_zip.nBtagLoose_nominal >= 2), value=False) | ak.fill_none((dak_zip.nBtagMedium_nominal >= 1), value=False)
+    # btag_cut = ak.fill_none((dak_zip.nBtagLoose_nominal >= 2), value=False) | ak.fill_none((dak_zip.nBtagMedium_nominal >= 1), value=False)
+    btagLoose_filter = ak.fill_none((dak_zip.nBtagLoose_nominal >= 2), value=False)
+    btagMedium_filter = ak.fill_none((dak_zip.nBtagMedium_nominal >= 1), value=False) & ak.fill_none((dak_zip.njets_nominal >= 2), value=False)
+    btag_cut = btagLoose_filter | btagMedium_filter
    
     category_selection = (
         prod_cat_cut & 
@@ -1705,7 +1708,13 @@ if __name__ == "__main__":
     print(f"sample_l: {sample_l}")
     print(f"training_features: {training_features}")
     for sample in sample_l:
-        zip_sample = dak.from_parquet(load_path+f"/{sample}/*/*.parquet") 
+        print(f"running sample {sample}")
+        parquet_path = load_path+f"/{sample}/*/*.parquet"
+        try:
+            zip_sample = dak.from_parquet(parquet_path) 
+        except:
+            print(f"Parquet for {sample} not found. skipping!")
+            continue
         # zip_sample = dak.from_parquet(load_path+f"/{sample}/*.parquet") # copperheadV1
         # temporary introduction of mu_pt_over_mass variables. Some tt and top samples don't have them
         zip_sample["mu1_pt_over_mass"] = zip_sample["mu1_pt"] / zip_sample["dimuon_mass"]
