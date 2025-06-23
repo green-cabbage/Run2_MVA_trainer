@@ -22,6 +22,7 @@ import json
 import cmsstyle as CMS
 import mplhep as hep
 import pickle
+import glob
 
 def prepare_features(events, features, variation="nominal"):
     plt.style.use(hep.style.CMS)
@@ -705,60 +706,6 @@ def prepare_dataset(df, ds_dict):
     # print(df[df['dataset']=="ggh_powheg"].head)
     # print(f"prepare_dataset df: {df["dataset","class"]}")
     return df
-
-# def scale_data(inputs, x_train, x_val, df_train, label):
-#     x_mean = np.mean(x_train[inputs].values,axis=0)
-#     x_std = np.std(x_train[inputs].values,axis=0)
-#     training_data = (x_train[inputs]-x_mean)/x_std
-#     validation_data = (x_val[inputs]-x_mean)/x_std
-#     np.save(f"{output_path}/{name}_{year}/scalers_{name}_{year}_{label}", [x_mean, x_std])
-#     return training_data, validation_data
-# def scale_data_withweight(inputs, x_train, x_val, df_train, label):
-#     masked_x_train = np.ma.masked_array(x_train[x_train[inputs]!=-99][inputs], np.isnan(x_train[x_train[inputs]!=-99][inputs]))
-#     #x_mean = np.average(x_train[inputs].values,axis=0, weights=df_train['training_wgt'].values)
-#     x_mean = np.average(masked_x_train,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
-#     #x_std = np.std(x_train[inputs].values,axis=0)
-#     #masked_x_std = np.ma.masked_array(x_train[x_train[inputs]!=-99][inputs], np.isnan(x_train[x_train[inputs]!=-99][inputs]))
-#     #x_std = np.average((x_train[inputs].values-x_mean)**2,axis=0, weights=df_train['training_wgt'].values)
-#     x_std = np.average((masked_x_train-x_mean)**2,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
-#     sumw2 = (df_train['training_wgt']**2).sum()
-#     sumw = df_train['training_wgt'].sum()
-    
-#     x_std = np.sqrt(x_std/(1-sumw2/sumw**2))
-#     training_data = (x_train[inputs]-x_mean)/x_std
-#     validation_data = (x_val[inputs]-x_mean)/x_std
-#     output_path = args["output_path"]
-#     print(f"output_path: {output_path}")
-#     print(f"name: {name}")
-#     save_path = f'{output_path}/bdt_{name}_{year}'
-#     print(f"scalar save_path: {save_path}")
-#     if not os.path.exists(save_path):
-#         os.makedirs(save_path)
-#     np.save(save_path + f"/scalers_{name}_{label}", [x_mean, x_std]) #label contains year
-#     return training_data, validation_data
-
-# def scale_data_withweight(inputs, x_train, x_val, x_eval, df_train, label): # old method tahat I don't agree with
-#     masked_x_train = np.ma.masked_array(x_train[x_train[inputs]!=-99][inputs], np.isnan(x_train[x_train[inputs]!=-99][inputs]))
-#     x_mean = np.average(masked_x_train,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
-#     x_std = np.average((masked_x_train-x_mean)**2,axis=0, weights=df_train['training_wgt'].values).filled(np.nan)
-#     sumw2 = (df_train['training_wgt']**2).sum()
-#     sumw = df_train['training_wgt'].sum()
-    
-#     x_std = np.sqrt(x_std/(1-sumw2/sumw**2))
-#     training_data = (x_train[inputs]-x_mean)/x_std
-#     validation_data = (x_val[inputs]-x_mean)/x_std
-#     evaluation_data = (x_eval[inputs]-x_mean)/x_std
-#     output_path = args["output_path"]
-#     print(f"output_path: {output_path}/scalers_{name}_{label}")
-#     print(f"name: {name}")
-#     save_path = f'{output_path}/bdt_{name}_{year}'
-#     print(f"scalar save_path: {save_path}/scalers_{name}_{label}")
-#     if not os.path.exists(save_path):
-#         os.makedirs(save_path)
-#     np.save(save_path + f"/scalers_{name}_{label}", [x_mean, x_std]) #label contains year
-#     return training_data, validation_data, evaluation_data
-
-
 
 def scale_data_withweight(inputs, x_train, x_val, x_eval, df_train, fold_label):
     """
@@ -1630,6 +1577,8 @@ if __name__ == "__main__":
     
     if year == "2016":
         load_path = f"{sysargs.load_path}/{year}*/f1_0" # copperheadV2
+    elif year == "all":
+        load_path = f"{sysargs.load_path}/*/f1_0" # copperheadV2
     else:
         load_path = f"{sysargs.load_path}/{year}/f1_0" # copperheadV2
         # load_path = f"{sysargs.load_path}/{year}/" # copperheadV1
@@ -1707,13 +1656,17 @@ if __name__ == "__main__":
     df_l = []
     print(f"sample_l: {sample_l}")
     print(f"training_features: {training_features}")
+    print(f"load_path: {load_path}")
     for sample in sample_l:
         print(f"running sample {sample}")
         parquet_path = load_path+f"/{sample}/*/*.parquet"
         try:
-            zip_sample = dak.from_parquet(parquet_path) 
-        except:
-            print(f"Parquet for {sample} not found. skipping!")
+            # zip_sample = dak.from_parquet(parquet_path) 
+            filelist = glob.glob(parquet_path)
+            print(f"filelist len: {len(filelist)}")
+            zip_sample = dak.from_parquet(filelist) 
+        except Exception as error:
+            print(f"Parquet for {sample} not found with error {error}. skipping!")
             continue
         # zip_sample = dak.from_parquet(load_path+f"/{sample}/*.parquet") # copperheadV1
         # temporary introduction of mu_pt_over_mass variables. Some tt and top samples don't have them
