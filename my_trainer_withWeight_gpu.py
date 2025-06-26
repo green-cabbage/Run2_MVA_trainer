@@ -179,7 +179,6 @@ def customROC_curve_AN(label, pred, weight):
 
 
 
-#training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_ebe_mass_res', 'dimuon_ebe_mass_res_rel', 'dimuon_eta', 'dimuon_mass', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta nominal', 'jet1_phi nominal', 'jet1_pt nominal', 'jet1_qgl nominal', 'jet2_eta nominal', 'jet2_phi nominal', 'jet2_pt nominal', 'jet2_qgl nominal', 'jj_dEta nominal', 'jj_dPhi nominal', 'jj_eta nominal', 'jj_mass nominal', 'jj_mass_log nominal', 'jj_phi nominal', 'jj_pt nominal', 'll_zstar_log nominal', 'mmj1_dEta nominal', 'mmj1_dPhi nominal', 'mmj2_dEta nominal', 'mmj2_dPhi nominal', 'mmj_min_dEta nominal', 'mmj_min_dPhi nominal', 'mmjj_eta nominal', 'mmjj_mass nominal', 'mmjj_phi nominal', 'mmjj_pt nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt', 'mu2_pt_over_mass', 'zeppenfeld nominal']
 #training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_eta', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta_nominal', 'jet1_phi_nominal', 'jet1_pt_nominal', 'jet1_qgl_nominal', 'jet2_eta_nominal', 'jet2_phi_nominal', 'jet2_pt_nominal', 'jet2_qgl_nominal', 'jj_dEta_nominal', 'jj_dPhi_nominal', 'jj_eta_nominal', 'jj_mass_nominal', 'jj_mass_log_nominal', 'jj_phi_nominal', 'jj_pt_nominal', 'll_zstar_log_nominal', 'mmj1_dEta_nominal', 'mmj1_dPhi_nominal', 'mmj2_dEta_nominal', 'mmj2_dPhi_nominal', 'mmj_min_dEta_nominal', 'mmj_min_dPhi_nominal', 'mmjj_eta_nominal', 'mmjj_mass_nominal', 'mmjj_phi_nominal', 'mmjj_pt_nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt_over_mass', 'zeppenfeld_nominal']
 
 # training_features = ['dimuon_cos_theta_cs', 'dimuon_eta', 'dimuon_phi_cs', 'dimuon_pt', 'jet1_eta', 'jet1_pt', 'jet2_eta', 'jet2_pt', 'jj_dEta', 'jj_dPhi', 'jj_mass', 'mmj1_dEta', 'mmj1_dPhi',  'mmj_min_dEta', 'mmj_min_dPhi', 'mu1_eta', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_pt_over_mass', 'zeppenfeld', 'njets']  # AN 19-124
@@ -678,10 +677,6 @@ def prepare_dataset(df, ds_dict):
     cls_name_map = dict(df_info[["dataset", "class_name"]].values)
     df["class"] = df.dataset.map(cls_map)
     df["class_name"] = df.dataset.map(cls_name_map)
-    # df.loc[:,'mu1_pt_over_mass'] = np.divide(df['mu1_pt'], df['dimuon_mass'])
-    # df.loc[:,'mu2_pt_over_mass'] = np.divide(df['mu2_pt'], df['dimuon_mass'])
-    # df[df['njets']<2]['jj_dPhi'] = -1
-    #df[df['dataset']=="ggh_amcPS"].loc[:,'wgt_nominal_total'] = np.divide(df[df['dataset']=="ggh_amcPS"]['wgt_nominal_total'], df[df['dataset']=="ggh_amcPS"]['dimuon_ebe_mass_res'])
 
     
     # --------------------------------------------------------
@@ -822,35 +817,8 @@ def classifier_train(df, args, training_samples):
             # df_eval.loc[y_eval==icls,'cls_avg_wgt'] = df_eval.loc[y_eval==icls,'wgt_nominal'].values.sum()
             print(f"{train_evts} training events in class {cls}")
         # original end -------------------------------------------------------
-        # test start -------------------------------------------------------
-        # bkg_l = training_samples["background"]
-        # sig_l = training_samples["signal"]
         
-        # df_train.loc[filter, "training_wgt"] = df_train.loc[filter,"training_wgt"]/df_train.loc[filter,"cls_avg_wgt"]
-        # test end -------------------------------------------------------
         
-        # df_train['training_wgt'] = df_train['wgt_nominal_total']/df_train['cls_avg_wgt']
-        # df_val['training_wgt'] = df_val['wgt_nominal_total']/df_val['cls_avg_wgt']
-        # df_eval['training_wgt'] = df_eval['wgt_nominal_total']/df_eval['cls_avg_wgt']
-        # df_train.loc[:,'training_wgt'] = df_train['training_wgt']/df_train['cls_avg_wgt']
-        # df_val.loc[:,'training_wgt'] = df_val['training_wgt']/df_val['cls_avg_wgt']
-        # df_eval.loc[:,'training_wgt'] = df_eval['training_wgt']/df_eval['cls_avg_wgt']
-
-
-        # df_train['training_wgt'] = df_train['wgt_nominal']/df_train['cls_avg_wgt']
-        # df_val['training_wgt'] = df_val['wgt_nominal']/df_val['cls_avg_wgt']
-        # df_eval['training_wgt'] = df_eval['wgt_nominal']/df_eval['cls_avg_wgt']
-
-        
-        # df_train['training_wgt'] = np.ones_like(df_train['wgt_nominal'])
-        # df_val['training_wgt'] = np.ones_like(df_val['wgt_nominal'])
-        # df_eval['training_wgt'] = np.ones_like(df_eval['wgt_nominal'])
-
-        # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf
-        # df_train['training_wgt'] = np.ones_like(df_train['wgt_nominal']) / df_train['dimuon_ebe_mass_res']
-        # df_val['training_wgt'] = np.ones_like(df_val['wgt_nominal']) / df_val['dimuon_ebe_mass_res']
-        # df_eval['training_wgt'] = np.ones_like(df_eval['wgt_nominal']) / df_eval['dimuon_ebe_mass_res']
-
         # # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight or V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
         # AN-19-124 line 1156: "the final BDTs have been trained by flipping the sign of negative weighted events"
         df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
@@ -891,9 +859,6 @@ def classifier_train(df, args, training_samples):
             model.compile(loss='binary_crossentropy', optimizer='adam', metrics=["accuracy"])
             model.summary()
 
-            #history = model.fit(x_train[training_features], y_train, epochs=100, batch_size=1024,\
-            #                    sample_weight=df_train['training_wgt'].values, verbose=1,\
-            #                    validation_data=(x_val[training_features], y_val, df_val['training_wgt'].values), shuffle=True)
             history = model.fit(x_train[training_features], y_train, epochs=10, batch_size=1024,
                                 verbose=1,
                                 validation_data=(x_val[training_features], y_val), shuffle=True)
@@ -1586,43 +1551,6 @@ if __name__ == "__main__":
     sample_l = training_samples["background"] + training_samples["signal"]
     is_UL = True
     
-    
-    # if is_UL:
-    #     fields2load = [ # copperheadV2
-    #         "dimuon_mass",
-    #         "jj_mass",
-    #         "jj_dEta",
-    #         "jet1_pt",
-    #         "nBtagLoose",
-    #         "nBtagMedium",
-    #         "mmj1_dEta",
-    #         "mmj2_dEta",
-    #         "mmj1_dPhi",
-    #         "mmj2_dPhi",
-    #         "wgt_nominal_total",
-    #         "dimuon_ebe_mass_res",
-    #         "event",
-    #         "mu1_pt",
-    #         "mu2_pt",
-    #     ]
-    # else:
-    #     fields2load = [ # copperheadV1
-    #         "dimuon_mass",
-    #         "jj_mass_nominal",
-    #         "jj_dEta_nominal",
-    #         "jet1_pt_nominal",
-    #         "nBtagLoose_nominal",
-    #         "nBtagMedium_nominal",
-    #         "mmj1_dEta_nominal",
-    #         "mmj2_dEta_nominal",
-    #         "mmj1_dPhi_nominal",
-    #         "mmj2_dPhi_nominal",
-    #         "wgt_nominal",
-    #         "dimuon_ebe_mass_res",
-    #         "event",
-    #         "mu1_pt",
-    #         "mu2_pt",
-    #     ]
 
     fields2load = [ 
             "dimuon_mass",
