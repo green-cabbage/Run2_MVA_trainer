@@ -23,6 +23,7 @@ import cmsstyle as CMS
 import mplhep as hep
 import pickle
 import glob
+import seaborn as sb
 
 def prepare_features(events, features, variation="nominal"):
     plt.style.use(hep.style.CMS)
@@ -489,7 +490,176 @@ training_features = [
     'zeppenfeld',
     'njets'
 ]
-# V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75
+# V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75, bdt_V2_fullRun_Jun21_2025_1n2Revised_all
+
+#test
+# training_features = [
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+# ] #V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_DimuVarsOnly
+
+
+# #test
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet2_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     'jj_dEta', 
+#     'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj_min_dEta', 
+#     'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     # 'mu2_eta', 
+#     # 'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_NoSingleJet_Mu2_MinMmjdEta
+
+#test
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet2_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     # 'mu2_eta', 
+#     # 'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     # 'njets'
+# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_NoJet_Mu2_MinMmjVars
+
+#test
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet2_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     # 'mu2_eta', 
+#     # 'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     # 'njets'
+# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_NoJet_Mu2_MinMmjVars
+
+# #test
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet2_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     # 'njets'
+# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_Mu2_Vars
+
+#test
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet2_eta', 
+#     'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     # 'mu2_eta', 
+#     # 'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     # 'njets'
+# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_jet1Pt_Vars
+
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet2_eta', 
+#     'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     # 'njets'
+# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_Mu2_jet1Pt_Vars
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet2_eta', 
+#     'jet1_pt', 
+#     'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     # 'njets'
+# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_Mu2_jet1jet2Pt_Vars
 
 
 #---------------------------------------------------------------------------
@@ -729,6 +899,38 @@ def scale_data_withweight(inputs, x_train, x_val, x_eval, df_train, fold_label):
     return training_data, validation_data, evaluation_data
 
 
+def removeStrInColumn(df, str2remove):
+    """
+    helper function that removes str2remove in df columns if they exist
+    """
+    new_df = df.rename(
+        columns=lambda c: c.replace(str2remove, "") if str2remove in c else c
+    )
+    return new_df
+
+def getCorrMatrix(df, training_features, save_path=""):
+    corr_features = training_features + ["dimuon_mass"]
+    corr_df = df[corr_features]
+    corr_df = removeStrInColumn(corr_df, "_nominal")
+    corr_matrix = corr_df.corr() 
+
+    if save_path != "": # save as csv and heatmap
+        corr_matrix.to_csv(f"{save_path}/correlation_matrix.csv")
+        # corr_matrix = corr_matrix.round(2) # round to 2 d.p.
+        
+        corr = corr_matrix # NOTE: do this instead when loading from csv: corr = corr_matrix.set_index(corr_matrix.columns[0]).astype(float) 
+        heatmap = sb.heatmap(corr, fmt=".2f", cmap="coolwarm", annot=True, annot_kws={"fontsize": 12})
+        heatmap.set_yticklabels(heatmap.get_yticklabels(), rotation = 25, fontsize = 8)
+        heatmap.set_xticklabels(heatmap.get_xticklabels(), rotation = 25, fontsize = 8)
+        
+        plt.title("BDT input features + dimuon mass correlation matrix")
+        plt.tight_layout()
+        fig = heatmap.get_figure()
+        fig.set_size_inches(16,12)
+        fig.savefig(f"{save_path}/correlation_matrix.pdf")
+    raise ValueError
+    return corr_matrix
+
 def classifier_train(df, args, training_samples):
     if args['dnn']:
         from tensorflow.keras.models import Model
@@ -756,7 +958,11 @@ def classifier_train(df, args, training_samples):
     with open(f'{save_path}/training_features.json', 'w') as file:
         json.dump(training_features, file)
     
+
+    # get the overal correlation matrix
+    corr_matrix = getCorrMatrix(df, training_features, save_path=save_path)
     
+    # start training
     
     for i in range(nfolds):
         if args['year']=='':
