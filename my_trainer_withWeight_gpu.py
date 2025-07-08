@@ -909,6 +909,7 @@ def removeStrInColumn(df, str2remove):
     return new_df
 
 def getCorrMatrix(df, training_features, save_path=""):
+    plt.style.use('default')
     corr_features = training_features + ["dimuon_mass"]
     corr_df = df[corr_features]
     corr_df = removeStrInColumn(corr_df, "_nominal")
@@ -920,14 +921,16 @@ def getCorrMatrix(df, training_features, save_path=""):
         
         corr = corr_matrix # NOTE: do this instead when loading from csv: corr = corr_matrix.set_index(corr_matrix.columns[0]).astype(float) 
         heatmap = sb.heatmap(corr, fmt=".2f", cmap="coolwarm", annot=True, annot_kws={"fontsize": 12})
-        heatmap.set_yticklabels(heatmap.get_yticklabels(), rotation = 25, fontsize = 8)
-        heatmap.set_xticklabels(heatmap.get_xticklabels(), rotation = 25, fontsize = 8)
+        heatmap.set_yticklabels(heatmap.get_yticklabels(), rotation = 0, fontsize = 12)
+        heatmap.set_xticklabels(heatmap.get_xticklabels(), rotation = 45, fontsize = 12)
         
         plt.title("BDT input features + dimuon mass correlation matrix")
-        plt.tight_layout()
+        # plt.tight_layout()
         fig = heatmap.get_figure()
         fig.set_size_inches(16,12)
-        fig.savefig(f"{save_path}/correlation_matrix.pdf")
+        fig.savefig(f"{save_path}/correlation_matrix.pdf", bbox_inches='tight', pad_inches=0)
+
+    plt.style.use(hep.style.CMS)
     raise ValueError
     return corr_matrix
 
