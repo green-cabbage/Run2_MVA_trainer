@@ -31,7 +31,21 @@ set -e
 # model_name="V2_UL_Apr11_2025_DyMinnloTtStVvEwkGghVbf_bTagMediumFix"
 # model_name="V2_UL_Jun09_2025"
 # model_name="V2_fullRun_Jun21_2025_allYear"
-model_name="V2_fullRun_Jun21_2025_1n2Revised"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_NoJ1Eta_MinMmjdEta"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_DimuVarsOnly"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_NoSingleJet_Mu2_MinMmjdEta"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_NoSingleJet_MinMmjVars"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_NoSingleJet_Mu2_MinMmjdPhi"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_NoJet_Mu2_MinMmjVars"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_MinMmjdEta_Vars"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_Mu2_Vars"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_jet1Pt_Vars"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_Mu2_jet1jet2Pt_Vars"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_Mu2_jet1Pt_jjdPhi_Vars"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_DevAug13_2025"
+model_name="V2_fullRun_Jun21_2025_1n2Revised_HyperParamTunedAug13_2025"
 
 
 
@@ -46,11 +60,13 @@ model_name="V2_fullRun_Jun21_2025_1n2Revised"
 label="fullRun_Jun23_2025_1n2Revised"
 
 # year="2018"
+# year="2017"
 # year="2016postVFP"
 # year="2016preVFP"
 # year="2016"
 year="all"
-python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
+python BDT_BayesianOptim.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
+# python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 
 
 
