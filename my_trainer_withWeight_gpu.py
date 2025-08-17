@@ -25,6 +25,79 @@ import pickle
 import glob
 import seaborn as sb
 
+
+
+
+def getGOF_KS_bdt(valid_hist, train_hist, bin_edges, save_path:str, fold_idx):
+    """
+    Get KS value for specific value
+    """
+    data_counts = valid_hist
+    pdf_counts = train_hist
+
+
+    plot_line_width = 0.5
+
+    # -------------------------------------------
+    # Do KS test
+    # -------------------------------------------
+
+
+    
+    data_cdf = np.cumsum(data_counts) / np.sum(data_counts)
+    pdf_cdf = np.cumsum(pdf_counts) / np.sum(pdf_counts)
+    ks_statistic = np.max(np.abs(data_cdf - pdf_cdf))
+    print(f"ks_statistic: {ks_statistic}")
+    nevents = np.sum(data_counts)
+    
+    
+    alpha = 0.1
+    pass_threshold = 1.22385 / (nevents**(0.5))
+
+    df_dict= {
+        "ks_statistic": [ks_statistic],
+        "nevents" : [nevents],
+        "alpha":[ alpha],
+        "pass threshold": [pass_threshold],
+        "test pass": [ks_statistic<pass_threshold],
+   }
+    gof_df = pd.DataFrame(df_dict)
+    gof_df.to_csv(f"{save_path}/KS_stats_{fold_idx}.csv")
+    
+
+    # Draw the cdf histogram
+    
+    # bin_centers = np.array(bin_centers)
+    bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+    plt.plot(bin_centers, data_cdf, label='Validation CDF', linewidth=plot_line_width)
+    plt.plot(bin_centers, pdf_cdf, label='Train CDF', linewidth=plot_line_width)
+    plt.xlabel('BDT SCORE')
+    plt.ylabel('')
+    plt.title('BDT distribution of signal sample')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f"{save_path}/GoF_cdfs_{fold_idx}.pdf")
+    plt.clf()
+
+    # Draw the normalized pdf histogram:
+    plt.plot(bin_centers, data_counts/np.sum(data_counts), label='Validation PDF', linewidth=plot_line_width)
+    plt.plot(bin_centers, pdf_counts/np.sum(pdf_counts), label='Train PDF', linewidth=plot_line_width)
+    plt.xlabel('BDT SCORE')
+    plt.ylabel('')
+    plt.title('BDT distribution of signal sample')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f"{save_path}/GoF_pdfs_{fold_idx}.pdf")
+    plt.clf()
+        
+
+def auc_from_eff(eff_sig, eff_bkg):
+    fpr = 1.0 - np.asarray(eff_bkg)
+    tpr = np.asarray(eff_sig)
+    # sort by FPR ascending before integrating
+    order = np.argsort(fpr)
+    return np.trapezoid(tpr[order], fpr[order])
+
 def prepare_features(events, features, variation="nominal"):
     plt.style.use(hep.style.CMS)
     features_var = []
@@ -931,7 +1004,7 @@ def getCorrMatrix(df, training_features, save_path=""):
         fig.savefig(f"{save_path}/correlation_matrix.pdf", bbox_inches='tight', pad_inches=0)
 
     plt.style.use(hep.style.CMS)
-    raise ValueError
+    # raise ValueError
     return corr_matrix
 
 def classifier_train(df, args, training_samples):
@@ -1217,24 +1290,63 @@ def classifier_train(df, args, training_samples):
             
             
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
+            # Aug 13
             # print(f"len(x_train): {len(x_train)}")
+            # model = XGBClassifier(
+            #     n_estimators=1000,           # Number of trees
+            #     max_depth=4,                 # Max depth
+            #     learning_rate=0.10,          # Shrinkage
+            #     subsample=0.5,               # Bagged sample fraction
+            #     min_child_weight=0.03 ,  # NOTE: this causes AUC == 0.5
+            #     tree_method='hist',          # Needed for max_bin
+            #     max_bin=30,                  # Number of cuts
+            #     # objective='binary:logistic', # CrossEntropy (logloss)
+            #     # use_label_encoder=False,     # Optional: suppress warning
+            #     eval_metric='logloss',       # Ensures logloss used during training
+            #     n_jobs=-1,                   # Use all CPU cores
+            #     # scale_pos_weight=scale_pos_weight*0.005,
+            #     scale_pos_weight=scale_pos_weight*0.75,
+            #     early_stopping_rounds=15,#15
+            #     verbosity=verbosity
+            # )
+
+
+            # after hyperparameter tuning date: Aug 14 2025
+            # model = XGBClassifier(
+            #     n_estimators=671,           # Number of trees
+            #     max_depth=4,                 # Max depth
+            #     learning_rate=0.02575292680212345,          # Shrinkage
+            #     subsample=0.5674535097716533,               # Bagged sample fraction
+            #     min_child_weight=0.02402331596760716 ,  # NOTE: this causes AUC == 0.5
+            #     tree_method='hist',          # Needed for max_bin
+            #     max_bin=270,                  # Number of cuts
+            #     objective='binary:logistic', # CrossEntropy (logloss)
+            #     eval_metric='auc',       # Ensures logloss used during training
+            #     n_jobs=-1,                   # Use all CPU cores
+            #     scale_pos_weight=0.3400054217637343,
+            #     # scale_pos_weight= 0.7251520918705945,
+            #     # early_stopping_rounds=15,#15
+            #     verbosity=verbosity
+            # )
             model = XGBClassifier(
-                n_estimators=1000,           # Number of trees
-                max_depth=4,                 # Max depth
-                learning_rate=0.10,          # Shrinkage
-                subsample=0.5,               # Bagged sample fraction
-                min_child_weight=0.03 ,  # NOTE: this causes AUC == 0.5
+                n_estimators=2012,           # Number of trees
+                max_depth=9,                 # Max depth
+                learning_rate=0.13920789983454399,          # Shrinkage
+                subsample=0.9931710009445184,               # Bagged sample fraction
+                min_child_weight=5.074294458283235 ,  # NOTE: this causes AUC == 0.5
                 tree_method='hist',          # Needed for max_bin
-                max_bin=30,                  # Number of cuts
-                # objective='binary:logistic', # CrossEntropy (logloss)
-                # use_label_encoder=False,     # Optional: suppress warning
+                max_bin=63,                  # Number of cuts
                 eval_metric='logloss',       # Ensures logloss used during training
                 n_jobs=-1,                   # Use all CPU cores
-                # scale_pos_weight=scale_pos_weight*0.005,
                 scale_pos_weight=scale_pos_weight*0.75,
                 early_stopping_rounds=15,#15
                 verbosity=verbosity
             )
+            # Trial 24 finished with value: 0.7116329875773034 and parameters: {'n_estimators': 2012, 'max_depth': 9, 'learning_rate': 0.13920789983454399, 'subsample': 0.9931710009445184, 'min_child_weight': 5.074294458283235, 'max_bin': 63}. Best is trial 24 with value: 0.7116329875773034.
+
+            #old:
+             # Trial 0 finished with value: 0.703271691016499 and parameters: {'n_estimators': 671, 'max_depth': 4, 'learning_rate': 0.02575292680212345, 'subsample': 0.5674535097716533, 'min_child_weight': 0.02402331596760716, 'max_bin': 270, 'scale_pos_weight': 0.4147691913761959}. Best is trial 0 with value: 0.703271691016499.
+            # Best params: {'n_estimators': 1798, 'max_depth': 7, 'learning_rate': 0.08533987880625084, 'subsample': 0.6971760478760521, 'min_child_weight': 0.005159689243001041, 'max_bin': 155, 'scale_pos_weight': 0.7251520918705945}
             # AN Model new end ---------------------------------------------------------------
             
             print(model)
@@ -1296,8 +1408,11 @@ def classifier_train(df, args, training_samples):
             #auc_xgb = auc(nn_fpr_xgb[:-2], nn_tpr_xgb[:-2])
             auc_xgb = auc(fpr_sorted, tpr_sorted)
             #auc_xgb = roc_auc_score(y_val, y_pred, sample_weight=w_val)
-            print("The AUC score is:", auc_xgb)
+            print("The validation AUC score is:", auc_xgb)
             #plt.plot(nn_fpr_xgb, nn_tpr_xgb, marker='.', label='Neural Network (auc = %0.3f)' % auc_xgb)
+            auc_val = roc_auc_score(y_val, y_pred, sample_weight=w_val)
+            print("The validation roc_auc_score score is:", auc_val)
+            
             #roc_auc_gus = auc(nn_fpr_xgb,nn_tpr_xgb)
             fig, ax = plt.subplots(1,1)
             ax.plot(nn_fpr_xgb, nn_tpr_xgb, marker='.', label='BDT (auc = %0.3f)' % auc_xgb)
@@ -1419,13 +1534,29 @@ def classifier_train(df, args, training_samples):
 
             # output shape dist end --------------------------------------------------------------------------
 
-            # superimposed log ROC start --------------------------------------------------------------------------
+            # -------------------------------------------
+            # GoF test
+            # -------------------------------------------
+            gof_save_path = f"output/bdt_{name}_{year}/"
+            getGOF_KS_bdt(hist_val_sig, hist_train_sig, binning, gof_save_path, label)
+
+            # -------------------------------------------
+            # Log scale ROC curve
+            # -------------------------------------------
+            
             eff_bkg_train, eff_sig_train, thresholds_train = customROC_curve_AN(y_train.ravel(), y_pred_train, weight_nom_train)
             eff_bkg_val, eff_sig_val, thresholds_val = customROC_curve_AN(y_val.ravel(), y_pred, weight_nom_val)
             eff_bkg_eval, eff_sig_eval, thresholds_eval = customROC_curve_AN(y_eval.ravel(), y_eval_pred, weight_nom_eval)
-            plt.plot(eff_sig_eval, eff_bkg_eval, label="Stage2 ROC Curve (Eval)")
-            plt.plot(eff_sig_train, eff_bkg_train, label="Stage2 ROC Curve (Train)")
-            plt.plot(eff_sig_val, eff_bkg_val, label="Stage2 ROC Curve (Val)")
+
+            auc_eval  = auc_from_eff(eff_sig_eval,  eff_bkg_eval)
+            auc_train = auc_from_eff(eff_sig_train, eff_bkg_train)
+            auc_val   = auc_from_eff(eff_sig_val,   eff_bkg_val)
+
+            # superimposed log ROC start --------------------------------------------------------------------------
+            
+            plt.plot(eff_sig_eval, eff_bkg_eval, label=f"Stage2 ROC (Eval)  — AUC={auc_eval:.3f}")
+            plt.plot(eff_sig_train, eff_bkg_train, label=f"Stage2 ROC (Train) — AUC={auc_train:.3f}")
+            plt.plot(eff_sig_val, eff_bkg_val, label=f"Stage2 ROC (Val)   — AUC={auc_val:.3f}")
             
             # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
             plt.vlines(np.linspace(0,1,11), 0, 1, linestyle="dashed", color="grey")
@@ -1445,9 +1576,10 @@ def classifier_train(df, args, training_samples):
             # superimposed log ROC end --------------------------------------------------------------------------
 
             # superimposed flipped log ROC start --------------------------------------------------------------------------
-            plt.plot(1-eff_sig_eval, 1-eff_bkg_eval, label="Stage2 ROC Curve (Eval)")
-            plt.plot(1-eff_sig_train, 1-eff_bkg_train, label="Stage2 ROC Curve (Train)")
-            plt.plot(1-eff_sig_val, 1-eff_bkg_val, label="Stage2 ROC Curve (Val)")
+            plt.plot(1-eff_sig_eval,  1-eff_bkg_eval,  label=f"Stage2 ROC (Eval)  — AUC={auc_eval:.3f}")
+            plt.plot(1-eff_sig_train, 1-eff_bkg_train, label=f"Stage2 ROC (Train) — AUC={auc_train:.3f}")
+            plt.plot(1-eff_sig_val,   1-eff_bkg_val,   label=f"Stage2 ROC (Val)   — AUC={auc_val:.3f}")
+
             
             # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
             plt.vlines(np.linspace(0,1,11), 0, 1, linestyle="dashed", color="grey")
@@ -1485,8 +1617,12 @@ def classifier_train(df, args, training_samples):
             tpr_sorted = np.array(nn_tpr_xgb)[sorted_index]
             #auc_xgb = auc(nn_fpr_xgb[:-2], nn_tpr_xgb[:-2])
             auc_xgb = auc(fpr_sorted, tpr_sorted)
+            
             #auc_xgb = roc_auc_score(y_val, y_pred, sample_weight=w_val)
-            print("The AUC score is:", auc_xgb)
+            print("The eval AUC score is:", auc_xgb)
+            auc_val = roc_auc_score(y_eval.ravel(), y_eval_pred, sample_weight=w_eval)
+            print("The eval roc_auc_score score is:", auc_val)
+            
             #plt.plot(nn_fpr_xgb, nn_tpr_xgb, marker='.', label='Neural Network (auc = %0.3f)' % auc_xgb)
             #roc_auc_gus = auc(nn_fpr_xgb,nn_tpr_xgb)
             fig, ax = plt.subplots(1,1)
@@ -1505,13 +1641,13 @@ def classifier_train(df, args, training_samples):
             # Also save ROC curve for evaluation just in case end --------------
 
             
-            results = model.evals_result()
-            print(results.keys())
-            plt.plot(results['validation_0']['logloss'], label='train')
-            plt.plot(results['validation_1']['logloss'], label='test')
-            # show the legend
-            plt.legend()
-            plt.savefig(f"output/bdt_{name}_{year}/Loss_{label}.png")
+            # results = model.evals_result()
+            # print(results.keys())
+            # plt.plot(results['validation_0']['logloss'], label='train')
+            # plt.plot(results['validation_1']['logloss'], label='test')
+            # # show the legend
+            # plt.legend()
+            # plt.savefig(f"output/bdt_{name}_{year}/Loss_{label}.png")
 
             labels = [feat.replace("_nominal","") for feat in training_features]
             model.get_booster().feature_names = labels # set my training features as feature names
@@ -1521,32 +1657,14 @@ def classifier_train(df, args, training_samples):
             plt.savefig(f"output/bdt_{name}_{year}/{name}_{year}_TreePlot_{i}.png",dpi=400)
             
             # plot importance
-            # plot_importance(model, importance_type='weight', xlabel="Score by weight",show_values=False)
-            # plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byWeight.png")
-            # plt.clf()
-            # plot_importance(model, importance_type='gain', xlabel="Score by gain",show_values=False)
-            # plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byGain.png")
-            # plt.clf()
-            
-            # feature_important = model.get_booster().get_score(importance_type='gain')
-            # feature_important = model.get_booster().get_score(importance_type='weight')
-            # keys = list(feature_important.keys())
-            # values = list(feature_important.values())
-            # print(f"feat importance keys b4 sorting: {keys}")
-            # print(f"feat importance value b4 sorting: {values}")
-            # print(f"feat importance training_features b4 sorting: {training_features}")
-
-            # # data = pd.DataFrame(data=values, index=training_features, columns=["score"]).sort_values(by = "score", ascending=True)
-            # data = pd.DataFrame(data=values, index=training_features[:-2], columns=["score"]).sort_values(by = "score", ascending=True)
-            # data.nlargest(50, columns="score").plot(kind='barh', figsize = (20,10))
-            # plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}.png")
-            # plt.clf()
 
             feature_important = model.get_booster().get_score(importance_type='weight')
             keys = list(feature_important.keys())
             values = list(feature_important.values())
             score_name = "Weight Score"
             data = pd.DataFrame(data=values, index=keys, columns=[score_name]).sort_values(by = score_name, ascending=True)
+            data["Normalized Score"] = data[score_name] / data[score_name].sum()
+            data.to_csv(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byWeight.csv")
             data.nlargest(50, columns=score_name).plot(kind='barh', figsize = (20,10))
             data.plot(kind='barh', figsize = (20,10))
             plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byWeight.png")
@@ -1556,6 +1674,8 @@ def classifier_train(df, args, training_samples):
             values = list(feature_important.values())
             score_name = "Gain Score"
             data = pd.DataFrame(data=values, index=keys, columns=[score_name]).sort_values(by = score_name, ascending=True)
+            data["Normalized Score"] = data[score_name] / data[score_name].sum()
+            data.to_csv(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byGain.csv")
             data.nlargest(50, columns=score_name).plot(kind='barh', figsize = (20,10))
             data.plot(kind='barh', figsize = (20,10))
             plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byGain.png")
@@ -1746,7 +1866,7 @@ if __name__ == "__main__":
         "label": ""
     }
     start_time = time.time()
-    client =  Client(n_workers=31,  threads_per_worker=1, processes=True, memory_limit='4 GiB') 
+    client =  Client(n_workers=60,  threads_per_worker=1, processes=True, memory_limit='10 GiB') 
 
     
     if year == "2016":
