@@ -28,10 +28,15 @@ import seaborn as sb
 
 
 
-def getGOF_KS_bdt(valid_hist, train_hist, bin_edges, save_path:str, fold_idx):
+def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, fold_idx):
     """
     Get KS value for specific value
     """
+    print(f"valid_hist: {valid_hist}")
+    print(f"train_hist: {train_hist}")
+    print(f"valid_hist: {np.sum(valid_hist)}")
+    print(f"train_hist: {np.sum(train_hist)}")
+    
     data_counts = valid_hist
     pdf_counts = train_hist
 
@@ -48,11 +53,15 @@ def getGOF_KS_bdt(valid_hist, train_hist, bin_edges, save_path:str, fold_idx):
     pdf_cdf = np.cumsum(pdf_counts) / np.sum(pdf_counts)
     ks_statistic = np.max(np.abs(data_cdf - pdf_cdf))
     print(f"ks_statistic: {ks_statistic}")
-    nevents = np.sum(data_counts)
+    nevents = weight_val.size
+    print(f"nevents: {nevents}")
+    # raise ValueError
     
     
-    alpha = 0.1
-    pass_threshold = 1.22385 / (nevents**(0.5))
+    # alpha = 0.1
+    # pass_threshold = 1.22385 / (nevents**(0.5))
+    alpha = 0.001
+    pass_threshold = 1.94947 / (nevents**(0.5))
 
     df_dict= {
         "ks_statistic": [ks_statistic],
@@ -1291,24 +1300,24 @@ def classifier_train(df, args, training_samples):
             
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
             # Aug 13
-            # print(f"len(x_train): {len(x_train)}")
-            # model = XGBClassifier(
-            #     n_estimators=1000,           # Number of trees
-            #     max_depth=4,                 # Max depth
-            #     learning_rate=0.10,          # Shrinkage
-            #     subsample=0.5,               # Bagged sample fraction
-            #     min_child_weight=0.03 ,  # NOTE: this causes AUC == 0.5
-            #     tree_method='hist',          # Needed for max_bin
-            #     max_bin=30,                  # Number of cuts
-            #     # objective='binary:logistic', # CrossEntropy (logloss)
-            #     # use_label_encoder=False,     # Optional: suppress warning
-            #     eval_metric='logloss',       # Ensures logloss used during training
-            #     n_jobs=-1,                   # Use all CPU cores
-            #     # scale_pos_weight=scale_pos_weight*0.005,
-            #     scale_pos_weight=scale_pos_weight*0.75,
-            #     early_stopping_rounds=15,#15
-            #     verbosity=verbosity
-            # )
+            print(f"len(x_train): {len(x_train)}")
+            model = XGBClassifier(
+                n_estimators=1000,           # Number of trees
+                max_depth=4,                 # Max depth
+                learning_rate=0.10,          # Shrinkage
+                subsample=0.5,               # Bagged sample fraction
+                min_child_weight=0.03 ,  # NOTE: this causes AUC == 0.5
+                tree_method='hist',          # Needed for max_bin
+                max_bin=30,                  # Number of cuts
+                # objective='binary:logistic', # CrossEntropy (logloss)
+                # use_label_encoder=False,     # Optional: suppress warning
+                eval_metric='logloss',       # Ensures logloss used during training
+                n_jobs=-1,                   # Use all CPU cores
+                # scale_pos_weight=scale_pos_weight*0.005,
+                scale_pos_weight=scale_pos_weight*0.75,
+                early_stopping_rounds=5,#15
+                verbosity=verbosity
+            )
 
 
             # after hyperparameter tuning date: Aug 14 2025
@@ -1328,20 +1337,20 @@ def classifier_train(df, args, training_samples):
             #     # early_stopping_rounds=15,#15
             #     verbosity=verbosity
             # )
-            model = XGBClassifier(
-                n_estimators=2012,           # Number of trees
-                max_depth=9,                 # Max depth
-                learning_rate=0.13920789983454399,          # Shrinkage
-                subsample=0.9931710009445184,               # Bagged sample fraction
-                min_child_weight=5.074294458283235 ,  # NOTE: this causes AUC == 0.5
-                tree_method='hist',          # Needed for max_bin
-                max_bin=63,                  # Number of cuts
-                eval_metric='logloss',       # Ensures logloss used during training
-                n_jobs=-1,                   # Use all CPU cores
-                scale_pos_weight=scale_pos_weight*0.75,
-                early_stopping_rounds=15,#15
-                verbosity=verbosity
-            )
+            # model = XGBClassifier(
+            #     n_estimators=2012,           # Number of trees
+            #     max_depth=9,                 # Max depth
+            #     learning_rate=0.13920789983454399,          # Shrinkage
+            #     subsample=0.9931710009445184,               # Bagged sample fraction
+            #     min_child_weight=5.074294458283235 ,  # NOTE: this causes AUC == 0.5
+            #     tree_method='hist',          # Needed for max_bin
+            #     max_bin=63,                  # Number of cuts
+            #     eval_metric='logloss',       # Ensures logloss used during training
+            #     n_jobs=-1,                   # Use all CPU cores
+            #     scale_pos_weight=scale_pos_weight*0.75,
+            #     early_stopping_rounds=15,#15
+            #     verbosity=verbosity
+            # )
             # Trial 24 finished with value: 0.7116329875773034 and parameters: {'n_estimators': 2012, 'max_depth': 9, 'learning_rate': 0.13920789983454399, 'subsample': 0.9931710009445184, 'min_child_weight': 5.074294458283235, 'max_bin': 63}. Best is trial 24 with value: 0.7116329875773034.
 
             #old:
@@ -1538,7 +1547,17 @@ def classifier_train(df, args, training_samples):
             # GoF test
             # -------------------------------------------
             gof_save_path = f"output/bdt_{name}_{year}/"
-            getGOF_KS_bdt(hist_val_sig, hist_train_sig, binning, gof_save_path, label)
+            # print(f"weight_nom_val_sig: {weight_nom_val_sig}")
+            # print(f"weight_nom_train_sig: {weight_nom_train_sig}")
+            print(f"weight_nom_val_sig: {type(weight_nom_val_sig)}")
+            print(f"weight_nom_train_sig: {type(weight_nom_train_sig)}")
+            print(f"weight_nom_val_sig: {len(weight_nom_val_sig)}")
+            print(f"weight_nom_train_sig: {len(weight_nom_train_sig)}")
+            
+            # raise ValueError
+            hist_eval_sig
+            # we compare validation distribution with evaluation distribution to see if there's any over-training
+            getGOF_KS_bdt(hist_eval_sig, hist_val_sig, weight_nom_val_sig, binning, gof_save_path, label)
 
             # -------------------------------------------
             # Log scale ROC curve
@@ -1555,7 +1574,6 @@ def classifier_train(df, args, training_samples):
             # superimposed log ROC start --------------------------------------------------------------------------
             
             plt.plot(eff_sig_eval, eff_bkg_eval, label=f"Stage2 ROC (Eval)  — AUC={auc_eval:.3f}")
-            plt.plot(eff_sig_train, eff_bkg_train, label=f"Stage2 ROC (Train) — AUC={auc_train:.3f}")
             plt.plot(eff_sig_val, eff_bkg_val, label=f"Stage2 ROC (Val)   — AUC={auc_val:.3f}")
             
             # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
@@ -1571,13 +1589,18 @@ def classifier_train(df, args, training_samples):
             
             plt.legend(loc="lower right")
             plt.title(f'ROC curve for ggH BDT {year}')
-            fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}.png")
+            fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}.pdf")
+
+            
+            plt.plot(eff_sig_train, eff_bkg_train, label=f"Stage2 ROC (Train) — AUC={auc_train:.3f}")
+            plt.legend(loc="lower right")
+            fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}_w_train.pdf")
+            
             plt.clf()
             # superimposed log ROC end --------------------------------------------------------------------------
 
             # superimposed flipped log ROC start --------------------------------------------------------------------------
             plt.plot(1-eff_sig_eval,  1-eff_bkg_eval,  label=f"Stage2 ROC (Eval)  — AUC={auc_eval:.3f}")
-            plt.plot(1-eff_sig_train, 1-eff_bkg_train, label=f"Stage2 ROC (Train) — AUC={auc_train:.3f}")
             plt.plot(1-eff_sig_val,   1-eff_bkg_val,   label=f"Stage2 ROC (Val)   — AUC={auc_val:.3f}")
 
             
@@ -1594,8 +1617,12 @@ def classifier_train(df, args, training_samples):
             
             plt.legend(loc="lower right")
             plt.title(f'ROC curve for ggH BDT {year}')
-            fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}.png")
             fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}.pdf")
+
+            plt.plot(1-eff_sig_train, 1-eff_bkg_train, label=f"Stage2 ROC (Train) — AUC={auc_train:.3f}")
+            plt.legend(loc="lower right")
+            fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}_w_train.pdf")
+            
             plt.clf()
             # superimposed flipped log ROC end --------------------------------------------------------------------------
             
