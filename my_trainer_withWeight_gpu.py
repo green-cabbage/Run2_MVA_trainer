@@ -1315,7 +1315,7 @@ def classifier_train(df, args, training_samples):
                 n_jobs=-1,                   # Use all CPU cores
                 # scale_pos_weight=scale_pos_weight*0.005,
                 scale_pos_weight=scale_pos_weight*0.75,
-                early_stopping_rounds=5,#15
+                early_stopping_rounds=15,#15
                 verbosity=verbosity
             )
 
