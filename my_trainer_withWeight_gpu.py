@@ -462,26 +462,26 @@ training_features = [
 
 training_samples = {
         "background": [
-            "dy_M-100To200", 
+            # "dy_M-100To200", 
             "dy_M-100To200_MiNNLO",
             # "dy_m105_160_amc",
             # "dy_m100_200_UL",
-            "ttjets_dl",
-            "ttjets_sl",
-            "st_tw_top",
-            "st_tw_antitop",
-            # "st_t_top",
-            # "st_t_antitop",
-            "ww_2l2nu",
-            "wz_1l1nu2q",
-            "wz_2l2q",
-            "wz_3lnu",
-            "zz",
-            # "www",
-            # "wwz",
-            # "wzz",
-            # "zzz",
-            "ewk_lljj_mll50_mjj120",
+            # "ttjets_dl",
+            # "ttjets_sl",
+            # "st_tw_top",
+            # "st_tw_antitop",
+            # # "st_t_top",
+            # # "st_t_antitop",
+            # "ww_2l2nu",
+            # "wz_1l1nu2q",
+            # "wz_2l2q",
+            # "wz_3lnu",
+            # "zz",
+            # # "www",
+            # # "wwz",
+            # # "wzz",
+            # # "zzz",
+            # "ewk_lljj_mll50_mjj120",
         ],
         "signal": [
             "ggh_powhegPS", 
@@ -649,13 +649,38 @@ def prepare_dataset(df, ds_dict):
     # df["wgt_nominal_orig"] = copy.deepcopy(df["wgt_nominal"])
     # multiply by dimuon mass resolutions if signal
     # sig_datasets = training_samples["signal"]
-    # sig_datasets = ["ggh_amcPS"]
+    cols = ["class_name", "wgt_nominal", "dimuon_ebe_mass_res"]
+    
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     for dataset in sig_datasets:
-        df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
+        # df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
+        # df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], (df[df['dataset']==dataset]['dimuon_ebe_mass_res']**2))
+        print(f"df b4: {df[cols]}")
+        mask = df["dataset"] == dataset
+        df.loc[mask, "wgt_nominal"] = (
+            df.loc[mask, "wgt_nominal"] / df.loc[mask, "dimuon_ebe_mass_res"]
+        )
+        print(f"df after: {df[cols]}")
     # original end -----------------------------------------------
-    
+
+    # --------------------------------------
+    # apply 1/ dimuon_ebe_mass_res over wgt_nominal
+    # --------------------------------------
+    # cols = ["class_name", "wgt_nominal", "dimuon_ebe_mass_res"]
+    # print(f"df b4: {df[cols]}")
+    # mask = df["class_name"] == "signal"
+    # df.loc[mask, "wgt_nominal"] = (
+    #     df.loc[mask, "wgt_nominal"] / df.loc[mask, "dimuon_ebe_mass_res"]
+    #     # 1 / df.loc[mask, "dimuon_ebe_mass_res"] #FIXME
+    # )
+    # # df.loc[mask, "wgt_nominal"] *= 1e4 #FIXME
+    # # df.loc[mask, "wgt_nominal"] *= 1e6 #FIXME
+    # print(f"mask: {mask}")
+
+    # print(f"df after: {df[cols]}")
+
+    # raise ValueError
     #print(df.head)
     columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
     columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta','jet2_pt']
@@ -826,9 +851,11 @@ def classifier_train(df, args, training_samples):
         
         # # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight or V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
         # AN-19-124 line 1156: "the final BDTs have been trained by flipping the sign of negative weighted events"
-        df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
-        df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) / df_val['dimuon_ebe_mass_res']
-        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig']) / df_eval['dimuon_ebe_mass_res']
+        
+        # df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
+        df_train['training_wgt'] = df_train['wgt_nominal']/df_train['cls_avg_wgt'] # FIXME
+        df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig'])
+        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig'])
         
         
         # scale data
@@ -987,6 +1014,28 @@ def classifier_train(df, args, training_samples):
             #                           tree_method='hist')
             # AN Model end ---------------------------------------------------------------
 
+
+            # test Model start ---------------------------------------------------------------   
+            scale_pos_weight = float(np.sum(np.abs(weight_nom_train[y_train == 0]))) / np.sum(np.abs(weight_nom_train[y_train == 1])) 
+            model = xgb.XGBClassifier(max_depth=4,#for 2018
+                                      #max_depth=6,previous value
+                                      n_estimators=100000,
+                                      #n_estimators=100,
+                                      early_stopping_rounds=15, # 80
+                                      eval_metric="logloss",
+                                      #learning_rate=0.001,#for 2018
+                                      learning_rate=0.1,#previous value
+                                      #reg_alpha=0.680159426755822,
+                                      #colsample_bytree=0.47892268305051233,
+                                      colsample_bytree=0.5,
+                                      min_child_weight=3,
+                                      subsample=0.5,
+                                      #reg_lambda=16.6,
+                                      #gamma=24.505,
+                                      #n_jobs=35,
+                                      tree_method='hist')
+                                      #tree_method='hist')
+            # test Model end ---------------------------------------------------------------
             # AN Model new start ---------------------------------------------------------------   
             verbosity=2
             
@@ -1015,23 +1064,23 @@ def classifier_train(df, args, training_samples):
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
             # Aug 13
             print(f"len(x_train): {len(x_train)}")
-            model = XGBClassifier(
-                n_estimators=1000,           # Number of trees
-                max_depth=4,                 # Max depth
-                learning_rate=0.10,          # Shrinkage
-                subsample=0.5,               # Bagged sample fraction
-                min_child_weight=0.03 ,  # NOTE: this causes AUC == 0.5
-                tree_method='hist',          # Needed for max_bin
-                max_bin=30,                  # Number of cuts
-                # objective='binary:logistic', # CrossEntropy (logloss)
-                # use_label_encoder=False,     # Optional: suppress warning
-                eval_metric='logloss',       # Ensures logloss used during training
-                n_jobs=-1,                   # Use all CPU cores
-                # scale_pos_weight=scale_pos_weight*0.005,
-                scale_pos_weight=scale_pos_weight*0.75,
-                early_stopping_rounds=15,#15
-                verbosity=verbosity
-            )
+            # model = XGBClassifier(
+            #     n_estimators=1000,           # Number of trees
+            #     max_depth=4,                 # Max depth
+            #     learning_rate=0.10,          # Shrinkage
+            #     subsample=0.5,               # Bagged sample fraction
+            #     min_child_weight=0.03 ,  # NOTE: this causes AUC == 0.5
+            #     tree_method='hist',          # Needed for max_bin
+            #     max_bin=30,                  # Number of cuts
+            #     # objective='binary:logistic', # CrossEntropy (logloss)
+            #     # use_label_encoder=False,     # Optional: suppress warning
+            #     eval_metric='logloss',       # Ensures logloss used during training
+            #     n_jobs=-1,                   # Use all CPU cores
+            #     # scale_pos_weight=scale_pos_weight*0.005,
+            #     scale_pos_weight=scale_pos_weight*0.75,
+            #     early_stopping_rounds=15,#15
+            #     verbosity=verbosity
+            # )
 
 
             # after hyperparameter tuning date: Aug 14 2025
@@ -1362,6 +1411,7 @@ def classifier_train(df, args, training_samples):
             #auc_xgb = roc_auc_score(y_val, y_pred, sample_weight=w_val)
             print("The eval AUC score is:", auc_xgb)
             auc_val = roc_auc_score(y_eval.ravel(), y_eval_pred, sample_weight=w_eval)
+            # auc_val = roc_auc_score(y_eval.ravel(), y_eval_pred, sample_weight=weight_nom_train) 
             print("The eval roc_auc_score score is:", auc_val)
             
             #plt.plot(nn_fpr_xgb, nn_tpr_xgb, marker='.', label='Neural Network (auc = %0.3f)' % auc_xgb)
