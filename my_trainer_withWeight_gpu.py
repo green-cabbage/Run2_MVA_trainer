@@ -808,21 +808,44 @@ def classifier_train(df, args, training_samples):
             # AN Model end ---------------------------------------------------------------
 
             # AN Model new start ---------------------------------------------------------------   
-            model = xgb.XGBClassifier(max_depth=4,
-                                      n_estimators=1000, # number of trees
-                                      early_stopping_rounds=15, #15
-                                      eval_metric="logloss", # cross entropy
-                                      learning_rate=0.1,# shrinkage?
-                                      #reg_alpha=0.680159426755822,
-                                      #colsample_bytree=0.47892268305051233,
-                                      # colsample_bytree=0.5,
-                                      # min_child_weight=3,
-                                      subsample=0.5, # Bagged sample fraction ?
-                                      #reg_lambda=16.6,
-                                      #gamma=24.505,
-                                      #n_jobs=35,
-                                      tree_method='hist')
+            # model = xgb.XGBClassifier(max_depth=4,
+            #                           n_estimators=1000, # number of trees
+            #                           early_stopping_rounds=15, #15
+            #                           eval_metric="logloss", # cross entropy
+            #                           learning_rate=0.1,# shrinkage?
+            #                           #reg_alpha=0.680159426755822,
+            #                           #colsample_bytree=0.47892268305051233,
+            #                           # colsample_bytree=0.5,
+            #                           # min_child_weight=3,
+            #                           subsample=0.5, # Bagged sample fraction ?
+            #                           #reg_lambda=16.6,
+            #                           #gamma=24.505,
+            #                           #n_jobs=35,
+            #                           tree_method='hist')
             # AN Model new end ---------------------------------------------------------------
+
+            # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
+            # Aug 13
+            verbosity=2
+            print(f"len(x_train): {len(x_train)}")
+            scale_pos_weight = float(np.sum(np.abs(weight_nom_train[y_train == 0]))) / np.sum(np.abs(weight_nom_train[y_train == 1])) 
+            model = XGBClassifier(
+                n_estimators=1000,           # Number of trees
+                max_depth=4,                 # Max depth
+                learning_rate=0.10,          # Shrinkage
+                subsample=0.5,               # Bagged sample fraction
+                min_child_weight=0.03 ,  # NOTE: this causes AUC == 0.5
+                tree_method='hist',          # Needed for max_bin
+                max_bin=30,                  # Number of cuts
+                # objective='binary:logistic', # CrossEntropy (logloss)
+                # use_label_encoder=False,     # Optional: suppress warning
+                eval_metric='logloss',       # Ensures logloss used during training
+                n_jobs=-1,                   # Use all CPU cores
+                # scale_pos_weight=scale_pos_weight*0.005,
+                scale_pos_weight=scale_pos_weight*0.75,
+                early_stopping_rounds=15,#15
+                verbosity=2
+            )
             
             print(model)
             print(f"negative w_train: {w_train[w_train <0]}")
