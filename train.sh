@@ -59,7 +59,10 @@ set -e
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_BigEbeMassResContrib_Aug25_2025_DYSigOnly_BSC_Off_oldBDT_amcDY"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_BigEbeMassResContrib_Aug25_2025_DYSigOnly_BSC_Off_origBDT"
 # model_name="V2_UL_Jan19_2025_addTTST_Aug26"
-model_name="V2_UL_Jan19_2025_addTTST_Aug28_MiNNLO"
+# model_name="V2_UL_Jan19_2025_addTTST_Aug28_MiNNLO"
+# model_name="V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_Aug28_MiNNLO"
+# model_name="V2_UL_Mar24_2025_Aug28_MiNNLO_scalePosWgtOff"
+model_name="V2_fullRun_Jun21_2025_1n2Revised_Aug28_scalePosWgtOff"
 
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"
