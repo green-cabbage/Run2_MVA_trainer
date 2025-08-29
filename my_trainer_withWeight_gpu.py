@@ -842,7 +842,7 @@ def classifier_train(df, args, training_samples):
                 eval_metric='logloss',       # Ensures logloss used during training
                 n_jobs=-1,                   # Use all CPU cores
                 # scale_pos_weight=scale_pos_weight*0.005,
-                scale_pos_weight=scale_pos_weight*0.75,
+                # scale_pos_weight=scale_pos_weight*0.75,
                 early_stopping_rounds=15,#15
                 verbosity=2
             )
