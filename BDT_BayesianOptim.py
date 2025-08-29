@@ -50,8 +50,8 @@ def objective(trial, Xtr, Xva, ytr, yva, w_train, w_val) -> float:
     default_spw = float(neg) / max(pos, 1)
     params = {
         # "objective": "binary:logistic",
-        "eval_metric": "auc",
-        # "eval_metric": "logloss",
+        # "eval_metric": "auc",
+        "eval_metric": "logloss",
         "tree_method": "hist",            # change to "gpu_hist" if you have a GPU
         "random_state": 1337,
         "n_estimators": trial.suggest_int("n_estimators", 500, 2100),
@@ -64,31 +64,9 @@ def objective(trial, Xtr, Xva, ytr, yva, w_train, w_val) -> float:
 
 
 
-        # "scale_pos_weight": trial.suggest_float(
-        #     "scale_pos_weight",
-        #     max(1e-2, 0.5*default_spw),
-        #     max(1.0, 2.0*default_spw)
-        # ),
-        # "early_stopping_rounds" : 15,
     }
 
-    # model = XGBClassifier(
-    #             n_estimators=1000,           # Number of trees
-    #             max_depth=4,                 # Max depth
-    #             learning_rate=0.10,          # Shrinkage
-    #             subsample=0.5,               # Bagged sample fraction
-    #             min_child_weight=0.03 ,  # NOTE: this causes AUC == 0.5
-    #             tree_method='hist',          # Needed for max_bin
-    #             max_bin=30,                  # Number of cuts
-    #             # objective='binary:logistic', # CrossEntropy (logloss)
-    #             # use_label_encoder=False,     # Optional: suppress warning
-    #             eval_metric='logloss',       # Ensures logloss used during training
-    #             n_jobs=-1,                   # Use all CPU cores
-    #             # scale_pos_weight=scale_pos_weight*0.005,
-    #             scale_pos_weight=scale_pos_weight*0.75,
-    #             early_stopping_rounds=15,#15
-    #             verbosity=verbosity
-    #         )
+    
 
     clf = XGBClassifier(**params)
     clf.fit(
@@ -725,10 +703,13 @@ def classifier_train(df, args, training_samples):
         
         # # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight or V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
         # AN-19-124 line 1156: "the final BDTs have been trained by flipping the sign of negative weighted events"
-        df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
-        df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) / df_val['dimuon_ebe_mass_res']
-        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig']) / df_eval['dimuon_ebe_mass_res']
-        
+        # df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
+        # df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) / df_val['dimuon_ebe_mass_res']
+        # df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig']) / df_eval['dimuon_ebe_mass_res']
+
+        df_train['training_wgt'] = df_train['wgt_nominal']/df_train['cls_avg_wgt']
+        df_val['training_wgt'] = np.abs(df_val['wgt_nominal'])
+        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal'])
         
         # scale data
         #x_train, x_val = scale_data(training_features, x_train, x_val, df_train, label)#Last used
