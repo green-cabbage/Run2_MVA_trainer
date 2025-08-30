@@ -1012,17 +1012,36 @@ def classifier_train(df, args, training_samples):
             #                          )
             
             
-            # # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
-            # # Aug 13
-            # print(f"len(x_train): {len(x_train)}")
+            # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
+            # Aug 13
+            print(f"len(x_train): {len(x_train)}")
+            model = XGBClassifier(
+                n_estimators=1000,           # Number of trees
+                max_depth=4,                 # Max depth
+                learning_rate=0.10,          # Shrinkage
+                subsample=0.5,               # Bagged sample fraction
+                min_child_weight=0.03 ,  # NOTE: this causes AUC == 0.5
+                tree_method='hist',          # Needed for max_bin
+                max_bin=30,                  # Number of cuts
+                # objective='binary:logistic', # CrossEntropy (logloss)
+                # use_label_encoder=False,     # Optional: suppress warning
+                eval_metric='logloss',       # Ensures logloss used during training
+                n_jobs=30,                   # Use all CPU cores
+                # scale_pos_weight=scale_pos_weight*0.005,
+                # scale_pos_weight=scale_pos_weight*0.75,
+                # early_stopping_rounds=15,#15
+                verbosity=verbosity
+            )
+
+            # # hyperparameter tuned: Aug 29 2025
             # model = XGBClassifier(
-            #     n_estimators=1000,           # Number of trees
+            #     n_estimators=1851,           # Number of trees
             #     max_depth=4,                 # Max depth
-            #     learning_rate=0.10,          # Shrinkage
-            #     subsample=0.5,               # Bagged sample fraction
-            #     min_child_weight=0.03 ,  # NOTE: this causes AUC == 0.5
+            #     learning_rate=0.11515380480167767,          # Shrinkage
+            #     subsample=0.7590592837562943,               # Bagged sample fraction
+            #     min_child_weight=2.6559536199790963 ,  # NOTE: this causes AUC == 0.5
             #     tree_method='hist',          # Needed for max_bin
-            #     max_bin=30,                  # Number of cuts
+            #     max_bin=64,                  # Number of cuts
             #     # objective='binary:logistic', # CrossEntropy (logloss)
             #     # use_label_encoder=False,     # Optional: suppress warning
             #     eval_metric='logloss',       # Ensures logloss used during training
@@ -1032,25 +1051,6 @@ def classifier_train(df, args, training_samples):
             #     early_stopping_rounds=15,#15
             #     verbosity=verbosity
             # )
-
-            # hyperparameter tuned: Aug 29 2025
-            model = XGBClassifier(
-                n_estimators=1851,           # Number of trees
-                max_depth=4,                 # Max depth
-                learning_rate=0.11515380480167767,          # Shrinkage
-                subsample=0.7590592837562943,               # Bagged sample fraction
-                min_child_weight=2.6559536199790963 ,  # NOTE: this causes AUC == 0.5
-                tree_method='hist',          # Needed for max_bin
-                max_bin=64,                  # Number of cuts
-                # objective='binary:logistic', # CrossEntropy (logloss)
-                # use_label_encoder=False,     # Optional: suppress warning
-                eval_metric='logloss',       # Ensures logloss used during training
-                n_jobs=30,                   # Use all CPU cores
-                # scale_pos_weight=scale_pos_weight*0.005,
-                # scale_pos_weight=scale_pos_weight*0.75,
-                early_stopping_rounds=15,#15
-                verbosity=verbosity
-            )
 
             # after hyperparameter tuning date: Aug 14 2025
             # model = XGBClassifier(
