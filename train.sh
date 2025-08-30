@@ -63,7 +63,8 @@ set -e
 # model_name="V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_Aug28_MiNNLO"
 # model_name="V2_UL_Mar24_2025_Aug28_MiNNLO_scalePosWgtOff"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_Aug28_scalePosWgtOff"
-model_name="V2_fullRun_Jun21_2025_1n2Revised_Aug28_scalePosWgtOff_AllMCAllYr"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_Aug28_scalePosWgtOff_AllMCAllYr"
+model_name="V2_fullRun_Jun21_2025_1n2Revised_Aug28_scalePosWgtOff_AllMCAllYr_hyperParamTuned"
 
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"
@@ -83,8 +84,8 @@ label="fullRun_Jun23_2025_1n2Revised"
 # year="2016preVFP"
 # year="2016"
 year="all"
-# python BDT_BayesianOptim.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
-python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
+python BDT_BayesianOptim.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
+# python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 
 
 
