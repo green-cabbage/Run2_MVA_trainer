@@ -288,175 +288,6 @@ training_features = [
 ]
 # V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75, bdt_V2_fullRun_Jun21_2025_1n2Revised_all
 
-#test
-# training_features = [
-#     'dimuon_rapidity', 
-#     'dimuon_pt', 
-#     'dimuon_cos_theta_cs', 
-#     'dimuon_phi_cs', 
-# ] #V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_DimuVarsOnly
-
-
-# #test
-# training_features = [
-#     'dimuon_cos_theta_cs', 
-#     'dimuon_phi_cs', 
-#     'dimuon_rapidity', 
-#     'dimuon_pt', 
-#     # 'jet1_eta', 
-#     # 'jet2_eta', 
-#     # 'jet1_pt', 
-#     # 'jet2_pt', 
-#     'jj_dEta', 
-#     'jj_dPhi', 
-#     'jj_mass', 
-#     # 'mmj_min_dEta', 
-#     'mmj_min_dPhi', 
-#     'mu1_eta', 
-#     'mu1_pt_over_mass', 
-#     # 'mu2_eta', 
-#     # 'mu2_pt_over_mass', 
-#     'zeppenfeld',
-#     'njets'
-# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_NoSingleJet_Mu2_MinMmjdEta
-
-#test
-# training_features = [
-#     'dimuon_cos_theta_cs', 
-#     'dimuon_phi_cs', 
-#     'dimuon_rapidity', 
-#     'dimuon_pt', 
-#     # 'jet1_eta', 
-#     # 'jet2_eta', 
-#     # 'jet1_pt', 
-#     # 'jet2_pt', 
-#     # 'jj_dEta', 
-#     # 'jj_dPhi', 
-#     # 'jj_mass', 
-#     # 'mmj_min_dEta', 
-#     # 'mmj_min_dPhi', 
-#     'mu1_eta', 
-#     'mu1_pt_over_mass', 
-#     # 'mu2_eta', 
-#     # 'mu2_pt_over_mass', 
-#     'zeppenfeld',
-#     # 'njets'
-# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_NoJet_Mu2_MinMmjVars
-
-#test
-# training_features = [
-#     'dimuon_cos_theta_cs', 
-#     'dimuon_phi_cs', 
-#     'dimuon_rapidity', 
-#     'dimuon_pt', 
-#     # 'jet1_eta', 
-#     # 'jet2_eta', 
-#     # 'jet1_pt', 
-#     # 'jet2_pt', 
-#     # 'jj_dEta', 
-#     # 'jj_dPhi', 
-#     # 'jj_mass', 
-#     'mmj_min_dEta', 
-#     # 'mmj_min_dPhi', 
-#     'mu1_eta', 
-#     'mu1_pt_over_mass', 
-#     # 'mu2_eta', 
-#     # 'mu2_pt_over_mass', 
-#     'zeppenfeld',
-#     # 'njets'
-# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_NoJet_Mu2_MinMmjVars
-
-# #test
-# training_features = [
-#     'dimuon_cos_theta_cs', 
-#     'dimuon_phi_cs', 
-#     'dimuon_rapidity', 
-#     'dimuon_pt', 
-#     # 'jet1_eta', 
-#     # 'jet2_eta', 
-#     # 'jet1_pt', 
-#     # 'jet2_pt', 
-#     # 'jj_dEta', 
-#     # 'jj_dPhi', 
-#     # 'jj_mass', 
-#     # 'mmj_min_dEta', 
-#     # 'mmj_min_dPhi', 
-#     'mu1_eta', 
-#     'mu1_pt_over_mass', 
-#     'mu2_eta', 
-#     'mu2_pt_over_mass', 
-#     'zeppenfeld',
-#     # 'njets'
-# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_Mu2_Vars
-
-#test
-# training_features = [
-#     'dimuon_cos_theta_cs', 
-#     'dimuon_phi_cs', 
-#     'dimuon_rapidity', 
-#     'dimuon_pt', 
-#     # 'jet1_eta', 
-#     # 'jet2_eta', 
-#     'jet1_pt', 
-#     # 'jet2_pt', 
-#     # 'jj_dEta', 
-#     # 'jj_dPhi', 
-#     # 'jj_mass', 
-#     # 'mmj_min_dEta', 
-#     # 'mmj_min_dPhi', 
-#     'mu1_eta', 
-#     'mu1_pt_over_mass', 
-#     # 'mu2_eta', 
-#     # 'mu2_pt_over_mass', 
-#     'zeppenfeld',
-#     # 'njets'
-# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_jet1Pt_Vars
-
-
-# training_features = [
-#     'dimuon_cos_theta_cs', 
-#     'dimuon_phi_cs', 
-#     'dimuon_rapidity', 
-#     'dimuon_pt', 
-#     # 'jet1_eta', 
-#     # 'jet2_eta', 
-#     'jet1_pt', 
-#     # 'jet2_pt', 
-#     # 'jj_dEta', 
-#     # 'jj_dPhi', 
-#     # 'jj_mass', 
-#     # 'mmj_min_dEta', 
-#     # 'mmj_min_dPhi', 
-#     'mu1_eta', 
-#     'mu1_pt_over_mass', 
-#     'mu2_eta', 
-#     'mu2_pt_over_mass', 
-#     'zeppenfeld',
-#     # 'njets'
-# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_Mu2_jet1Pt_Vars
-
-# training_features = [
-#     'dimuon_cos_theta_cs', 
-#     'dimuon_phi_cs', 
-#     'dimuon_rapidity', 
-#     'dimuon_pt', 
-#     # 'jet1_eta', 
-#     # 'jet2_eta', 
-#     'jet1_pt', 
-#     'jet2_pt', 
-#     # 'jj_dEta', 
-#     # 'jj_dPhi', 
-#     # 'jj_mass', 
-#     # 'mmj_min_dEta', 
-#     # 'mmj_min_dPhi', 
-#     'mu1_eta', 
-#     'mu1_pt_over_mass', 
-#     'mu2_eta', 
-#     'mu2_pt_over_mass', 
-#     'zeppenfeld',
-#     # 'njets'
-# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_Mu2_jet1jet2Pt_Vars
-
 
 #---------------------------------------------------------------------------
 
@@ -798,6 +629,8 @@ def classifier_train(df, args, training_samples):
         y_val = df_val['class']
         y_eval = df_eval['class']
 
+        print(f"training_features: {training_features}")
+        
         # print(f"y_train: {y_train}")
         # print(f"y_val: {y_val}")
         # print(f"y_eval: {y_eval}")
@@ -817,6 +650,10 @@ def classifier_train(df, args, training_samples):
             df_train.loc[y_train==icls,'cls_avg_wgt'] = df_train.loc[y_train==icls,'wgt_nominal'].values.mean()
             df_val.loc[y_val==icls,'cls_avg_wgt'] = df_val.loc[y_val==icls,'wgt_nominal'].values.mean()
             df_eval.loc[y_eval==icls,'cls_avg_wgt'] = df_eval.loc[y_eval==icls,'wgt_nominal'].values.mean()
+            # df_train.loc[y_train==icls,'cls_avg_wgt'] = df_train.loc[y_train==icls,'wgt_nominal'].values.sum()
+            # df_val.loc[y_val==icls,'cls_avg_wgt'] = df_val.loc[y_val==icls,'wgt_nominal'].values.sum()
+            # df_eval.loc[y_eval==icls,'cls_avg_wgt'] = df_eval.loc[y_eval==icls,'wgt_nominal'].values.sum()
+            
             print(f"{train_evts} training events in class {cls}")
         # original end -------------------------------------------------------
         
@@ -1095,7 +932,8 @@ def classifier_train(df, args, training_samples):
 
             eval_set = [(xp_train, y_train), (xp_val, y_val)]#Last used
             
-            model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
+            # model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
+            model.fit(xp_train, y_train, eval_set=eval_set, verbose=False)
 
             y_pred_signal_val = model.predict_proba(xp_val)[:, 1].ravel()
             y_pred_signal_train = model.predict_proba(xp_train)[:, 1]

@@ -65,7 +65,8 @@ set -e
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_Aug28_scalePosWgtOff"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_Aug28_scalePosWgtOff_AllMCAllYr"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_Aug28_scalePosWgtOff_AllMCAllYr_hyperParamTuned"
-model_name="V2_fullRun_Jun21_2025_1n2Revised_Aug28_scalePosWgtOff_AllMCAllYr_noEarlyStop"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_Aug28_scalePosWgtOff_AllMCAllYr_noEarlyStop"
+model_name="V2_fullRun_Jun21_2025_1n2Revised_Aug28_scalePosWgtOff_AllMCAllYr_noEarlyStop_wgtTrainOff"
 
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"
@@ -76,11 +77,11 @@ model_name="V2_fullRun_Jun21_2025_1n2Revised_Aug28_scalePosWgtOff_AllMCAllYr_noE
 # label="DYMiNNLO_11Apr2025"
 # label="fullRun_May30_2025"
 # label="fullRun_Jun21_2025"
-label="fullRun_Jun23_2025_1n2Revised"
-# label="BSC_off_Aug26_2025"
+# label="fullRun_Jun23_2025_1n2Revised"
+label="BSC_off_Aug26_2025"
 
-# year="2018"
-year="2017"
+year="2018"
+# year="2017"
 # year="2016postVFP"
 # year="2016preVFP"
 # year="2016"
