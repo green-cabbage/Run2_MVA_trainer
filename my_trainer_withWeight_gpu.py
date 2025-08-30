@@ -263,13 +263,39 @@ def customROC_curve_AN(label, pred, weight):
 
 
 
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     'jet1_eta', 
+#     'jet2_eta', 
+#     'jet1_pt', 
+#     'jet2_pt', 
+#     'jj_dEta', 
+#     'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     'mmj_min_dEta', 
+#     'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ]
+# # V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75, bdt_V2_fullRun_Jun21_2025_1n2Revised_all
+
+
 training_features = [
     'dimuon_cos_theta_cs', 
     'dimuon_phi_cs', 
     'dimuon_rapidity', 
     'dimuon_pt', 
-    'jet1_eta', 
-    'jet2_eta', 
+    # 'jet1_eta', # FIXME
+    # 'jet2_eta', # FIXME
     'jet1_pt', 
     'jet2_pt', 
     'jj_dEta', 
