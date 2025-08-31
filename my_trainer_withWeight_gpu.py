@@ -510,10 +510,16 @@ def prepare_dataset(df, ds_dict):
     # sig_datasets = ["ggh_amcPS"]
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
+    df['bdt_wgt'] = 1.0
     for dataset in sig_datasets:
         df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
+        df.loc[df['dataset']==dataset,'bdt_wgt'] = 2*np.divide(df[df['dataset']==dataset]['bdt_wgt'], df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
     # original end -----------------------------------------------
-    
+
+    # # debugging 
+    # cols = ['dataset', 'bdt_wgt']
+    # print(f"df[cols]: {df[cols]}")
+    # raise ValueError
     #print(df.head)
     columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
     columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta','jet2_pt']
@@ -687,11 +693,11 @@ def classifier_train(df, args, training_samples):
         
         # # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight or V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
         # AN-19-124 line 1156: "the final BDTs have been trained by flipping the sign of negative weighted events"
-        df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
-        df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) / df_val['dimuon_ebe_mass_res']
-        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig']) / df_eval['dimuon_ebe_mass_res']
+        # df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
+        # df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) / df_val['dimuon_ebe_mass_res']
+        # df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig']) / df_eval['dimuon_ebe_mass_res']
 
-        df_train['training_wgt'] = df_train['wgt_nominal']/df_train['cls_avg_wgt']
+        df_train['training_wgt'] = np.abs(df_train['wgt_nominal'])/df_train['cls_avg_wgt']
         df_val['training_wgt'] = np.abs(df_val['wgt_nominal'])
         df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal'])
         
@@ -778,7 +784,8 @@ def classifier_train(df, args, training_samples):
             print(f"xp_eval.shape: {xp_eval.shape}")
 
             # w_train = df_train['training_wgt'].values
-            w_train = 1/df_train['dimuon_ebe_mass_res'].values #FIXME
+            # w_train = 1/df_train['dimuon_ebe_mass_res'].values #FIXME
+            w_train = df_train['bdt_wgt'].values #FIXME
             w_val = df_val['training_wgt'].values
             w_eval = df_eval['training_wgt'].values
 
