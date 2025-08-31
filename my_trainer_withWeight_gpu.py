@@ -297,11 +297,11 @@ training_features = [ # FIXME
     'dimuon_pt', 
     # 'jet1_eta', # FIXME
     # 'jet2_eta', # FIXME
-    'jet1_pt', 
-    'jet2_pt', 
+    # 'jet1_pt', 
+    # 'jet2_pt', 
     # 'jj_dEta', 
     # 'jj_dPhi', 
-    # 'jj_mass', 
+    'jj_mass', 
     # 'mmj1_dEta', 
     # 'mmj1_dPhi',  
     # 'mmj_min_dEta', 
