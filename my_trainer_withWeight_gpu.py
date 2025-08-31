@@ -777,7 +777,8 @@ def classifier_train(df, args, training_samples):
             print(f"xp_val.shape: {xp_val.shape}")
             print(f"xp_eval.shape: {xp_eval.shape}")
 
-            w_train = df_train['training_wgt'].values
+            # w_train = df_train['training_wgt'].values
+            w_train = 1/df_train['dimuon_ebe_mass_res'].values #FIXME
             w_val = df_val['training_wgt'].values
             w_eval = df_eval['training_wgt'].values
 
@@ -959,8 +960,8 @@ def classifier_train(df, args, training_samples):
 
             eval_set = [(xp_train, y_train), (xp_val, y_val)]#Last used
             
-            # model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
-            model.fit(xp_train, y_train, eval_set=eval_set, verbose=False)
+            model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
+            # model.fit(xp_train, y_train, eval_set=eval_set, verbose=False)
 
             y_pred_signal_val = model.predict_proba(xp_val)[:, 1].ravel()
             y_pred_signal_train = model.predict_proba(xp_train)[:, 1]
