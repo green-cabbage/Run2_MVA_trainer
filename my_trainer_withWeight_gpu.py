@@ -305,7 +305,7 @@ training_features = [ # FIXME
     # 'mmj1_dEta', 
     # 'mmj1_dPhi',  
     # 'mmj_min_dEta', 
-    # 'mmj_min_dPhi', 
+    'mmj_min_dPhi', 
     'mu1_eta', 
     'mu1_pt_over_mass', 
     'mu2_eta', 
