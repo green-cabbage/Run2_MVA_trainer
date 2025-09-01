@@ -311,7 +311,8 @@ training_features = [ # FIXME
     'mu2_eta', 
     'mu2_pt_over_mass', 
     'zeppenfeld',
-    'njets'
+    'njets',
+    'rpt',
 ]
 # V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75, bdt_V2_fullRun_Jun21_2025_1n2Revised_all
 
@@ -664,12 +665,12 @@ def classifier_train(df, args, training_samples):
 
         print(f"training_features: {training_features}")
 
-        # FIXME
-        feats2play = ["jet1_eta_nominal"]
-        for feat in feats2play:
-            df_train[feat] = abs(df_train[feat])
-            df_val[feat] = abs(df_val[feat])
-            df_eval[feat] = abs(df_eval[feat])
+        # # FIXME
+        # feats2play = ["jet1_eta_nominal"]
+        # for feat in feats2play:
+        #     df_train[feat] = abs(df_train[feat])
+        #     df_val[feat] = abs(df_val[feat])
+        #     df_eval[feat] = abs(df_eval[feat])
 
         
         # print(f"y_train: {y_train}")
