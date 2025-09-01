@@ -297,7 +297,7 @@ training_features = [ # FIXME
     'dimuon_pt', 
     'jet1_eta', # FIXME
     # 'jet2_eta', # FIXME
-    'jet1_pt', 
+    # 'jet1_pt', 
     # 'jet2_pt', 
     # 'jj_dEta', 
     'jj_dPhi', 
@@ -663,6 +663,14 @@ def classifier_train(df, args, training_samples):
         y_eval = df_eval['class']
 
         print(f"training_features: {training_features}")
+
+        # FIXME
+        feats2play = ["jet1_eta_nominal"]
+        for feat in feats2play:
+            df_train[feat] = abs(df_train[feat])
+            df_val[feat] = abs(df_val[feat])
+            df_eval[feat] = abs(df_eval[feat])
+
         
         # print(f"y_train: {y_train}")
         # print(f"y_val: {y_val}")
