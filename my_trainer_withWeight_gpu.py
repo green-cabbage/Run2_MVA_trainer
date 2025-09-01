@@ -344,7 +344,7 @@ training_samples = {
         ],
         "signal": [
             "ggh_powhegPS", 
-            # "vbf_powheg_dipole", # adding vbf only makes BDT concentrate on vbf for some reason
+            "vbf_powheg_dipole", 
         ], # copperheadV2
         # ],
         
