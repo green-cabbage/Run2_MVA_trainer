@@ -295,7 +295,7 @@ training_features = [ # FIXME
     'dimuon_phi_cs', 
     'dimuon_rapidity', 
     'dimuon_pt', 
-    # 'jet1_eta', # FIXME
+    'jet1_eta', # FIXME
     # 'jet2_eta', # FIXME
     # 'jet1_pt', 
     # 'jet2_pt', 
