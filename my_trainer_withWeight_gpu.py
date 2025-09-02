@@ -25,7 +25,7 @@ import pickle
 import glob
 import seaborn as sb
 import copy
-from modules.utils import removeForwardJets
+from modules.utils import removeForwardJets #, processYearCol
 
 
 def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, fold_idx):
@@ -313,6 +313,7 @@ training_features = [ # FIXME
     'zeppenfeld',
     'njets',
     'rpt',
+    'year',
 ]
 # V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75, bdt_V2_fullRun_Jun21_2025_1n2Revised_all
 
@@ -628,6 +629,7 @@ def classifier_train(df, args, training_samples):
     # get the overal correlation matrix
     corr_matrix = getCorrMatrix(df, training_features, save_path=save_path)
     # print(f"df.columns {df.columns}")
+    # df = processYearCol(df)
     df = removeForwardJets(df)
     # start training
     

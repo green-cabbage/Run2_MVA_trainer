@@ -62,3 +62,18 @@ def removeForwardJets(df):
     ]
     df_new = fillNanJetvariables(df_new, forward_filter, jet_variables)
     return df_new
+
+
+# def processYearCol(df):
+#     df_new = copy.deepcopy(df)
+#     print(df_new["year"].unique())
+#     raise ValueError
+    
+#     # Mapping dictionary
+#     replace_map = {
+#         "2016preVFP": 2015,
+#         "2016postVFP": 2016
+#     }
+    
+#     df_new["year"] = df_new["year"].replace(replace_map)
+#     return df_new
