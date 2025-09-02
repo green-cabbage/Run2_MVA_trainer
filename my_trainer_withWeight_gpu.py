@@ -302,7 +302,7 @@ training_features = [ # FIXME
     # 'jj_dEta', 
     'jj_dPhi', 
     # 'jj_mass', 
-    # 'mmj1_dEta', 
+    'mmj1_dEta', 
     # 'mmj1_dPhi',  
     'mmj_min_dEta', 
     'mmj_min_dPhi', 

@@ -14,10 +14,10 @@ def fillNanJetvariables(df, forward_filter, jet_variables):
         'mmj_min_dEta', 
         'mmj_min_dPhi', 
     ]
-    jet_variables = jet_variables + dijet_variables
+    jet_variables = list(set(jet_variables + dijet_variables))
     jet_variables  = [var+"_nominal" for var in jet_variables] 
     # print(f"df.loc[forward_filter, jet_variables] b4: {df.loc[forward_filter, jet_variables]}")
-    df.loc[forward_filter, jet_variables].to_csv("dfb4.csv")
+    # df.loc[forward_filter, jet_variables].to_csv("dfb4.csv")
     # print(f"forward_filter: {forward_filter}")
     # print(f"jet_variables: {jet_variables}")
     
@@ -29,7 +29,7 @@ def fillNanJetvariables(df, forward_filter, jet_variables):
                 df.loc[forward_filter, jet_var] = 0.0
 
     # print(f"df.loc[forward_filter, jet_variables] after: {df.loc[forward_filter, jet_variables]}")
-    df.loc[forward_filter, jet_variables].to_csv("dfafter.csv")
+    # df.loc[forward_filter, jet_variables].to_csv("dfafter.csv")
     return df
     
 def removeForwardJets(df):
@@ -46,6 +46,8 @@ def removeForwardJets(df):
         "jet1_pt",
         # "jet1_phi",
         # "jet1_mass",
+        "mmj1_dEta",
+        # "mmj1_dPhi",
     ]
     df_new = fillNanJetvariables(df_new, forward_filter, jet_variables)
     # raise ValueError
