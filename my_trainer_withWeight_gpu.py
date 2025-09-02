@@ -24,8 +24,8 @@ import mplhep as hep
 import pickle
 import glob
 import seaborn as sb
-
-
+import copy
+# from modules.utils import removeForwardJets
 
 
 def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, fold_idx):
@@ -344,7 +344,7 @@ training_samples = {
         ],
         "signal": [
             "ggh_powhegPS", 
-            "vbf_powheg_dipole", 
+            # "vbf_powheg_dipole", 
         ], # copperheadV2
         # ],
         
@@ -511,10 +511,12 @@ def prepare_dataset(df, ds_dict):
     # sig_datasets = ["ggh_amcPS"]
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
-    df['bdt_wgt'] = 1.0
+    # df['bdt_wgt'] = 1.0 # FIXME
+    df['bdt_wgt'] = abs(df['wgt_nominal_orig'])
     for dataset in sig_datasets:
         df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
-        df.loc[df['dataset']==dataset,'bdt_wgt'] = 2*np.divide(df[df['dataset']==dataset]['bdt_wgt'], df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
+        # df.loc[df['dataset']==dataset,'bdt_wgt'] = 2*np.divide(df[df['dataset']==dataset]['bdt_wgt'], df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
+        df.loc[df['dataset']==dataset,'bdt_wgt'] = 2*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
     # original end -----------------------------------------------
 
     # # debugging 
@@ -625,7 +627,8 @@ def classifier_train(df, args, training_samples):
 
     # get the overal correlation matrix
     corr_matrix = getCorrMatrix(df, training_features, save_path=save_path)
-    
+    # print(f"df.columns {df.columns}")
+    # df = removeForwardJets(df)
     # start training
     
     for i in range(nfolds):
@@ -1526,7 +1529,6 @@ if __name__ == "__main__":
             "dimuon_mass",
             "jj_mass_nominal",
             "jj_dEta_nominal",
-            "jet1_pt_nominal",
             "nBtagLoose_nominal",
             "nBtagMedium_nominal",
             # "mmj1_dEta_nominal",
@@ -1538,6 +1540,12 @@ if __name__ == "__main__":
             "event",
             "mu1_pt",
             "mu2_pt",
+            "jet1_eta_nominal",
+            "jet2_eta_nominal",
+            'jet1_pt_nominal', 
+            'jet2_pt_nominal', 
+            'mmj_min_dEta_nominal', 
+            'mmj_min_dPhi_nominal', 
         ]
 
     
