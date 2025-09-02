@@ -344,7 +344,7 @@ training_samples = {
         ],
         "signal": [
             "ggh_powhegPS", 
-            # "vbf_powheg_dipole", 
+            "vbf_powheg_dipole", 
         ], # copperheadV2
         # ],
         
