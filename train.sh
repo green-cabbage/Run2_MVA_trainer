@@ -91,7 +91,8 @@ set -e
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_Aug28_scalePosWgtOff_AllMCAllYr_noEarlyStop_wgtTrainEbeMassResonly4Sig_noVBFsig_noJetVars13_bkgWgtApplied"
 # model_name="V2_Aug28_scalePosWgtOff_AllMCAllYr_noEarlyStop_wgtTrainEbeMassResonly4Sig_noVBFsig_noJetVars13_bkgWgtApplied_removeForwardJet"
 # model_name="V2_Aug28_scalePosWgtOff_AllMCAllYr_noEarlyStop_wgtTrainEbeMassResonly4Sig_noJetVars13_bkgWgtApplied_removeForwardJet"
-model_name="V2_Aug28_scalePosWgtOff_AllMCAllYr_noEarlyStop_wgtTrainEbeMassResonly4Sig_noJetVars14_bkgWgtApplied_removeForwardJet"
+# model_name="V2_Aug28_scalePosWgtOff_AllMCAllYr_noEarlyStop_wgtTrainEbeMassResonly4Sig_noJetVars14_bkgWgtApplied_removeForwardJet"
+model_name="V2_Aug28_scalePosWgtOff_AllYears_noEarlyStop_wgtTrainEbeMassResonly4Sig_noJetVars14_bkgWgtApplied_removeForwardJet"
 
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"
@@ -105,12 +106,12 @@ model_name="V2_Aug28_scalePosWgtOff_AllMCAllYr_noEarlyStop_wgtTrainEbeMassResonl
 label="fullRun_Jun23_2025_1n2Revised"
 # label="BSC_off_Aug26_2025"
 
-year="2018"
+# year="2018"
 # year="2017"
 # year="2016postVFP"
 # year="2016preVFP"
 # year="2016"
-# year="all"
+year="all"
 # python BDT_BayesianOptim.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 
