@@ -25,7 +25,7 @@ import pickle
 import glob
 import seaborn as sb
 import copy
-# from modules.utils import removeForwardJets
+from modules.utils import removeForwardJets
 
 
 def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, fold_idx):
@@ -628,7 +628,7 @@ def classifier_train(df, args, training_samples):
     # get the overal correlation matrix
     corr_matrix = getCorrMatrix(df, training_features, save_path=save_path)
     # print(f"df.columns {df.columns}")
-    # df = removeForwardJets(df)
+    df = removeForwardJets(df)
     # start training
     
     for i in range(nfolds):
