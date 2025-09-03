@@ -901,6 +901,9 @@ def classifier_train(df, args, training_samples):
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
             # Aug 13
             print(f"len(x_train): {len(x_train)}")
+            bdt_wgt = df_train["bdt_wgt"]
+            scale_pos_weight = float(np.sum(np.abs(bdt_wgt[y_train == 0]))) / np.sum(np.abs(bdt_wgt[y_train == 1])) 
+            print(f"(scale_pos_weight): {(scale_pos_weight)}")
             model = XGBClassifier(
                 n_estimators=1000,           # Number of trees
                 max_depth=4,                 # Max depth
@@ -914,66 +917,11 @@ def classifier_train(df, args, training_samples):
                 eval_metric='logloss',       # Ensures logloss used during training
                 n_jobs=30,                   # Use all CPU cores
                 # scale_pos_weight=scale_pos_weight*0.005,
-                # scale_pos_weight=scale_pos_weight*0.75,
+                scale_pos_weight=scale_pos_weight*0.5,
                 # early_stopping_rounds=15,#15
                 verbosity=verbosity
             )
 
-            # # hyperparameter tuned: Aug 29 2025
-            # model = XGBClassifier(
-            #     n_estimators=1851,           # Number of trees
-            #     max_depth=4,                 # Max depth
-            #     learning_rate=0.11515380480167767,          # Shrinkage
-            #     subsample=0.7590592837562943,               # Bagged sample fraction
-            #     min_child_weight=2.6559536199790963 ,  # NOTE: this causes AUC == 0.5
-            #     tree_method='hist',          # Needed for max_bin
-            #     max_bin=64,                  # Number of cuts
-            #     # objective='binary:logistic', # CrossEntropy (logloss)
-            #     # use_label_encoder=False,     # Optional: suppress warning
-            #     eval_metric='logloss',       # Ensures logloss used during training
-            #     n_jobs=30,                   # Use all CPU cores
-            #     # scale_pos_weight=scale_pos_weight*0.005,
-            #     # scale_pos_weight=scale_pos_weight*0.75,
-            #     early_stopping_rounds=15,#15
-            #     verbosity=verbosity
-            # )
-
-            # after hyperparameter tuning date: Aug 14 2025
-            # model = XGBClassifier(
-            #     n_estimators=671,           # Number of trees
-            #     max_depth=4,                 # Max depth
-            #     learning_rate=0.02575292680212345,          # Shrinkage
-            #     subsample=0.5674535097716533,               # Bagged sample fraction
-            #     min_child_weight=0.02402331596760716 ,  # NOTE: this causes AUC == 0.5
-            #     tree_method='hist',          # Needed for max_bin
-            #     max_bin=270,                  # Number of cuts
-            #     objective='binary:logistic', # CrossEntropy (logloss)
-            #     eval_metric='auc',       # Ensures logloss used during training
-            #     n_jobs=-1,                   # Use all CPU cores
-            #     scale_pos_weight=0.3400054217637343,
-            #     # scale_pos_weight= 0.7251520918705945,
-            #     # early_stopping_rounds=15,#15
-            #     verbosity=verbosity
-            # )
-            # model = XGBClassifier(
-            #     n_estimators=2012,           # Number of trees
-            #     max_depth=9,                 # Max depth
-            #     learning_rate=0.13920789983454399,          # Shrinkage
-            #     subsample=0.9931710009445184,               # Bagged sample fraction
-            #     min_child_weight=5.074294458283235 ,  # NOTE: this causes AUC == 0.5
-            #     tree_method='hist',          # Needed for max_bin
-            #     max_bin=63,                  # Number of cuts
-            #     eval_metric='logloss',       # Ensures logloss used during training
-            #     n_jobs=-1,                   # Use all CPU cores
-            #     scale_pos_weight=scale_pos_weight*0.75,
-            #     early_stopping_rounds=15,#15
-            #     verbosity=verbosity
-            # )
-            # Trial 24 finished with value: 0.7116329875773034 and parameters: {'n_estimators': 2012, 'max_depth': 9, 'learning_rate': 0.13920789983454399, 'subsample': 0.9931710009445184, 'min_child_weight': 5.074294458283235, 'max_bin': 63}. Best is trial 24 with value: 0.7116329875773034.
-
-            #old:
-             # Trial 0 finished with value: 0.703271691016499 and parameters: {'n_estimators': 671, 'max_depth': 4, 'learning_rate': 0.02575292680212345, 'subsample': 0.5674535097716533, 'min_child_weight': 0.02402331596760716, 'max_bin': 270, 'scale_pos_weight': 0.4147691913761959}. Best is trial 0 with value: 0.703271691016499.
-            # Best params: {'n_estimators': 1798, 'max_depth': 7, 'learning_rate': 0.08533987880625084, 'subsample': 0.6971760478760521, 'min_child_weight': 0.005159689243001041, 'max_bin': 155, 'scale_pos_weight': 0.7251520918705945}
             # AN Model new end ---------------------------------------------------------------
             
             print(model)
