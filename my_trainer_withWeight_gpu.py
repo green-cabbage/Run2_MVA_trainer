@@ -435,14 +435,15 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     print(f"computed_zip : {computed_zip}")
     # for copperheadV1, you gotta fill none b4 and store them in a dictionary b4 converting to dataframe
     computed_dict = {}
+    nan_val = -999.0
     for field in computed_zip.fields:
         # print(f"field: {field}")
         # print(f"computed_dict[{field}] b4 fill none: {ak.to_dataframe(computed_zip[field]) }")
         
         if "dPhi" in field:
-            computed_dict[field] = ak.fill_none(computed_zip[field], value=-1.0)
+            computed_dict[field] = ak.fill_none(computed_zip[field], value=nan_val)
         else:
-            computed_dict[field] = ak.fill_none(computed_zip[field], value=0.0)
+            computed_dict[field] = ak.fill_none(computed_zip[field], value=nan_val)
         # print(f"computed_dict[{field}] : {computed_dict[field]}")
         
     # # recalculate pt over masses. They're all inf and zeros for copperheadV1
@@ -462,8 +463,9 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
             dPhis.append(field)
     # print(f"dPhis: {dPhis}")
     # fill none values in dPhis with -1, then 0 for rest
-    df.fillna({field: -1 for field in dPhis},inplace=True)
-    df.fillna(0,inplace=True)
+    nan_val = -999.0
+    df.fillna({field: nan_val for field in dPhis},inplace=True)
+    df.fillna(nan_val,inplace=True)
     # add columns
     df["dataset"] = dataset 
     df["cls_avg_wgt"] = -1.0
@@ -917,7 +919,7 @@ def classifier_train(df, args, training_samples):
                 eval_metric='logloss',       # Ensures logloss used during training
                 n_jobs=30,                   # Use all CPU cores
                 # scale_pos_weight=scale_pos_weight*0.005,
-                scale_pos_weight=scale_pos_weight*0.5,
+                # scale_pos_weight=scale_pos_weight*0.5,
                 # early_stopping_rounds=15,#15
                 verbosity=verbosity
             )
@@ -1140,8 +1142,8 @@ def classifier_train(df, args, training_samples):
 
             # superimposed log ROC start --------------------------------------------------------------------------
             
-            plt.plot(eff_sig_eval, eff_bkg_eval, label=f"Stage2 ROC (Eval)  — AUC={auc_eval:.3f}")
-            plt.plot(eff_sig_val, eff_bkg_val, label=f"Stage2 ROC (Val)   — AUC={auc_val:.3f}")
+            plt.plot(eff_sig_eval, eff_bkg_eval, label=f"ROC (Eval)  — AUC={auc_eval:.3f}")
+            plt.plot(eff_sig_val, eff_bkg_val, label=f"ROC (Val)   — AUC={auc_val:.3f}")
             
             # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
             plt.vlines(np.linspace(0,1,11), 0, 1, linestyle="dashed", color="grey")
@@ -1159,7 +1161,7 @@ def classifier_train(df, args, training_samples):
             fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}.pdf")
 
             
-            plt.plot(eff_sig_train, eff_bkg_train, label=f"Stage2 ROC (Train) — AUC={auc_train:.3f}")
+            plt.plot(eff_sig_train, eff_bkg_train, label=f"ROC (Train) — AUC={auc_train:.3f}")
             plt.legend(loc="lower right")
             fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}_w_train.pdf")
             
