@@ -488,6 +488,24 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     return df
     
 
+def normalizeBdtWgt(df, sig_datasets):
+    cols = ["dataset", "bdt_wgt"]#debug
+    print(f"df b4: {df[cols]}")
+    # Overwrite bdt_wgt for signals with wgt_nominal_orig
+    df.loc[df["dataset"].isin(sig_datasets), "bdt_wgt"] = df["wgt_nominal_orig"]
+    
+    # Normalize only signal rows so to match the sum of bkg events
+    mask = df["dataset"].isin(sig_datasets)
+    sig_wgt_sum = df.loc[mask, "bdt_wgt"].sum()
+    bkg_wgt_sum = df.loc[~mask, "wgt_nominal_orig"].sum()
+    normalization_factor = bkg_wgt_sum/sig_wgt_sum
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] * normalization_factor
+    print(f"sig_wgt_sum: {sig_wgt_sum}")
+    print(f"bkg_wgt_sum: {bkg_wgt_sum}")
+    print(f"normalization_factor: {normalization_factor}")
+    print(f"df after: {df[cols]}")
+    return df
+
 def prepare_dataset(df, ds_dict):
     # Convert dictionary of datasets to a more useful dataframe
     df_info = pd.DataFrame()
@@ -520,6 +538,7 @@ def prepare_dataset(df, ds_dict):
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     # df['bdt_wgt'] = 1.0 # FIXME
     df['bdt_wgt'] = abs(df['wgt_nominal_orig'])
+    df = normalizeBdtWgt(df, sig_datasets)
     print(f"df any neg wgt: {np.any(df['wgt_nominal_orig']<0)}")
     
     # # debugging 
