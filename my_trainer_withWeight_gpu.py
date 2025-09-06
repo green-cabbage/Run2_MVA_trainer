@@ -520,15 +520,19 @@ def prepare_dataset(df, ds_dict):
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     # df['bdt_wgt'] = 1.0 # FIXME
     df['bdt_wgt'] = abs(df['wgt_nominal_orig'])
+    print(f"df any neg wgt: {np.any(df['wgt_nominal_orig']<0)}")
+    
+    # # debugging 
+    cols = ['dataset', 'bdt_wgt']
+    print(f"df[cols] b4: {df[cols]}")
     for dataset in sig_datasets:
         df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
         # df.loc[df['dataset']==dataset,'bdt_wgt'] = 2*np.divide(df[df['dataset']==dataset]['bdt_wgt'], df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
-        df.loc[df['dataset']==dataset,'bdt_wgt'] = 2*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
+        ebe_factor = 2*10
+        df.loc[df['dataset']==dataset,'bdt_wgt'] = ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
     # original end -----------------------------------------------
 
-    # # debugging 
-    # cols = ['dataset', 'bdt_wgt']
-    # print(f"df[cols]: {df[cols]}")
+    print(f"df[cols] after: {df[cols]}")
     # raise ValueError
     #print(df.head)
     columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
