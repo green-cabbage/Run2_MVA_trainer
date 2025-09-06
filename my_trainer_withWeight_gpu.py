@@ -364,6 +364,14 @@ training_samples = {
         #],
     }
 
+
+def removeNegWgtEvents(df):
+    """
+    """
+    negWgtFilter = df["wgt_nominal_orig"] > 0
+    df_filtered = df[negWgtFilter]
+    return df_filtered
+
 def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     """
     small wrapper that takes delayed dask awkward zip and converts them to pandas dataframe
@@ -474,12 +482,8 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     # else:
     df["wgt_nominal_orig"] = copy.deepcopy(df["wgt_nominal"])
     df["wgt_nominal"] = np.abs(df["wgt_nominal"])
-    # df["wgt_nominal_total"] = np.abs(df["wgt_nominal_total"]) # enforce poisitive weights OR:
-    # # drop negative values
-    # if "wgt_nominal" in df.columns:
-    #     df["wgt_nominal_total"] = df["wgt_nominal"] 
-    # positive_wgts = df["wgt_nominal_total"] > 0 
-    # df = df.loc[positive_wgts]
+
+    df = removeNegWgtEvents(df)
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     return df
     
