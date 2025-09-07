@@ -286,6 +286,7 @@ training_features = [
     'mu2_pt_over_mass', 
     'zeppenfeld',
     'njets'
+    'rpt',
 ]
 # V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75, bdt_V2_fullRun_Jun21_2025_1n2Revised_all
 
@@ -547,7 +548,7 @@ def prepare_dataset(df, ds_dict):
     for dataset in sig_datasets:
         df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
         # df.loc[df['dataset']==dataset,'bdt_wgt'] = 2*np.divide(df[df['dataset']==dataset]['bdt_wgt'], df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
-        ebe_factor = 2*0.5
+        ebe_factor = 2*0.25
         df.loc[df['dataset']==dataset,'bdt_wgt'] = ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
     # original end -----------------------------------------------
 
