@@ -661,7 +661,7 @@ def classifier_train(df, args, training_samples):
     corr_matrix = getCorrMatrix(df, training_features, save_path=save_path)
     # print(f"df.columns {df.columns}")
     # df = processYearCol(df)
-    df = removeForwardJets(df)
+    # df = removeForwardJets(df)
     # start training
     
     for i in range(nfolds):
