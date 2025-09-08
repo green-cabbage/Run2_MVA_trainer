@@ -25,7 +25,7 @@ import pickle
 import glob
 import seaborn as sb
 import copy
-from modules.utils import removeForwardJets #, processYearCol
+from modules.utils import removeForwardJets, PairNAnnhilateNegWgt #, processYearCol
 
 
 def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, fold_idx):
@@ -285,7 +285,7 @@ training_features = [
     'mu2_eta', 
     'mu2_pt_over_mass', 
     'zeppenfeld',
-    'njets'
+    'njets',
     'rpt',
 ]
 # V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75, bdt_V2_fullRun_Jun21_2025_1n2Revised_all
@@ -484,7 +484,7 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     df["wgt_nominal_orig"] = copy.deepcopy(df["wgt_nominal"])
     df["wgt_nominal"] = np.abs(df["wgt_nominal"])
 
-    df = removeNegWgtEvents(df)
+    # df = removeNegWgtEvents(df)
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     return df
     
@@ -688,6 +688,9 @@ def classifier_train(df, args, training_samples):
         df_train = df[train_filter]
         df_val = df[val_filter]
         df_eval = df[eval_filter]
+
+        # annhilate neg wgts
+        df_train = PairNAnnhilateNegWgt(df_train)
         
         x_train = df_train[training_features]
         #y_train = df_train['cls_idx']
