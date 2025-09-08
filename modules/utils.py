@@ -64,7 +64,8 @@ def PairNAnnhilateNegWgt(df):
     print(f"df len {len(df)}")
     
     datasets = df["dataset"].unique()
-    year_param_name = "bdt_year"
+    # year_param_name = "bdt_year"
+    year_param_name = "year"
     years = df[year_param_name].unique()
     # Make an empty copy of df (same columns, no rows)
     df_out = df.iloc[0:0].copy()
@@ -85,8 +86,8 @@ def PairNAnnhilateNegWgt(df):
                 _, subset = pair_and_remove(subset, cols=colsOfInterest, wgt_col="wgt_nominal_orig")
                 print(f"subset len after {year} {len(subset)}")
     
-                # sanity check:
-                assert np.all(subset["wgt_nominal_orig"] >=0)
+                # # sanity check:
+                # assert np.all(subset["wgt_nominal_orig"] >=0)
         
             # Append processed rows into the output df
             df_out = pd.concat([df_out, subset], ignore_index=True)

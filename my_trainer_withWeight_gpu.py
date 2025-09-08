@@ -287,7 +287,8 @@ training_features = [
     'zeppenfeld',
     'njets',
     'rpt',
-    'bdt_year',
+    'year',
+    # 'bdt_year',
 ]
 # V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75, bdt_V2_fullRun_Jun21_2025_1n2Revised_all
 
@@ -1579,18 +1580,17 @@ if __name__ == "__main__":
             filelist = glob.glob(parquet_path)
             print(f"filelist len: {len(filelist)}")
             if year == "all":
-                year_paths = {
-                    2015: f"{sysargs.load_path}/2016preVFP/f1_0/{sample}/*/*.parquet",
-                    2016: f"{sysargs.load_path}/2016postVFP/f1_0/{sample}/*/*.parquet",
-                    2017: f"{sysargs.load_path}/2017/f1_0/{sample}/*/*.parquet",
-                    2018: f"{sysargs.load_path}/2018/f1_0/{sample}/*/*.parquet",
-                }
-                print(parquet_path)
-                zip_sample =  ReadNMergeParquet_dak(year_paths, fields2load)
-            else:
+                # year_paths = {
+                #     2015: f"{sysargs.load_path}/2016preVFP/f1_0/{sample}/*/*.parquet",
+                #     2016: f"{sysargs.load_path}/2016postVFP/f1_0/{sample}/*/*.parquet",
+                #     2017: f"{sysargs.load_path}/2017/f1_0/{sample}/*/*.parquet",
+                #     2018: f"{sysargs.load_path}/2018/f1_0/{sample}/*/*.parquet",
+                # }
+                # print(parquet_path)
+                # zip_sample =  ReadNMergeParquet_dak(year_paths, fields2load)
                 zip_sample = dak.from_parquet(filelist)
                 # print(f"zip_sample.fields: {zip_sample.fields}")
-                zip_sample["bdt_year"] = int(year)
+                # zip_sample["bdt_year"] = int(year)
                 # fields2load = fields2load + ["bdt_year_nominal"]
                 print(f"fields2load b4: {fields2load}")
                 fields2load_prepared = prepare_features(zip_sample, fields2load) # add variation to the name
@@ -1599,11 +1599,19 @@ if __name__ == "__main__":
                     field : zip_sample[field] for field in fields2load_prepared
                 })
                 zip_sample = zip_sample.compute()
-                # print(zip_sample)
-                # print(parquet_path)
-                # print(zip_sample["bdt_year"].compute())
-                # print(type(zip_sample["bdt_year"].compute()))
-                # raise ValueError
+            else:
+                zip_sample = dak.from_parquet(filelist)
+                # print(f"zip_sample.fields: {zip_sample.fields}")
+                # zip_sample["bdt_year"] = int(year)
+                # fields2load = fields2load + ["bdt_year_nominal"]
+                print(f"fields2load b4: {fields2load}")
+                fields2load_prepared = prepare_features(zip_sample, fields2load) # add variation to the name
+                print(f"fields2load after: {fields2load_prepared}")
+                zip_sample = ak.zip({
+                    field : zip_sample[field] for field in fields2load_prepared
+                })
+                zip_sample = zip_sample.compute()
+                
         except Exception as error:
             print(f"Parquet for {sample} not found with error {error}. skipping!")
             continue
