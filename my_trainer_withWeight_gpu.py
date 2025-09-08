@@ -287,6 +287,7 @@ training_features = [
     'zeppenfeld',
     'njets',
     'rpt',
+    'bdt_year',
 ]
 # V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75, bdt_V2_fullRun_Jun21_2025_1n2Revised_all
 
@@ -643,7 +644,6 @@ def classifier_train(df, args, training_samples):
     #print(df["class"])
     #cls_idx_map = {dataset:idx for idx,dataset in enumerate(classes)}
     add_year = (args['year']=='')
-    #df = prepare_features(df, args, add_year)
     #df['cls_idx'] = df['dataset'].map(cls_idx_map)
     print("Training features: ", training_features)
 
@@ -1338,7 +1338,6 @@ def evaluation(df, args):
         if args['do_massscan']:
             mass_shift = args['mass']-125.0
         add_year = args['evaluate_allyears_dnn']
-        #df = prepare_features(df, args, add_year)
         df['dnn_score'] = 0
         with sess:
             nfolds = 4
@@ -1379,7 +1378,6 @@ def evaluation(df, args):
         if args['do_massscan']:
             mass_shift = args['mass']-125.0
         add_year = args['evaluate_allyears_dnn']
-        #df = prepare_features(df, args, add_year)
         df['bdt_score'] = 0
         nfolds = 4
         for i in range(nfolds):    
@@ -1443,7 +1441,33 @@ def evaluation(df, args):
 
             # df.loc[eval_filter,'bdt_score'] = prediction
     return df
-        
+
+
+def ReadNMergeParquet_dak(year_paths: dict, fields2load):
+    """
+    helper function that reads parquet files and merges the dask awkward records
+    """
+    arrays = []
+    for year, path in year_paths.items():
+        print(path)
+        filelist = glob.glob(path)
+        dak_zip = dak.from_parquet(filelist)
+        # Broadcast a scalar year to all entries as a new field
+        # arr["bdt_year"] = year * ak.ones_like(arr.dimuon_mass)
+        dak_zip = dak.with_field(dak_zip, year, "bdt_year")
+        print(f"fields2load_ b4: {fields2load}")
+        fields2load_prepared = prepare_features(dak_zip, fields2load) # add variation to the name
+        print(f"fields2load_ after: {fields2load_prepared}")
+        dak_zip = dak.zip({
+            field: dak_zip[field] for field in fields2load_prepared
+        })
+        dak_zip = dak_zip.compute()
+        arrays.append(dak_zip)
+
+    combined = ak.concatenate(arrays, axis=0)
+    return combined
+
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -1533,7 +1557,8 @@ if __name__ == "__main__":
 
     
 
-    
+    # training_features_w_variation = [f"{var}_nominal" for var in training_features if var != "bdt_year" ] # We will add bdt_year later
+    # training_features_w_variation = [f"{var}_nominal" for var in training_features if var != "bdt_year" ] # We will add bdt_year later
     fields2load = list(set(fields2load + training_features)) # remove redundancies
     # load data to memory using compute()
     
@@ -1553,7 +1578,32 @@ if __name__ == "__main__":
             # zip_sample = dak.from_parquet(parquet_path) 
             filelist = glob.glob(parquet_path)
             print(f"filelist len: {len(filelist)}")
-            zip_sample = dak.from_parquet(filelist) 
+            if year == "all":
+                year_paths = {
+                    2015: f"{sysargs.load_path}/2016preVFP/f1_0/{sample}/*/*.parquet",
+                    2016: f"{sysargs.load_path}/2016postVFP/f1_0/{sample}/*/*.parquet",
+                    2017: f"{sysargs.load_path}/2017/f1_0/{sample}/*/*.parquet",
+                    2018: f"{sysargs.load_path}/2018/f1_0/{sample}/*/*.parquet",
+                }
+                print(parquet_path)
+                zip_sample =  ReadNMergeParquet_dak(year_paths, fields2load)
+            else:
+                zip_sample = dak.from_parquet(filelist)
+                # print(f"zip_sample.fields: {zip_sample.fields}")
+                zip_sample["bdt_year"] = int(year)
+                # fields2load = fields2load + ["bdt_year_nominal"]
+                print(f"fields2load b4: {fields2load}")
+                fields2load_prepared = prepare_features(zip_sample, fields2load) # add variation to the name
+                print(f"fields2load after: {fields2load_prepared}")
+                zip_sample = ak.zip({
+                    field : zip_sample[field] for field in fields2load_prepared
+                })
+                zip_sample = zip_sample.compute()
+                # print(zip_sample)
+                # print(parquet_path)
+                # print(zip_sample["bdt_year"].compute())
+                # print(type(zip_sample["bdt_year"].compute()))
+                # raise ValueError
         except Exception as error:
             print(f"Parquet for {sample} not found with error {error}. skipping!")
             continue
@@ -1573,29 +1623,15 @@ if __name__ == "__main__":
             training_features = prepare_features(zip_sample, training_features) # do the same thing to training features
             zip_sample = ak.zip({
                 field : zip_sample[field] for field in fields2load
-            }).compute()
-            # wgts2deactivate = [
-            #     # 'wgt_nominal_btag_wgt',
-            #     # 'wgt_nominal_pu',
-            #     'wgt_nominal_zpt_wgt',
-            #     # 'wgt_nominal_muID',
-            #     # 'wgt_nominal_muIso',
-            #     # 'wgt_nominal_muTrig',
-            #     # 'wgt_nominal_LHERen',
-            #     # 'wgt_nominal_LHEFac',
-            #     # 'wgt_nominal_pdf_2rms',
-            #     # 'wgt_nominal_jetpuid_wgt',
-            #     # 'wgt_nominal_qgl'
-            # ]
-            # wgt_nominal = zip_sample["wgt_nominal_total"]
-            # print(f"wgt_nominal: {wgt_nominal}")
-            # zip_sample["wgt_nominal_total"] = deactivateWgts(wgt_nominal, zip_sample, wgts2deactivate)
+            })
+            # }).compute()
         else:
             fields2load = prepare_features(zip_sample, fields2load) # add variation to the name
             training_features = prepare_features(zip_sample, training_features) # do the same thing to training features
             zip_sample = ak.zip({
                 field : zip_sample[field] for field in fields2load
-            }).compute()
+            })
+            # }).compute()
         is_vbf = sysargs.is_vbf
         df_sample = convert2df(zip_sample, sample, is_vbf=is_vbf, is_UL=is_UL)
         df_l.append(df_sample)

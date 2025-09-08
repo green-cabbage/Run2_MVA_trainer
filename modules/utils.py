@@ -64,29 +64,32 @@ def PairNAnnhilateNegWgt(df):
     print(f"df len {len(df)}")
     
     datasets = df["dataset"].unique()
+    year_param_name = "bdt_year"
+    years = df[year_param_name].unique()
     # Make an empty copy of df (same columns, no rows)
     df_out = df.iloc[0:0].copy()
     
     # Iterate over unique datasets
-    for ds in datasets:
-        # Select rows matching this dataset
-        subset = df[df["dataset"] == ds].copy()
-        if np.all(subset["wgt_nominal_orig"] >=0):
-            print(f"no neg wgts in {ds}")
-        else:
-            print(f"neg wgts in {ds}")
-            # --- Preprocess here ---
-            print(f"subset len b4 {len(subset)}")
-            
-            colsOfInterest = ["mu1_eta", "mu2_eta","dimuon_pt"]
-            _, subset = pair_and_remove(subset, cols=colsOfInterest, wgt_col="wgt_nominal_orig")
-            print(f"subset len after {len(subset)}")
-
-            # sanity check:
-            assert np.all(subset["wgt_nominal_orig"] >=0)
+    for year in years:
+        for ds in datasets:
+            # Select rows matching this dataset
+            subset = df[(df["dataset"] == ds) & (df[year_param_name] == year)].copy()
+            if np.all(subset["wgt_nominal_orig"] >=0):
+                print(f"no neg wgts in {ds} {year}")
+            else:
+                print(f"neg wgts in {ds} {year}")
+                # --- Preprocess here ---
+                print(f"subset len b4 {year} {len(subset)}")
+                
+                colsOfInterest = ["mu1_eta", "mu2_eta","dimuon_pt"]
+                _, subset = pair_and_remove(subset, cols=colsOfInterest, wgt_col="wgt_nominal_orig")
+                print(f"subset len after {year} {len(subset)}")
+    
+                # sanity check:
+                assert np.all(subset["wgt_nominal_orig"] >=0)
         
-        # Append processed rows into the output df
-        df_out = pd.concat([df_out, subset], ignore_index=True)
+            # Append processed rows into the output df
+            df_out = pd.concat([df_out, subset], ignore_index=True)
 
     print(f"final df_out len {len(df_out)}")
     # print(df_out)
