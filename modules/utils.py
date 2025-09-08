@@ -119,12 +119,17 @@ def fillNanJetvariables(df, forward_filter, jet_variables):
     for jet_var in jet_variables:
         if jet_var in df.columns:
             if "dPhi" in jet_var:
-                df.loc[forward_filter, jet_var] = -1.0
+                df.loc[forward_filter, jet_var] = -999.0
             else:
-                df.loc[forward_filter, jet_var] = 0.0
+                df.loc[forward_filter, jet_var] = -999.0
 
     # print(f"df.loc[forward_filter, jet_variables] after: {df.loc[forward_filter, jet_variables]}")
     # df.loc[forward_filter, jet_variables].to_csv("dfafter.csv")
+
+    # remove njets
+    df.loc[forward_filter, "njets_nominal"] = df.loc[forward_filter, "njets_nominal"] - 1
+    print(f'np.all(df["njets_nominal"]): {np.all(df["njets_nominal"])}')
+    assert(np.all(df["njets_nominal"]>=0))
     return df
     
 def removeForwardJets(df):
@@ -135,7 +140,7 @@ def removeForwardJets(df):
     df_new = copy.deepcopy(df)
     
     # leading jet  --------------------------
-    forward_filter = (abs(df["jet1_eta_nominal"]) > 2.5)
+    forward_filter = (abs(df["jet1_eta_nominal"]) > 2.5) & (abs(df["jet1_eta_nominal"]) < 5.0)
     jet_variables = [
         "jet1_eta",
         "jet1_pt",
@@ -148,7 +153,7 @@ def removeForwardJets(df):
     # raise ValueError
     
     # sub-leading jet  --------------------------
-    forward_filter = (abs(df["jet2_eta_nominal"]) > 2.5)
+    forward_filter = (abs(df["jet2_eta_nominal"]) > 2.5) & (abs(df["jet2_eta_nominal"]) < 5.0)
     jet_variables = [
         "jet2_eta",
         "jet2_pt",
