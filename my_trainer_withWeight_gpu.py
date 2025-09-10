@@ -731,7 +731,7 @@ def classifier_train(df, args, training_samples):
         df_train = PairNAnnhilateNegWgt(df_train)
 
         # remove forward jets
-        # df_train = removeForwardJets(df_train)
+        df_train = removeForwardJets(df_train)
         
         
         x_train = df_train[training_features]
