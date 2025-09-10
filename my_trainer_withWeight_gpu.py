@@ -329,22 +329,22 @@ training_samples = {
             "dy_M-100To200_MiNNLO",
             # "dy_m105_160_amc",
             # "dy_m100_200_UL",
-            "ttjets_dl",
-            "ttjets_sl",
-            "st_tw_top",
-            "st_tw_antitop",
-            # "st_t_top",
-            # "st_t_antitop",
-            "ww_2l2nu",
-            "wz_1l1nu2q",
-            "wz_2l2q",
-            "wz_3lnu",
-            "zz",
-            # "www",
-            # "wwz",
-            # "wzz",
-            # "zzz",
-            "ewk_lljj_mll50_mjj120",
+            # "ttjets_dl",
+            # "ttjets_sl",
+            # "st_tw_top",
+            # "st_tw_antitop",
+            # # "st_t_top",
+            # # "st_t_antitop",
+            # "ww_2l2nu",
+            # "wz_1l1nu2q",
+            # "wz_2l2q",
+            # "wz_3lnu",
+            # "zz",
+            # # "www",
+            # # "wwz",
+            # # "wzz",
+            # # "zzz",
+            # "ewk_lljj_mll50_mjj120",
         ],
         "signal": [
             "ggh_powhegPS", 
@@ -544,6 +544,7 @@ def prepare_dataset(df, ds_dict):
     # sig_datasets = training_samples["signal"]
     # sig_datasets = ["ggh_amcPS"]
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
+    bkg_datasets = ["dy_M-100To200_MiNNLO",]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     # df['bdt_wgt'] = 1.0 # FIXME
     df['bdt_wgt'] = (df['wgt_nominal_orig'])
@@ -561,12 +562,11 @@ def prepare_dataset(df, ds_dict):
     cols = ['dataset', 'bdt_wgt', 'dimuon_ebe_mass_res',]
     print(f"df[cols] b4: {df[cols]}")
     for dataset in sig_datasets:
-        # df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
-        # df.loc[df['dataset']==dataset,'bdt_wgt'] = 2*np.divide(df[df['dataset']==dataset]['bdt_wgt'], df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
-        # ebe_factor = 2*0.25
         ebe_factor = 1
         df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
-
+    # for dataset in bkg_datasets:
+    #     ebe_factor = 1
+    #     df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
     # original end -----------------------------------------------
     print(f"df[cols] after: {df[cols]}")
 
@@ -580,6 +580,19 @@ def prepare_dataset(df, ds_dict):
     
     print(f"df[cols] after normalization: {df[cols]}")
     print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
+    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+
+
+    # -------------------------------------------------
+    # normalize bkg dataset again to one
+    # -------------------------------------------------
+    mask = ~df["dataset"].isin(sig_datasets)
+    bkg_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_sum
+    
+    print(f"df[cols] after bkg normalization: {df[cols]}")
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
     print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
 
     # -------------------------------------------------
@@ -684,7 +697,6 @@ def classifier_train(df, args, training_samples):
     corr_matrix = getCorrMatrix(df, training_features, save_path=save_path)
     # print(f"df.columns {df.columns}")
     # df = processYearCol(df)
-    # df = removeForwardJets(df)
     # start training
     
     for i in range(nfolds):
@@ -715,6 +727,10 @@ def classifier_train(df, args, training_samples):
 
         # annhilate neg wgts
         df_train = PairNAnnhilateNegWgt(df_train)
+
+        # remove forward jets
+        # df_train = removeForwardJets(df_train)
+        
         
         x_train = df_train[training_features]
         #y_train = df_train['cls_idx']
