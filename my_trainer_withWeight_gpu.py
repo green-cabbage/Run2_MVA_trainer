@@ -983,6 +983,7 @@ def classifier_train(df, args, training_samples):
             print(f"len(x_train): {len(x_train)}")
             bdt_wgt = df_train["bdt_wgt"]
             scale_pos_weight = float(np.sum(np.abs(bdt_wgt[y_train == 0]))) / np.sum(np.abs(bdt_wgt[y_train == 1])) 
+            scale_pos_weight = 0.9 # FIXME
             print(f"(scale_pos_weight): {(scale_pos_weight)}")
             model = XGBClassifier(
                 n_estimators=1000,           # Number of trees
@@ -996,8 +997,7 @@ def classifier_train(df, args, training_samples):
                 # use_label_encoder=False,     # Optional: suppress warning
                 eval_metric='logloss',       # Ensures logloss used during training
                 n_jobs=30,                   # Use all CPU cores
-                # scale_pos_weight=scale_pos_weight*0.005,
-                # scale_pos_weight=scale_pos_weight*0.5,
+                scale_pos_weight=scale_pos_weight,
                 # early_stopping_rounds=15,#15
                 verbosity=verbosity
             )
