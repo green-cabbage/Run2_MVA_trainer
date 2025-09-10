@@ -983,7 +983,7 @@ def classifier_train(df, args, training_samples):
             print(f"len(x_train): {len(x_train)}")
             bdt_wgt = df_train["bdt_wgt"]
             scale_pos_weight = float(np.sum(np.abs(bdt_wgt[y_train == 0]))) / np.sum(np.abs(bdt_wgt[y_train == 1])) 
-            scale_pos_weight = 0.9 # FIXME
+            scale_pos_weight = 1.1 # FIXME
             print(f"(scale_pos_weight): {(scale_pos_weight)}")
             model = XGBClassifier(
                 n_estimators=1000,           # Number of trees
