@@ -329,22 +329,22 @@ training_samples = {
             "dy_M-100To200_MiNNLO",
             # "dy_m105_160_amc",
             # "dy_m100_200_UL",
-            # "ttjets_dl",
-            # "ttjets_sl",
-            # "st_tw_top",
-            # "st_tw_antitop",
-            # # "st_t_top",
-            # # "st_t_antitop",
-            # "ww_2l2nu",
-            # "wz_1l1nu2q",
-            # "wz_2l2q",
-            # "wz_3lnu",
-            # "zz",
-            # # "www",
-            # # "wwz",
-            # # "wzz",
-            # # "zzz",
-            # "ewk_lljj_mll50_mjj120",
+            "ttjets_dl",
+            "ttjets_sl",
+            "st_tw_top",
+            "st_tw_antitop",
+            # "st_t_top",
+            # "st_t_antitop",
+            "ww_2l2nu",
+            "wz_1l1nu2q",
+            "wz_2l2q",
+            "wz_3lnu",
+            "zz",
+            # "www",
+            # "wwz",
+            # "wzz",
+            # "zzz",
+            "ewk_lljj_mll50_mjj120",
         ],
         "signal": [
             "ggh_powhegPS", 
@@ -566,9 +566,9 @@ def prepare_dataset(df, ds_dict):
         ebe_factor = 1
         df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']**2) # FIXME
     # bkg
-    # for dataset in bkg_datasets:
-    #     ebe_factor = 1
-    #     df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
+    for dataset in bkg_datasets:
+        ebe_factor = 1
+        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
     # original end -----------------------------------------------
     print(f"df[cols] after: {df[cols]}")
 
