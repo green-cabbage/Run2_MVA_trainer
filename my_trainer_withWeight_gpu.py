@@ -566,9 +566,9 @@ def prepare_dataset(df, ds_dict):
         ebe_factor = 1
         df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']**2) # FIXME
     # bkg
-    for dataset in bkg_datasets:
-        ebe_factor = 1
-        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
+    # for dataset in bkg_datasets:
+    #     ebe_factor = 1
+    #     df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
     # original end -----------------------------------------------
     print(f"df[cols] after: {df[cols]}")
 
@@ -983,7 +983,7 @@ def classifier_train(df, args, training_samples):
             print(f"len(x_train): {len(x_train)}")
             bdt_wgt = df_train["bdt_wgt"]
             scale_pos_weight = float(np.sum(np.abs(bdt_wgt[y_train == 0]))) / np.sum(np.abs(bdt_wgt[y_train == 1])) 
-            scale_pos_weight = 0.4 # FIXME
+            scale_pos_weight = 0.25 # FIXME
             print(f"(scale_pos_weight): {(scale_pos_weight)}")
             model = XGBClassifier(
                 n_estimators=1000,           # Number of trees
