@@ -25,7 +25,7 @@ import pickle
 import glob
 import seaborn as sb
 import copy
-from modules.utils import removeForwardJets, PairNAnnhilateNegWgt #, processYearCol
+from modules.utils import removeForwardJets, PairNAnnhilateNegWgt, plotBdtWgt, dimuMassResScatterPlot, dimuMassPlot #, processYearCol
 
 
 def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, fold_idx):
@@ -492,21 +492,27 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     
 
 def normalizeBdtWgt(df, sig_datasets):
-    cols = ["dataset", "bdt_wgt"]#debug
-    print(f"df b4: {df[cols]}")
+    cols = ["dataset", "bdt_wgt", "dimuon_ebe_mass_res"]#debug
+    # print(f"df b4: {df[cols]}")
     # Overwrite bdt_wgt for signals with wgt_nominal_orig
     df.loc[df["dataset"].isin(sig_datasets), "bdt_wgt"] = df["wgt_nominal_orig"]
     
     # Normalize only signal rows so to match the sum of bkg events
     mask = df["dataset"].isin(sig_datasets)
+    print(f"df sig b4: {df.loc[mask, cols]}")
+    print(f"df bkg b4: {df.loc[~mask, cols]}")
     sig_wgt_sum = df.loc[mask, "bdt_wgt"].sum()
     bkg_wgt_sum = df.loc[~mask, "wgt_nominal_orig"].sum()
-    normalization_factor = bkg_wgt_sum/sig_wgt_sum
-    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] * normalization_factor
+    # normalize signal
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] * 1/sig_wgt_sum
+    # normalize bkg
+    df.loc[~mask, "bdt_wgt"] = df.loc[~mask, "bdt_wgt"] * 1/bkg_wgt_sum
     print(f"sig_wgt_sum: {sig_wgt_sum}")
     print(f"bkg_wgt_sum: {bkg_wgt_sum}")
-    print(f"normalization_factor: {normalization_factor}")
-    print(f"df after: {df[cols]}")
+    # print(f"df after: {df[cols]}")
+    print(f"df sig after: {df.loc[mask, cols]}")
+    print(f"df bkg after: {df.loc[~mask, cols]}")
+    # raise ValueError
     return df
 
 def prepare_dataset(df, ds_dict):
@@ -540,32 +546,49 @@ def prepare_dataset(df, ds_dict):
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     # df['bdt_wgt'] = 1.0 # FIXME
-    df['bdt_wgt'] = abs(df['wgt_nominal_orig'])
+    df['bdt_wgt'] = (df['wgt_nominal_orig'])
     df = normalizeBdtWgt(df, sig_datasets)
+
     print(f"df any neg wgt: {np.any(df['wgt_nominal_orig']<0)}")
+    plotBdtWgt_path  = f"output/bdt_{name}_{year}/bdtWgts"
+    os.makedirs(plotBdtWgt_path, exist_ok=True)
+    plotBdtWgt(df, plotBdtWgt_path)
+    dimuMassResScatterPlot(df, plotBdtWgt_path)
+    dimuMassPlot(df, plotBdtWgt_path)
+
     
     # # debugging 
-    cols = ['dataset', 'bdt_wgt']
+    cols = ['dataset', 'bdt_wgt', 'dimuon_ebe_mass_res',]
     print(f"df[cols] b4: {df[cols]}")
     for dataset in sig_datasets:
-        df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
+        # df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
         # df.loc[df['dataset']==dataset,'bdt_wgt'] = 2*np.divide(df[df['dataset']==dataset]['bdt_wgt'], df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
-        ebe_factor = 2*0.25
-        df.loc[df['dataset']==dataset,'bdt_wgt'] = ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
-    # original end -----------------------------------------------
+        # ebe_factor = 2*0.25
+        ebe_factor = 1
+        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
 
+    # original end -----------------------------------------------
     print(f"df[cols] after: {df[cols]}")
-    # raise ValueError
-    #print(df.head)
-    columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
-    columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta','jet2_pt']
-    columns2 = ['mmj1_dEta', 'mmj1_dPhi', 'mmj2_dEta', 'mmj2_dPhi', 'mmj_min_dEta', 'mmj_min_dPhi']
-    # with open("df.txt", "w") as f:
-    #     print(df[columns_print], file=f)
-    # with open("df2.txt", "w") as f:
-    #     print(df[columns2], file=f)
-    # print(df[df['dataset']=="ggh_powheg"].head)
-    # print(f"prepare_dataset df: {df["dataset","class"]}")
+
+    # -------------------------------------------------
+    # normalize sig dataset again to one
+    # -------------------------------------------------
+    mask = df["dataset"].isin(sig_datasets)
+    sig_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / sig_wgt_sum
+    
+    print(f"df[cols] after normalization: {df[cols]}")
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
+    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+
+    # -------------------------------------------------
+    # increase bdt wgts for bdt to actually learn
+    # -------------------------------------------------
+    # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
+    df['bdt_wgt'] = df['bdt_wgt'] * 100_000
+    print(f"df[cols] after increase in value: {df[cols]}")
+    
     return df
 
 def scale_data_withweight(inputs, x_train, x_val, x_eval, df_train, fold_label):
@@ -819,6 +842,11 @@ def classifier_train(df, args, training_samples):
                 os.makedirs(model_save_path)
             model.save(f'{model_save_path}/{name}_{eval_label}.h5')        
         if args['bdt']:
+            # plot bdt wgt
+            # plotBdtWgt(df_train, f"output/bdt_{name}_{year}/bdtWgts/{label}")
+
+            # setup the input and output
+            
             seed = 7
             xp_train = x_train[training_features].values
             xp_val = x_val[training_features].values
@@ -1655,6 +1683,9 @@ if __name__ == "__main__":
     print("starting prepare_dataset")
     df_total = prepare_dataset(df_total, training_samples)
     print("prepare_dataset done")
+    # plotBdtWgt_path  = f"output/bdt_{name}_{year}/bdtWgts"
+    # os.makedirs(plotBdtWgt_path, exist_ok=True)
+    # plotBdtWgt(df_total, plotBdtWgt_path)
     # raise ValueError
     # print(f"len(df_total): {len(df_total)}")
     print(f"df_total.columns: {df_total.columns}")

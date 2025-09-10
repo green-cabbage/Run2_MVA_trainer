@@ -2,7 +2,158 @@ import pandas as pd
 import numpy as np
 import copy
 from scipy.optimize import linear_sum_assignment
+import matplotlib.pyplot as plt
 
+
+def dimuMassPlot(df, save_path):
+    # --- Define regions ---
+    barrel_cut = 0.9  # threshold for barrel 
+    endcap_cut_low = 1.8  # threshold for endcap
+    endcap_cut_high = 2.4  # threshold for endcap
+    
+    barrel_barrel = df[(df["mu1_eta"].abs() < barrel_cut) & (df["mu2_eta"].abs() < barrel_cut)]
+    endcap_endcap = df[
+        (endcap_cut_low < df["mu1_eta"].abs()) &  
+        (df["mu1_eta"].abs()  < endcap_cut_high) & 
+        (endcap_cut_low < df["mu2_eta"].abs()) & 
+        (df["mu2_eta"].abs() < endcap_cut_high)
+         ]
+    
+    # --- Plot histograms ---
+    plt.hist(barrel_barrel["dimuon_ebe_mass_res"]/barrel_barrel["dimuon_mass"], bins=40, alpha=0.6, label="Barrel-Barrel", histtype="step", density=True)
+    plt.hist(endcap_endcap["dimuon_ebe_mass_res"]/endcap_endcap["dimuon_mass"], bins=40, alpha=0.6, label="Endcap-Endcap", histtype="step", density=True)
+
+    plt.xlim(0, 0.05)
+    plt.xlabel("EBE Dimuon mass resolution / dimuon mass")
+    plt.ylabel("A.U.")
+    plt.legend()
+    plt.title("Dimuon mass resolution in BB and EE regions")
+    plt.savefig(f"{save_path}/dimuMassBB_EE.pdf")
+
+
+def dimuMassResScatterPlot(df, save_path):
+    # Scatter plot
+    # plt.figure(figsize=(6,4))
+    plt.ylim(0, 10)
+    plt.scatter(df["mu1_eta"], df["dimuon_ebe_mass_res"], alpha=0.05)
+    plt.xlabel("mu1_eta")
+    plt.ylabel("dimuon_mass_res")
+    plt.title("Scatter plot: dimuon_mass_res vs mu1_eta")
+    plt.grid(True)
+    plt.savefig(f"{save_path}/dimuResMu1EtaScatter.png")
+    plt.clf()
+
+
+    # mu2 eta
+    plt.ylim(0, 10)
+    plt.scatter(df["mu2_eta"], df["dimuon_ebe_mass_res"], alpha=0.05)
+    plt.xlabel("mu2_eta")
+    plt.ylabel("dimuon_mass_res")
+    plt.title("Scatter plot: dimuon_mass_res vs mu2_eta")
+    plt.savefig(f"{save_path}/dimuResMu2EtaScatter.png")
+    plt.clf()
+    
+    
+    # dimuon rap
+    plt.ylim(0, 10)
+    plt.scatter(df["dimuon_rapidity"], df["dimuon_ebe_mass_res"], alpha=0.05)
+    plt.xlabel("dimuon_rapidity")
+    plt.ylabel("dimuon_mass_res")
+    plt.title("Scatter plot: dimuon_mass_res vs dimuon_rapidity")
+    plt.savefig(f"{save_path}/dimuResDimuRapScatter.png")
+    plt.clf()
+
+    # bdt wgt
+    # plt.ylim(0, 10)
+    dataset_l = df["dataset"].unique()
+    for dataset in dataset_l:
+        subset = df[df["dataset"] == dataset]
+        plt.scatter(subset["dimuon_mass"], subset["bdt_wgt"], alpha=0.05, label=dataset)
+        plt.legend()
+        plt.xlabel("dimuon_mass")
+        plt.ylabel("bdt_wgt")
+        plt.title("Scatter plot: dimuon_mass_res vs dimuon_rapidity")
+        plt.savefig(f"{save_path}/dimuMBdtWgtScatter_{dataset}.png")
+        plt.clf()
+    
+    
+def plotBdtWgt(df, save_path):
+    # --- Mass window cut ---
+    mass_bins_edges = [115, 120, 125, 130, 135]
+    dataset_l = df["dataset"].unique()
+    for low, high in zip(mass_bins_edges[:-1], mass_bins_edges[1:]):
+        mass_mask = (df["dimuon_mass"] > low) & (df["dimuon_mass"] < high)
+        df_sel = df[mass_mask]
+        # wgt_name = 'wgt_nominal_orig'
+        wgt_name = 'bdt_wgt'
+        print(f"any neg wgt: {np.any((df['bdt_wgt'] <0))}")
+        print(f"any neg wgt wgt_nominal: {np.any((df['wgt_nominal_orig'] <0))}")
+        # ===================================================
+        # 1) Overlay all datasets in a single plot
+        # ===================================================
+        # plt.figure(figsize=(6,4))
+        
+        for dataset in dataset_l:
+            subset = df_sel[df_sel["dataset"] == dataset]
+            plt.hist(
+                subset[wgt_name],
+                bins=30,
+                histtype="step",
+                label=dataset
+            )
+
+        plt.xlim(-7e-6, 7e-6)
+        
+        plt.xlabel(wgt_name)
+        plt.ylabel("Counts")
+        plt.title(f"wgt_name distribution per dataset\n{low} $ < mMuMu < $ {high}")
+        plt.legend()
+        plt.grid(True, linestyle="--", alpha=0.5)
+        # plt.show()
+        plt.savefig(f"{save_path}/bdtWgts{low}to{high}.pdf")
+        plt.clf()
+
+        # --------------------------------------------------------------
+        for dataset in dataset_l:
+            subset = df_sel[df_sel["dataset"] == dataset]
+            plt.hist(
+                subset[wgt_name]/subset["dimuon_ebe_mass_res"],
+                bins=30,
+                histtype="step",
+                label=dataset
+            )
+        
+        plt.xlabel(wgt_name)
+        plt.ylabel("Counts")
+        plt.title(f"wgt_name distribution per dataset\n{low} $ < mMuMu < $ {high}")
+        plt.legend()
+        plt.grid(True, linestyle="--", alpha=0.5)
+        # plt.show()
+        plt.savefig(f"{save_path}/bdtWgtsDivDimuonMassRes{low}to{high}.pdf")
+        plt.clf()
+        
+        
+        # ===================================================
+        # 2) One separate figure per dataset
+        # ===================================================
+        for dataset in dataset_l:
+            subset = df_sel[df_sel["dataset"] == dataset]
+            # plt.figure(figsize=(6,4))
+            plt.hist(
+                subset[wgt_name],
+                bins=30,
+                histtype="step",
+                color="blue",
+                label=dataset
+            )
+            plt.xlabel(wgt_name)
+            plt.ylabel("Counts")
+            plt.title(f"{wgt_name} distribution for {dataset}\n{low} $ < mMuMu < $ {high}")
+            plt.grid(True, linestyle="--", alpha=0.5)
+            plt.legend()
+            # plt.show()
+            plt.savefig(f"{save_path}/{dataset}_bdtWgts{low}to{high}.pdf")
+            plt.clf()
 
 def pair_and_remove(df, cols=("mu1_eta","mu2_eta"), wgt_col="wgt_nominal"):
     """
@@ -95,6 +246,7 @@ def PairNAnnhilateNegWgt(df):
     print(f"final df_out len {len(df_out)}")
     # print(df_out)
     # raise ValueError
+    df_out = df_out[df_out["wgt_nominal_orig"] >=0] # FIXME. we see two entries (so very few) that still have negative events, so temp solution. The two entries are from one of the none DY bkg events.
     return df_out
 
 def fillNanJetvariables(df, forward_filter, jet_variables):
