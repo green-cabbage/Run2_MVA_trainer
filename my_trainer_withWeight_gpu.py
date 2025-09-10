@@ -564,7 +564,7 @@ def prepare_dataset(df, ds_dict):
     # sig
     for dataset in sig_datasets:
         ebe_factor = 1
-        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']**4) # FIXME
+        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']**2) # FIXME
     # bkg
     for dataset in bkg_datasets:
         ebe_factor = 1
