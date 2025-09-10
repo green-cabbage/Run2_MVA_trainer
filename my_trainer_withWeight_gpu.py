@@ -732,7 +732,17 @@ def classifier_train(df, args, training_samples):
 
         # remove forward jets
         df_train = removeForwardJets(df_train)
-        
+
+        # only keep signal and dy
+        keep_datasets = [
+            "dy_M-100To200_MiNNLO",
+            "ggh_powhegPS", 
+            "vbf_powheg_dipole", 
+        ]
+        df = df[df["dataset"].isin(keep_datasets)]
+        # sanity check:
+        print(f"df['dataset']: {df['dataset']}")
+        print(f"df['dataset'].unique(): {df['dataset'].unique()}")
         
         x_train = df_train[training_features]
         #y_train = df_train['cls_idx']
