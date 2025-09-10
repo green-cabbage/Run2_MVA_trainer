@@ -330,22 +330,22 @@ training_samples = {
             "dy_M-100To200_MiNNLO",
             # "dy_m105_160_amc",
             # "dy_m100_200_UL",
-            "ttjets_dl",
-            "ttjets_sl",
-            "st_tw_top",
-            "st_tw_antitop",
-            # "st_t_top",
-            # "st_t_antitop",
-            "ww_2l2nu",
-            "wz_1l1nu2q",
-            "wz_2l2q",
-            "wz_3lnu",
-            "zz",
-            # "www",
-            # "wwz",
-            # "wzz",
-            # "zzz",
-            "ewk_lljj_mll50_mjj120",
+            # "ttjets_dl",
+            # "ttjets_sl",
+            # "st_tw_top",
+            # "st_tw_antitop",
+            # # "st_t_top",
+            # # "st_t_antitop",
+            # "ww_2l2nu",
+            # "wz_1l1nu2q",
+            # "wz_2l2q",
+            # "wz_3lnu",
+            # "zz",
+            # # "www",
+            # # "wwz",
+            # # "wzz",
+            # # "zzz",
+            # "ewk_lljj_mll50_mjj120",
         ],
         "signal": [
             "ggh_powhegPS", 
@@ -734,36 +734,36 @@ def classifier_train(df, args, training_samples):
         # remove forward jets
         df_train = removeForwardJets(df_train)
 
-        # only keep signal and dy
-        sig_datasets = [
-            "ggh_powhegPS", 
-            "vbf_powheg_dipole", 
-        ]
-        keep_datasets = sig_datasets + [
-            "dy_M-100To200_MiNNLO",
-        ]
-        df = df[df["dataset"].isin(keep_datasets)]
-        # sanity check:
-        print(f"df['dataset']: {df['dataset']}")
-        print(f"df['dataset'].unique(): {df['dataset'].unique()}")
+        # # only keep signal and dy
+        # sig_datasets = [
+        #     "ggh_powhegPS", 
+        #     "vbf_powheg_dipole", 
+        # ]
+        # keep_datasets = sig_datasets + [
+        #     "dy_M-100To200_MiNNLO",
+        # ]
+        # mask = ~df_train["dataset"].isin(sig_datasets)
+        # bkg_wgt_sum = np.sum(df_train.loc[mask, "bdt_wgt"])
+        # df_train = df_train[df_train["dataset"].isin(keep_datasets)]
+        # # df_val_copy = df_val[df_val["dataset"].isin(keep_datasets)]
+        # # sanity check:
+        # print(f"df_train['dataset']: {df_train['dataset']}")
+        # print(f"df_train['dataset'].unique(): {df_train['dataset'].unique()}")
 
-        # normalize the bkg again
-        mask = ~df["dataset"].isin(sig_datasets)
-        bkg_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
-        print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
-        df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_sum
-        df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] * 100_000
-        print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
-        
+        # # normalize the bkg again
+        # print(f'orig np.sum(df_train.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
+        # print(f'current np.sum(df_train.loc[mask, "bdt_wgt"]): {np.sum(df_train.loc[mask, "bdt_wgt"])}')
+        # df_train.loc[mask, "bdt_wgt"] = df_train.loc[mask, "bdt_wgt"] / bkg_wgt_sum
+        # print(f'new np.sum(df_train.loc[mask, "bdt_wgt"]): {np.sum(df_train.loc[mask, "bdt_wgt"])}')
         
         
         x_train = df_train[training_features]
-        #y_train = df_train['cls_idx']
         y_train = df_train['class']
         x_val = df_val[training_features]
+        # x_val = df_val_copy[training_features]
         x_eval = df_eval[training_features]
-        #y_val = df_val['cls_idx']
         y_val = df_val['class']
+        # y_val = df_val_copy['class']
         y_eval = df_eval['class']
 
         print(f"training_features: {training_features}")
@@ -809,7 +809,7 @@ def classifier_train(df, args, training_samples):
         # df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) / df_val['dimuon_ebe_mass_res']
         # df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig']) / df_eval['dimuon_ebe_mass_res']
 
-        df_train['training_wgt'] = np.abs(df_train['wgt_nominal'])/df_train['cls_avg_wgt']
+        df_train['training_wgt'] = np.abs(df_train['wgt_nominal'])
         df_val['training_wgt'] = np.abs(df_val['wgt_nominal'])
         df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal'])
         
