@@ -190,7 +190,8 @@ def get6_5(label, pred, weight, save_path:str, name: str):
     # ax_main.set_xlim(-0.9, 0.9)
     ax_main.set_xlim(-1.0, 1.0)
     ax_main.set_xticks([ -0.8, -0.6, -0.4, -0.2 , 0. ,  0.2 , 0.4 , 0.6,  0.8])
-    ax_main.set_ylim(0, 0.09)
+    # ax_main.set_ylim(0, 0.09)
+    ax_main.set_ylim(0, 0.14)
     
     # hep.cms.label(data=True, loc=0, label=status, com=CenterOfMass, lumi=lumi, ax=ax_main)
     hep.cms.label(data=False, ax=ax_main)
@@ -734,15 +735,27 @@ def classifier_train(df, args, training_samples):
         df_train = removeForwardJets(df_train)
 
         # only keep signal and dy
-        keep_datasets = [
-            "dy_M-100To200_MiNNLO",
+        sig_datasets = [
             "ggh_powhegPS", 
             "vbf_powheg_dipole", 
+        ]
+        keep_datasets = sig_datasets + [
+            "dy_M-100To200_MiNNLO",
         ]
         df = df[df["dataset"].isin(keep_datasets)]
         # sanity check:
         print(f"df['dataset']: {df['dataset']}")
         print(f"df['dataset'].unique(): {df['dataset'].unique()}")
+
+        # normalize the bkg again
+        mask = ~df["dataset"].isin(sig_datasets)
+        bkg_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
+        print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
+        df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_sum
+        df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] * 100_000
+        print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+        
+        
         
         x_train = df_train[training_features]
         #y_train = df_train['cls_idx']
