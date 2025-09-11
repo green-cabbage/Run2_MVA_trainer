@@ -144,7 +144,9 @@ set -e
 # model_name="V2_Aug28_PosWgtRun6_removeForwardJet_inclOtherBkg"
 # model_name="V2_Aug28_PosWgtRun6_removeForwardJet_inclOtherBkgButOnlyDyInTrain_2018Only"
 # model_name="V2_Aug28_PosWgtRun6_removeForwardJet_2018Only"
-model_name="V2_Aug28_PosWgtRun6_removeForwardJet_inclOtherBkgButOnlyDyInTrainDfValInc_2018Only"
+# model_name="V2_Aug28_PosWgtRun6_removeForwardJet_inclOtherBkgButOnlyDyInTrainDfValInc_2018Only"
+model_name="V2_Aug28_PosWgtRun6_removeForwardJet_redo_2018Only"
+# model_name="V2_Aug28_PosWgtRun6_removeForwardJet_redo"
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff_newZptWgt25Mar2025"
