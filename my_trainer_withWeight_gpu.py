@@ -565,7 +565,7 @@ def prepare_dataset(df, ds_dict):
     # sig
     for dataset in sig_datasets:
         ebe_factor = 1
-        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']**2) # FIXME
+        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']**4) # FIXME
     # bkg
     for dataset in bkg_datasets:
         ebe_factor = 1
@@ -958,7 +958,6 @@ def classifier_train(df, args, training_samples):
             verbosity=2
             
             # AN-19-124 p 45: "a correction factor is introduced to ensure that the same amount of background events are expected when either negative weighted events are discarded or they are considered with a positive weight"
-            scale_pos_weight = float(np.sum(np.abs(weight_nom_train[y_train == 0]))) / np.sum(np.abs(weight_nom_train[y_train == 1])) 
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight
             # model = xgb.XGBClassifier(max_depth=4,
             #                           n_estimators=1000, # number of trees
@@ -984,7 +983,7 @@ def classifier_train(df, args, training_samples):
             print(f"len(x_train): {len(x_train)}")
             bdt_wgt = df_train["bdt_wgt"]
             scale_pos_weight = float(np.sum(np.abs(bdt_wgt[y_train == 0]))) / np.sum(np.abs(bdt_wgt[y_train == 1])) 
-            scale_pos_weight = 1.3 # FIXME
+            scale_pos_weight = 0.7 # FIXME
             print(f"(scale_pos_weight): {(scale_pos_weight)}")
             model = XGBClassifier(
                 n_estimators=1000,           # Number of trees
