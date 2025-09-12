@@ -190,7 +190,8 @@ def get6_5(label, pred, weight, save_path:str, name: str):
     # ax_main.set_xlim(-0.9, 0.9)
     ax_main.set_xlim(-1.0, 1.0)
     ax_main.set_xticks([ -0.8, -0.6, -0.4, -0.2 , 0. ,  0.2 , 0.4 , 0.6,  0.8])
-    ax_main.set_ylim(0, 0.09)
+    # ax_main.set_ylim(0, 0.09)
+    ax_main.set_ylim(0, 0.15)
     
     # hep.cms.label(data=True, loc=0, label=status, com=CenterOfMass, lumi=lumi, ax=ax_main)
     hep.cms.label(data=False, ax=ax_main)
