@@ -157,7 +157,8 @@ set -e
 # model_name="V2_Aug28_PosWgtRun0p7_removeForwardJet_redo_MassResPow1"
 # model_name="V2_Aug28_PosWgtRun0p7_MassResRun1"
 # model_name="V2_Aug28_PosWgtRun0p7_MassResRun2"
-model_name="V2_Aug28_PosWgtRun0p7_MassResRun3"
+# model_name="V2_Aug28_PosWgtRun0p7_MassResRun3"
+model_name="V2_Aug28_PosWgtRun0p7_MassResRun4"
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff_newZptWgt25Mar2025"
