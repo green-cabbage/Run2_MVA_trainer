@@ -573,14 +573,14 @@ def prepare_dataset(df, ds_dict):
     # # debugging 
     cols = ['dataset', 'bdt_wgt', 'dimuon_ebe_mass_res',]
     print(f"df[cols] b4: {df[cols]}")
-    # sig
-    for dataset in sig_datasets:
-        ebe_factor = 1
-        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
-    # bkg
-    for dataset in bkg_datasets:
-        ebe_factor = 1
-        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
+    # # sig
+    # for dataset in sig_datasets:
+    #     ebe_factor = 1
+    #     df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
+    # # bkg
+    # for dataset in bkg_datasets:
+    #     ebe_factor = 1
+    #     df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
     # original end -----------------------------------------------
     print(f"df[cols] after: {df[cols]}")
 
