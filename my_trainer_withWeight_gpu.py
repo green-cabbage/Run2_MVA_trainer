@@ -24,8 +24,8 @@ import mplhep as hep
 import pickle
 import glob
 import seaborn as sb
-import copy
-from modules.utils import removeForwardJets, PairNAnnhilateNegWgt, plotBdtWgt, dimuMassResScatterPlot, dimuMassPlot #, processYearCol
+
+
 
 
 def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, fold_idx):
@@ -187,11 +187,9 @@ def get6_5(label, pred, weight, save_path:str, name: str):
     ax_main.legend()
     
     # Set Range
-    # ax_main.set_xlim(-0.9, 0.9)
-    ax_main.set_xlim(-1.0, 1.0)
+    ax_main.set_xlim(-0.9, 0.9)
     ax_main.set_xticks([ -0.8, -0.6, -0.4, -0.2 , 0. ,  0.2 , 0.4 , 0.6,  0.8])
-    # ax_main.set_ylim(0, 0.09)
-    ax_main.set_ylim(0, 0.15)
+    ax_main.set_ylim(0, 0.09)
     
     # hep.cms.label(data=True, loc=0, label=status, com=CenterOfMass, lumi=lumi, ax=ax_main)
     hep.cms.label(data=False, ax=ax_main)
@@ -264,6 +262,292 @@ def customROC_curve_AN(label, pred, weight):
 
 
 
+#training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_eta', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta_nominal', 'jet1_phi_nominal', 'jet1_pt_nominal', 'jet1_qgl_nominal', 'jet2_eta_nominal', 'jet2_phi_nominal', 'jet2_pt_nominal', 'jet2_qgl_nominal', 'jj_dEta_nominal', 'jj_dPhi_nominal', 'jj_eta_nominal', 'jj_mass_nominal', 'jj_mass_log_nominal', 'jj_phi_nominal', 'jj_pt_nominal', 'll_zstar_log_nominal', 'mmj1_dEta_nominal', 'mmj1_dPhi_nominal', 'mmj2_dEta_nominal', 'mmj2_dPhi_nominal', 'mmj_min_dEta_nominal', 'mmj_min_dPhi_nominal', 'mmjj_eta_nominal', 'mmjj_mass_nominal', 'mmjj_phi_nominal', 'mmjj_pt_nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt_over_mass', 'zeppenfeld_nominal']
+
+# training_features = ['dimuon_cos_theta_cs', 'dimuon_eta', 'dimuon_phi_cs', 'dimuon_pt', 'jet1_eta', 'jet1_pt', 'jet2_eta', 'jet2_pt', 'jj_dEta', 'jj_dPhi', 'jj_mass', 'mmj1_dEta', 'mmj1_dPhi',  'mmj_min_dEta', 'mmj_min_dPhi', 'mu1_eta', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_pt_over_mass', 'zeppenfeld', 'njets']  # AN 19-124
+
+
+# training_features = ['dimuon_cos_theta_cs', 'dimuon_eta', 'dimuon_phi_cs', 'dimuon_pt', 'jet1_eta', 'jet1_pt', 'jet2_eta', 'jet2_pt', 'jj_dEta', 'jj_dPhi', 'jj_mass', 'mmj1_dEta', 'mmj1_dPhi',  'mmj_min_dEta', 'mmj_min_dPhi', 'mu1_eta', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_pt_over_mass', 'zeppenfeld', 'njets', "jet1_qgl", "jet2_qgl"] 
+
+# features exactly matching BDT from AN
+# training_features = [
+#     'dimuon_pt', 
+#     'dimuon_rapidity',
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'mu1_pt_over_mass', 
+#     'mu1_eta', 
+#     'mu2_pt_over_mass', 
+#     'mu2_eta', 
+#     'jet1_eta', 
+#     'jet1_pt', 
+#     'jet2_pt', 
+#     'mmj1_dEta', 
+#     'mmj1_dPhi',  
+#     'jj_dEta', 
+#     'jj_dPhi', 
+#     'jj_mass', 
+#     'zeppenfeld', 
+#     'mmj_min_dEta', 
+#     'mmj_min_dPhi', 
+#     'njets'
+# ]  # WgtON_original_AN_BDT_Sept27
+
+# training_features = [
+#     'dimuon_pt', 
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'mu1_pt_over_mass', 
+#     'mu1_eta', 
+#     'mu2_pt_over_mass', 
+#     'mu2_eta', 
+#     'jet1_eta', 
+#     'jet1_pt', 
+#     'jet2_pt', 
+#     'mmj1_dEta', 
+#     'mmj1_dPhi',  
+#     'jj_dEta', 
+#     'jj_dPhi', 
+#     'jj_mass', 
+#     'zeppenfeld', 
+#     'mmj_min_dEta', 
+#     'mmj_min_dPhi', 
+#     'njets'
+# ]  # WgtON_original_AN_BDT_noDimuRap_Sept27
+
+
+
+# training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_eta', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta_nominal', 'jet1_phi_nominal', 'jet1_pt_nominal', 'jet2_eta_nominal', 'jet2_phi_nominal', 'jet2_pt_nominal',  'jj_dEta_nominal', 'jj_dPhi_nominal', 'jj_eta_nominal', 'jj_mass_nominal', 'jj_mass_log_nominal', 'jj_phi_nominal', 'jj_pt_nominal', 'll_zstar_log_nominal', 'mmj1_dEta_nominal', 'mmj1_dPhi_nominal', 'mmj2_dEta_nominal', 'mmj2_dPhi_nominal', 'mmj_min_dEta_nominal', 'mmj_min_dPhi_nominal', 'mmjj_eta_nominal', 'mmjj_mass_nominal', 'mmjj_phi_nominal', 'mmjj_pt_nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt_over_mass', 'zeppenfeld_nominal'] 
+
+
+# training_features = [
+#     'dimuon_cos_theta_cs_pisa', 
+#     'dimuon_eta', 
+#     'dimuon_phi_cs_pisa', 
+#     'dimuon_pt', 
+#     'jet1_eta_nominal', 
+#     'jet1_pt_nominal', 
+#     'jet2_pt_nominal', 
+#     'jj_dEta_nominal', 
+#     'jj_dPhi_nominal', 
+#     'jj_mass_nominal', 
+#     'mmj1_dEta_nominal', 
+#     'mmj1_dPhi_nominal',  
+#     'mmj_min_dEta_nominal', 
+#     'mmj_min_dPhi_nominal', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld_nominal',
+#     'njets_nominal'
+# ]
+# PhiFixed_rereco_yun
+
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     'jet1_pt', 
+#     # 'jet2_pt', 
+#     'jj_dEta', 
+#     'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ]
+# # V2_UL_Mar30_2025_DyMiNNLOGghVbf_removeJetVar
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     # 'mu2_eta', 
+#     # 'mu2_pt_over_mass', 
+#     # 'zeppenfeld',
+#     # 'njets'
+# ]
+# # #V2_UL_Mar30_2025_DyMiNNLOGghVbf_removeAllJetVar
+
+# training_features = [
+#     'dimuon_pt', 
+# ]
+# #V2_UL_Mar30_2025_DyMiNNLOGghVbf_justDimuPt
+
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     # 'zeppenfeld',
+#     # 'njets'
+# ]
+# # #V2_UL_Mar30_2025_DyMiNNLOGghVbf_onlyMuVar
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     # 'njets'
+# ]
+# # V2_UL_Mar30_2025_DyMiNNLOGghVbf_onlyMuVar_ZeppenJjMass
+
+
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     'mmj_min_dEta', 
+#     'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ]
+# # V2_UL_Mar30_2025_DyMiNNLOGghVbf_onlyMuVar_ZeppenJjMass_DeltaVars
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ]
+# # V2_UL_Mar30_2025_DyMiNNLOGghVbf_onlyMuVar_ZeppenJjMass_Njets
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     # "dimuon_cos_theta_eta",
+#     # "dimuon_phi_eta",
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     'jet1_eta', 
+#     'jet1_pt', 
+#     'jet2_pt', 
+#     'jj_dEta', 
+#     'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     'mmj_min_dEta', 
+#     'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ]
+# # V2 Jan 18 UL
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     'jet1_eta', 
+#     'jet2_eta', 
+#     'jet1_pt', 
+#     'jet2_pt', 
+#     'jj_dEta', 
+#     'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ]
+# # V2_UL_Mar30_2025_DyMiNNLOGghVbf_onlyMuVar_ZeppenJjMass
+
 
 training_features = [
     'dimuon_cos_theta_cs', 
@@ -286,47 +570,185 @@ training_features = [
     'mu2_eta', 
     'mu2_pt_over_mass', 
     'zeppenfeld',
-    'njets',
-    'rpt',
-    'year',
-    # 'bdt_year',
+    'njets'
 ]
 # V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75, bdt_V2_fullRun_Jun21_2025_1n2Revised_all
 
+#test
+# training_features = [
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+# ] #V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_DimuVarsOnly
 
-# training_features = [ # FIXME
+
+# #test
+# training_features = [
 #     'dimuon_cos_theta_cs', 
 #     'dimuon_phi_cs', 
 #     'dimuon_rapidity', 
 #     'dimuon_pt', 
-#     'jet1_eta', # FIXME
-#     # 'jet2_eta', # FIXME
+#     # 'jet1_eta', 
+#     # 'jet2_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     'jj_dEta', 
+#     'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj_min_dEta', 
+#     'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     # 'mu2_eta', 
+#     # 'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_NoSingleJet_Mu2_MinMmjdEta
+
+#test
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet2_eta', 
 #     # 'jet1_pt', 
 #     # 'jet2_pt', 
 #     # 'jj_dEta', 
-#     'jj_dPhi', 
+#     # 'jj_dPhi', 
 #     # 'jj_mass', 
-#     'mmj1_dEta', 
-#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     # 'mu2_eta', 
+#     # 'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     # 'njets'
+# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_NoJet_Mu2_MinMmjVars
+
+#test
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet2_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
 #     'mmj_min_dEta', 
-#     'mmj_min_dPhi', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     # 'mu2_eta', 
+#     # 'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     # 'njets'
+# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_NoJet_Mu2_MinMmjVars
+
+# #test
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet2_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
 #     'mu1_eta', 
 #     'mu1_pt_over_mass', 
 #     'mu2_eta', 
 #     'mu2_pt_over_mass', 
 #     'zeppenfeld',
-#     'njets',
-#     'rpt',
-#     'year',
-# ]
-# # V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75, bdt_V2_fullRun_Jun21_2025_1n2Revised_all
+#     # 'njets'
+# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_Mu2_Vars
+
+#test
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet2_eta', 
+#     'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     # 'mu2_eta', 
+#     # 'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     # 'njets'
+# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_jet1Pt_Vars
+
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet2_eta', 
+#     'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     # 'njets'
+# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_Mu2_jet1Pt_Vars
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet2_eta', 
+#     'jet1_pt', 
+#     'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     # 'njets'
+# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_Mu2_jet1jet2Pt_Vars
 
 
 #---------------------------------------------------------------------------
 
 training_samples = {
         "background": [
-            # "dy_M-100To200", 
+            "dy_M-100To200", 
             "dy_M-100To200_MiNNLO",
             # "dy_m105_160_amc",
             # "dy_m100_200_UL",
@@ -349,7 +771,7 @@ training_samples = {
         ],
         "signal": [
             "ggh_powhegPS", 
-            "vbf_powheg_dipole", 
+            "vbf_powheg_dipole", # adding vbf only makes BDT concentrate on vbf for some reason
         ], # copperheadV2
         # ],
         
@@ -367,14 +789,6 @@ training_samples = {
         #    "zz_2l2q",
         #],
     }
-
-
-def removeNegWgtEvents(df):
-    """
-    """
-    negWgtFilter = df["wgt_nominal_orig"] > 0
-    df_filtered = df[negWgtFilter]
-    return df_filtered
 
 def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     """
@@ -447,15 +861,14 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     print(f"computed_zip : {computed_zip}")
     # for copperheadV1, you gotta fill none b4 and store them in a dictionary b4 converting to dataframe
     computed_dict = {}
-    nan_val = -999.0
     for field in computed_zip.fields:
         # print(f"field: {field}")
         # print(f"computed_dict[{field}] b4 fill none: {ak.to_dataframe(computed_zip[field]) }")
         
         if "dPhi" in field:
-            computed_dict[field] = ak.fill_none(computed_zip[field], value=nan_val)
+            computed_dict[field] = ak.fill_none(computed_zip[field], value=-1.0)
         else:
-            computed_dict[field] = ak.fill_none(computed_zip[field], value=nan_val)
+            computed_dict[field] = ak.fill_none(computed_zip[field], value=0.0)
         # print(f"computed_dict[{field}] : {computed_dict[field]}")
         
     # # recalculate pt over masses. They're all inf and zeros for copperheadV1
@@ -475,9 +888,8 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
             dPhis.append(field)
     # print(f"dPhis: {dPhis}")
     # fill none values in dPhis with -1, then 0 for rest
-    nan_val = -999.0
-    df.fillna({field: nan_val for field in dPhis},inplace=True)
-    df.fillna(nan_val,inplace=True)
+    df.fillna({field: -1 for field in dPhis},inplace=True)
+    df.fillna(0,inplace=True)
     # add columns
     df["dataset"] = dataset 
     df["cls_avg_wgt"] = -1.0
@@ -486,35 +898,15 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     # else:
     df["wgt_nominal_orig"] = copy.deepcopy(df["wgt_nominal"])
     df["wgt_nominal"] = np.abs(df["wgt_nominal"])
-
-    # df = removeNegWgtEvents(df)
+    # df["wgt_nominal_total"] = np.abs(df["wgt_nominal_total"]) # enforce poisitive weights OR:
+    # # drop negative values
+    # if "wgt_nominal" in df.columns:
+    #     df["wgt_nominal_total"] = df["wgt_nominal"] 
+    # positive_wgts = df["wgt_nominal_total"] > 0 
+    # df = df.loc[positive_wgts]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     return df
     
-
-def normalizeBdtWgt(df, sig_datasets):
-    cols = ["dataset", "bdt_wgt", "dimuon_ebe_mass_res"]#debug
-    # print(f"df b4: {df[cols]}")
-    # Overwrite bdt_wgt for signals with wgt_nominal_orig
-    df.loc[df["dataset"].isin(sig_datasets), "bdt_wgt"] = df["wgt_nominal_orig"]
-    
-    # Normalize only signal rows so to match the sum of bkg events
-    mask = df["dataset"].isin(sig_datasets)
-    print(f"df sig b4: {df.loc[mask, cols]}")
-    print(f"df bkg b4: {df.loc[~mask, cols]}")
-    sig_wgt_sum = df.loc[mask, "bdt_wgt"].sum()
-    bkg_wgt_sum = df.loc[~mask, "wgt_nominal_orig"].sum()
-    # normalize signal
-    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] * 1/sig_wgt_sum
-    # normalize bkg
-    df.loc[~mask, "bdt_wgt"] = df.loc[~mask, "bdt_wgt"] * 1/bkg_wgt_sum
-    print(f"sig_wgt_sum: {sig_wgt_sum}")
-    print(f"bkg_wgt_sum: {bkg_wgt_sum}")
-    # print(f"df after: {df[cols]}")
-    print(f"df sig after: {df.loc[mask, cols]}")
-    print(f"df bkg after: {df.loc[~mask, cols]}")
-    # raise ValueError
-    return df
 
 def prepare_dataset(df, ds_dict):
     # Convert dictionary of datasets to a more useful dataframe
@@ -545,66 +937,21 @@ def prepare_dataset(df, ds_dict):
     # sig_datasets = training_samples["signal"]
     # sig_datasets = ["ggh_amcPS"]
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
-    bkg_datasets = ["dy_M-100To200_MiNNLO",]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
-    # df['bdt_wgt'] = 1.0 # FIXME
-    df['bdt_wgt'] = (df['wgt_nominal_orig'])
-    df = normalizeBdtWgt(df, sig_datasets)
-
-    print(f"df any neg wgt: {np.any(df['wgt_nominal_orig']<0)}")
-    plotBdtWgt_path  = f"output/bdt_{name}_{year}/bdtWgts"
-    os.makedirs(plotBdtWgt_path, exist_ok=True)
-    plotBdtWgt(df, plotBdtWgt_path)
-    dimuMassResScatterPlot(df, plotBdtWgt_path)
-    dimuMassPlot(df, plotBdtWgt_path)
-
-    
-    # # debugging 
-    cols = ['dataset', 'bdt_wgt', 'dimuon_ebe_mass_res',]
-    print(f"df[cols] b4: {df[cols]}")
-    # sig
     for dataset in sig_datasets:
-        ebe_factor = 1
-        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
-    # bkg
-    # for dataset in bkg_datasets:
-    #     ebe_factor = 1
-    #     df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
+        df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
     # original end -----------------------------------------------
-    print(f"df[cols] after: {df[cols]}")
-
-    # -------------------------------------------------
-    # normalize sig dataset again to one
-    # -------------------------------------------------
-    mask = df["dataset"].isin(sig_datasets)
-    sig_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
-    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
-    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / sig_wgt_sum
     
-    print(f"df[cols] after normalization: {df[cols]}")
-    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
-    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
-
-
-    # -------------------------------------------------
-    # normalize bkg dataset again to one
-    # -------------------------------------------------
-    mask = ~df["dataset"].isin(sig_datasets)
-    bkg_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
-    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
-    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_sum
-    
-    print(f"df[cols] after bkg normalization: {df[cols]}")
-    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
-    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
-
-    # -------------------------------------------------
-    # increase bdt wgts for bdt to actually learn
-    # -------------------------------------------------
-    # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
-    df['bdt_wgt'] = df['bdt_wgt'] * 100_000
-    print(f"df[cols] after increase in value: {df[cols]}")
-    
+    #print(df.head)
+    columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
+    columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta','jet2_pt']
+    columns2 = ['mmj1_dEta', 'mmj1_dPhi', 'mmj2_dEta', 'mmj2_dPhi', 'mmj_min_dEta', 'mmj_min_dPhi']
+    # with open("df.txt", "w") as f:
+    #     print(df[columns_print], file=f)
+    # with open("df2.txt", "w") as f:
+    #     print(df[columns2], file=f)
+    # print(df[df['dataset']=="ggh_powheg"].head)
+    # print(f"prepare_dataset df: {df["dataset","class"]}")
     return df
 
 def scale_data_withweight(inputs, x_train, x_val, x_eval, df_train, fold_label):
@@ -684,6 +1031,7 @@ def classifier_train(df, args, training_samples):
     #print(df["class"])
     #cls_idx_map = {dataset:idx for idx,dataset in enumerate(classes)}
     add_year = (args['year']=='')
+    #df = prepare_features(df, args, add_year)
     #df['cls_idx'] = df['dataset'].map(cls_idx_map)
     print("Training features: ", training_features)
 
@@ -698,8 +1046,7 @@ def classifier_train(df, args, training_samples):
 
     # get the overal correlation matrix
     corr_matrix = getCorrMatrix(df, training_features, save_path=save_path)
-    # print(f"df.columns {df.columns}")
-    # df = processYearCol(df)
+    
     # start training
     
     for i in range(nfolds):
@@ -727,13 +1074,6 @@ def classifier_train(df, args, training_samples):
         df_train = df[train_filter]
         df_val = df[val_filter]
         df_eval = df[eval_filter]
-
-        # annhilate neg wgts
-        df_train = PairNAnnhilateNegWgt(df_train)
-
-        # remove forward jets
-        # df_train = removeForwardJets(df_train)
-        
         
         x_train = df_train[training_features]
         #y_train = df_train['cls_idx']
@@ -744,16 +1084,6 @@ def classifier_train(df, args, training_samples):
         y_val = df_val['class']
         y_eval = df_eval['class']
 
-        print(f"training_features: {training_features}")
-
-        # # FIXME
-        # feats2play = ["jet1_eta_nominal"]
-        # for feat in feats2play:
-        #     df_train[feat] = abs(df_train[feat])
-        #     df_val[feat] = abs(df_val[feat])
-        #     df_eval[feat] = abs(df_eval[feat])
-
-        
         # print(f"y_train: {y_train}")
         # print(f"y_val: {y_val}")
         # print(f"y_eval: {y_eval}")
@@ -776,20 +1106,16 @@ def classifier_train(df, args, training_samples):
             # df_train.loc[y_train==icls,'cls_avg_wgt'] = df_train.loc[y_train==icls,'wgt_nominal'].values.sum()
             # df_val.loc[y_val==icls,'cls_avg_wgt'] = df_val.loc[y_val==icls,'wgt_nominal'].values.sum()
             # df_eval.loc[y_eval==icls,'cls_avg_wgt'] = df_eval.loc[y_eval==icls,'wgt_nominal'].values.sum()
-            
             print(f"{train_evts} training events in class {cls}")
         # original end -------------------------------------------------------
         
         
         # # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight or V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
         # AN-19-124 line 1156: "the final BDTs have been trained by flipping the sign of negative weighted events"
-        # df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
-        # df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) / df_val['dimuon_ebe_mass_res']
-        # df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig']) / df_eval['dimuon_ebe_mass_res']
-
-        df_train['training_wgt'] = np.abs(df_train['wgt_nominal'])/df_train['cls_avg_wgt']
-        df_val['training_wgt'] = np.abs(df_val['wgt_nominal'])
-        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal'])
+        df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
+        df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) / df_val['dimuon_ebe_mass_res']
+        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig']) / df_eval['dimuon_ebe_mass_res']
+        
         
         # scale data
         #x_train, x_val = scale_data(training_features, x_train, x_val, df_train, label)#Last used
@@ -861,11 +1187,6 @@ def classifier_train(df, args, training_samples):
                 os.makedirs(model_save_path)
             model.save(f'{model_save_path}/{name}_{eval_label}.h5')        
         if args['bdt']:
-            # plot bdt wgt
-            # plotBdtWgt(df_train, f"output/bdt_{name}_{year}/bdtWgts/{label}")
-
-            # setup the input and output
-            
             seed = 7
             xp_train = x_train[training_features].values
             xp_val = x_val[training_features].values
@@ -878,9 +1199,7 @@ def classifier_train(df, args, training_samples):
             print(f"xp_val.shape: {xp_val.shape}")
             print(f"xp_eval.shape: {xp_eval.shape}")
 
-            # w_train = df_train['training_wgt'].values
-            # w_train = 1/df_train['dimuon_ebe_mass_res'].values #FIXME
-            w_train = df_train['bdt_wgt'].values #FIXME
+            w_train = df_train['training_wgt'].values
             w_val = df_val['training_wgt'].values
             w_eval = df_eval['training_wgt'].values
 
@@ -958,6 +1277,7 @@ def classifier_train(df, args, training_samples):
             verbosity=2
             
             # AN-19-124 p 45: "a correction factor is introduced to ensure that the same amount of background events are expected when either negative weighted events are discarded or they are considered with a positive weight"
+            scale_pos_weight = float(np.sum(np.abs(weight_nom_train[y_train == 0]))) / np.sum(np.abs(weight_nom_train[y_train == 1])) 
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight
             # model = xgb.XGBClassifier(max_depth=4,
             #                           n_estimators=1000, # number of trees
@@ -981,10 +1301,6 @@ def classifier_train(df, args, training_samples):
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
             # Aug 13
             print(f"len(x_train): {len(x_train)}")
-            bdt_wgt = df_train["bdt_wgt"]
-            scale_pos_weight = float(np.sum(np.abs(bdt_wgt[y_train == 0]))) / np.sum(np.abs(bdt_wgt[y_train == 1])) 
-            scale_pos_weight = 0.7 # FIXME
-            print(f"(scale_pos_weight): {(scale_pos_weight)}")
             model = XGBClassifier(
                 n_estimators=1000,           # Number of trees
                 max_depth=4,                 # Max depth
@@ -996,12 +1312,50 @@ def classifier_train(df, args, training_samples):
                 # objective='binary:logistic', # CrossEntropy (logloss)
                 # use_label_encoder=False,     # Optional: suppress warning
                 eval_metric='logloss',       # Ensures logloss used during training
-                n_jobs=30,                   # Use all CPU cores
-                scale_pos_weight=scale_pos_weight,
-                # early_stopping_rounds=15,#15
+                n_jobs=-1,                   # Use all CPU cores
+                # scale_pos_weight=scale_pos_weight*0.005,
+                scale_pos_weight=scale_pos_weight*0.75,
+                early_stopping_rounds=15,#15
                 verbosity=verbosity
             )
 
+
+            # after hyperparameter tuning date: Aug 14 2025
+            # model = XGBClassifier(
+            #     n_estimators=671,           # Number of trees
+            #     max_depth=4,                 # Max depth
+            #     learning_rate=0.02575292680212345,          # Shrinkage
+            #     subsample=0.5674535097716533,               # Bagged sample fraction
+            #     min_child_weight=0.02402331596760716 ,  # NOTE: this causes AUC == 0.5
+            #     tree_method='hist',          # Needed for max_bin
+            #     max_bin=270,                  # Number of cuts
+            #     objective='binary:logistic', # CrossEntropy (logloss)
+            #     eval_metric='auc',       # Ensures logloss used during training
+            #     n_jobs=-1,                   # Use all CPU cores
+            #     scale_pos_weight=0.3400054217637343,
+            #     # scale_pos_weight= 0.7251520918705945,
+            #     # early_stopping_rounds=15,#15
+            #     verbosity=verbosity
+            # )
+            # model = XGBClassifier(
+            #     n_estimators=2012,           # Number of trees
+            #     max_depth=9,                 # Max depth
+            #     learning_rate=0.13920789983454399,          # Shrinkage
+            #     subsample=0.9931710009445184,               # Bagged sample fraction
+            #     min_child_weight=5.074294458283235 ,  # NOTE: this causes AUC == 0.5
+            #     tree_method='hist',          # Needed for max_bin
+            #     max_bin=63,                  # Number of cuts
+            #     eval_metric='logloss',       # Ensures logloss used during training
+            #     n_jobs=-1,                   # Use all CPU cores
+            #     scale_pos_weight=scale_pos_weight*0.75,
+            #     early_stopping_rounds=15,#15
+            #     verbosity=verbosity
+            # )
+            # Trial 24 finished with value: 0.7116329875773034 and parameters: {'n_estimators': 2012, 'max_depth': 9, 'learning_rate': 0.13920789983454399, 'subsample': 0.9931710009445184, 'min_child_weight': 5.074294458283235, 'max_bin': 63}. Best is trial 24 with value: 0.7116329875773034.
+
+            #old:
+             # Trial 0 finished with value: 0.703271691016499 and parameters: {'n_estimators': 671, 'max_depth': 4, 'learning_rate': 0.02575292680212345, 'subsample': 0.5674535097716533, 'min_child_weight': 0.02402331596760716, 'max_bin': 270, 'scale_pos_weight': 0.4147691913761959}. Best is trial 0 with value: 0.703271691016499.
+            # Best params: {'n_estimators': 1798, 'max_depth': 7, 'learning_rate': 0.08533987880625084, 'subsample': 0.6971760478760521, 'min_child_weight': 0.005159689243001041, 'max_bin': 155, 'scale_pos_weight': 0.7251520918705945}
             # AN Model new end ---------------------------------------------------------------
             
             print(model)
@@ -1010,7 +1364,6 @@ def classifier_train(df, args, training_samples):
             eval_set = [(xp_train, y_train), (xp_val, y_val)]#Last used
             
             model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
-            # model.fit(xp_train, y_train, eval_set=eval_set, verbose=False)
 
             y_pred_signal_val = model.predict_proba(xp_val)[:, 1].ravel()
             y_pred_signal_train = model.predict_proba(xp_train)[:, 1]
@@ -1220,8 +1573,8 @@ def classifier_train(df, args, training_samples):
 
             # superimposed log ROC start --------------------------------------------------------------------------
             
-            plt.plot(eff_sig_eval, eff_bkg_eval, label=f"ROC (Eval)  — AUC={auc_eval:.3f}")
-            plt.plot(eff_sig_val, eff_bkg_val, label=f"ROC (Val)   — AUC={auc_val:.3f}")
+            plt.plot(eff_sig_eval, eff_bkg_eval, label=f"Stage2 ROC (Eval)  — AUC={auc_eval:.3f}")
+            plt.plot(eff_sig_val, eff_bkg_val, label=f"Stage2 ROC (Val)   — AUC={auc_val:.3f}")
             
             # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
             plt.vlines(np.linspace(0,1,11), 0, 1, linestyle="dashed", color="grey")
@@ -1239,7 +1592,7 @@ def classifier_train(df, args, training_samples):
             fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}.pdf")
 
             
-            plt.plot(eff_sig_train, eff_bkg_train, label=f"ROC (Train) — AUC={auc_train:.3f}")
+            plt.plot(eff_sig_train, eff_bkg_train, label=f"Stage2 ROC (Train) — AUC={auc_train:.3f}")
             plt.legend(loc="lower right")
             fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}_w_train.pdf")
             
@@ -1385,6 +1738,7 @@ def evaluation(df, args):
         if args['do_massscan']:
             mass_shift = args['mass']-125.0
         add_year = args['evaluate_allyears_dnn']
+        #df = prepare_features(df, args, add_year)
         df['dnn_score'] = 0
         with sess:
             nfolds = 4
@@ -1425,6 +1779,7 @@ def evaluation(df, args):
         if args['do_massscan']:
             mass_shift = args['mass']-125.0
         add_year = args['evaluate_allyears_dnn']
+        #df = prepare_features(df, args, add_year)
         df['bdt_score'] = 0
         nfolds = 4
         for i in range(nfolds):    
@@ -1488,33 +1843,7 @@ def evaluation(df, args):
 
             # df.loc[eval_filter,'bdt_score'] = prediction
     return df
-
-
-def ReadNMergeParquet_dak(year_paths: dict, fields2load):
-    """
-    helper function that reads parquet files and merges the dask awkward records
-    """
-    arrays = []
-    for year, path in year_paths.items():
-        print(path)
-        filelist = glob.glob(path)
-        dak_zip = dak.from_parquet(filelist)
-        # Broadcast a scalar year to all entries as a new field
-        # arr["bdt_year"] = year * ak.ones_like(arr.dimuon_mass)
-        dak_zip = dak.with_field(dak_zip, year, "bdt_year")
-        print(f"fields2load_ b4: {fields2load}")
-        fields2load_prepared = prepare_features(dak_zip, fields2load) # add variation to the name
-        print(f"fields2load_ after: {fields2load_prepared}")
-        dak_zip = dak.zip({
-            field: dak_zip[field] for field in fields2load_prepared
-        })
-        dak_zip = dak_zip.compute()
-        arrays.append(dak_zip)
-
-    combined = ak.concatenate(arrays, axis=0)
-    return combined
-
-    
+        
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -1583,6 +1912,7 @@ if __name__ == "__main__":
             "dimuon_mass",
             "jj_mass_nominal",
             "jj_dEta_nominal",
+            "jet1_pt_nominal",
             "nBtagLoose_nominal",
             "nBtagMedium_nominal",
             # "mmj1_dEta_nominal",
@@ -1594,18 +1924,11 @@ if __name__ == "__main__":
             "event",
             "mu1_pt",
             "mu2_pt",
-            "jet1_eta_nominal",
-            "jet2_eta_nominal",
-            'jet1_pt_nominal', 
-            'jet2_pt_nominal', 
-            'mmj_min_dEta_nominal', 
-            'mmj_min_dPhi_nominal', 
         ]
 
     
 
-    # training_features_w_variation = [f"{var}_nominal" for var in training_features if var != "bdt_year" ] # We will add bdt_year later
-    # training_features_w_variation = [f"{var}_nominal" for var in training_features if var != "bdt_year" ] # We will add bdt_year later
+    
     fields2load = list(set(fields2load + training_features)) # remove redundancies
     # load data to memory using compute()
     
@@ -1625,39 +1948,7 @@ if __name__ == "__main__":
             # zip_sample = dak.from_parquet(parquet_path) 
             filelist = glob.glob(parquet_path)
             print(f"filelist len: {len(filelist)}")
-            if year == "all":
-                # year_paths = {
-                #     2015: f"{sysargs.load_path}/2016preVFP/f1_0/{sample}/*/*.parquet",
-                #     2016: f"{sysargs.load_path}/2016postVFP/f1_0/{sample}/*/*.parquet",
-                #     2017: f"{sysargs.load_path}/2017/f1_0/{sample}/*/*.parquet",
-                #     2018: f"{sysargs.load_path}/2018/f1_0/{sample}/*/*.parquet",
-                # }
-                # print(parquet_path)
-                # zip_sample =  ReadNMergeParquet_dak(year_paths, fields2load)
-                zip_sample = dak.from_parquet(filelist)
-                # print(f"zip_sample.fields: {zip_sample.fields}")
-                # zip_sample["bdt_year"] = int(year)
-                # fields2load = fields2load + ["bdt_year_nominal"]
-                print(f"fields2load b4: {fields2load}")
-                fields2load_prepared = prepare_features(zip_sample, fields2load) # add variation to the name
-                print(f"fields2load after: {fields2load_prepared}")
-                zip_sample = ak.zip({
-                    field : zip_sample[field] for field in fields2load_prepared
-                })
-                zip_sample = zip_sample.compute()
-            else:
-                zip_sample = dak.from_parquet(filelist)
-                # print(f"zip_sample.fields: {zip_sample.fields}")
-                # zip_sample["bdt_year"] = int(year)
-                # fields2load = fields2load + ["bdt_year_nominal"]
-                print(f"fields2load b4: {fields2load}")
-                fields2load_prepared = prepare_features(zip_sample, fields2load) # add variation to the name
-                print(f"fields2load after: {fields2load_prepared}")
-                zip_sample = ak.zip({
-                    field : zip_sample[field] for field in fields2load_prepared
-                })
-                zip_sample = zip_sample.compute()
-                
+            zip_sample = dak.from_parquet(filelist) 
         except Exception as error:
             print(f"Parquet for {sample} not found with error {error}. skipping!")
             continue
@@ -1677,15 +1968,29 @@ if __name__ == "__main__":
             training_features = prepare_features(zip_sample, training_features) # do the same thing to training features
             zip_sample = ak.zip({
                 field : zip_sample[field] for field in fields2load
-            })
-            # }).compute()
+            }).compute()
+            # wgts2deactivate = [
+            #     # 'wgt_nominal_btag_wgt',
+            #     # 'wgt_nominal_pu',
+            #     'wgt_nominal_zpt_wgt',
+            #     # 'wgt_nominal_muID',
+            #     # 'wgt_nominal_muIso',
+            #     # 'wgt_nominal_muTrig',
+            #     # 'wgt_nominal_LHERen',
+            #     # 'wgt_nominal_LHEFac',
+            #     # 'wgt_nominal_pdf_2rms',
+            #     # 'wgt_nominal_jetpuid_wgt',
+            #     # 'wgt_nominal_qgl'
+            # ]
+            # wgt_nominal = zip_sample["wgt_nominal_total"]
+            # print(f"wgt_nominal: {wgt_nominal}")
+            # zip_sample["wgt_nominal_total"] = deactivateWgts(wgt_nominal, zip_sample, wgts2deactivate)
         else:
             fields2load = prepare_features(zip_sample, fields2load) # add variation to the name
             training_features = prepare_features(zip_sample, training_features) # do the same thing to training features
             zip_sample = ak.zip({
                 field : zip_sample[field] for field in fields2load
-            })
-            # }).compute()
+            }).compute()
         is_vbf = sysargs.is_vbf
         df_sample = convert2df(zip_sample, sample, is_vbf=is_vbf, is_UL=is_UL)
         df_l.append(df_sample)
@@ -1701,9 +2006,6 @@ if __name__ == "__main__":
     print("starting prepare_dataset")
     df_total = prepare_dataset(df_total, training_samples)
     print("prepare_dataset done")
-    # plotBdtWgt_path  = f"output/bdt_{name}_{year}/bdtWgts"
-    # os.makedirs(plotBdtWgt_path, exist_ok=True)
-    # plotBdtWgt(df_total, plotBdtWgt_path)
     # raise ValueError
     # print(f"len(df_total): {len(df_total)}")
     print(f"df_total.columns: {df_total.columns}")
