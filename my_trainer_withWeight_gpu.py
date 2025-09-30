@@ -545,18 +545,7 @@ def prepare_dataset(df, ds_dict):
     # sig_datasets = training_samples["signal"]
     # sig_datasets = ["ggh_amcPS"]
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
-    bkg_datasets = ["dy_M-100To200_MiNNLO",
-            "ttjets_dl",
-            "ttjets_sl",
-            "st_tw_top",
-            "st_tw_antitop",
-            "ww_2l2nu",
-            "wz_1l1nu2q",
-            "wz_2l2q",
-            "wz_3lnu",
-            "zz",
-            "ewk_lljj_mll50_mjj120",
-    ]
+    bkg_datasets = ["dy_M-100To200_MiNNLO",]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     # df['bdt_wgt'] = 1.0 # FIXME
     df['bdt_wgt'] = (df['wgt_nominal_orig'])
@@ -576,11 +565,11 @@ def prepare_dataset(df, ds_dict):
     # sig
     for dataset in sig_datasets:
         ebe_factor = 1
-        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) 
-    # # bkg
+        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
+    # bkg
     # for dataset in bkg_datasets:
     #     ebe_factor = 1
-    #     df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) 
+    #     df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
     # original end -----------------------------------------------
     print(f"df[cols] after: {df[cols]}")
 
@@ -743,9 +732,7 @@ def classifier_train(df, args, training_samples):
         df_train = PairNAnnhilateNegWgt(df_train)
 
         # remove forward jets
-        df_train = removeForwardJets(df_train)
-        df_eval = removeForwardJets(df_eval)
-        df_val = removeForwardJets(df_val)
+        # df_train = removeForwardJets(df_train)
         
         
         x_train = df_train[training_features]
