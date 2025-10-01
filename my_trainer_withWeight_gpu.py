@@ -677,75 +677,6 @@ training_features = [
 #     # 'njets'
 # ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_Mu2_Vars
 
-#test
-# training_features = [
-#     'dimuon_cos_theta_cs', 
-#     'dimuon_phi_cs', 
-#     'dimuon_rapidity', 
-#     'dimuon_pt', 
-#     # 'jet1_eta', 
-#     # 'jet2_eta', 
-#     'jet1_pt', 
-#     # 'jet2_pt', 
-#     # 'jj_dEta', 
-#     # 'jj_dPhi', 
-#     # 'jj_mass', 
-#     # 'mmj_min_dEta', 
-#     # 'mmj_min_dPhi', 
-#     'mu1_eta', 
-#     'mu1_pt_over_mass', 
-#     # 'mu2_eta', 
-#     # 'mu2_pt_over_mass', 
-#     'zeppenfeld',
-#     # 'njets'
-# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_jet1Pt_Vars
-
-
-# training_features = [
-#     'dimuon_cos_theta_cs', 
-#     'dimuon_phi_cs', 
-#     'dimuon_rapidity', 
-#     'dimuon_pt', 
-#     # 'jet1_eta', 
-#     # 'jet2_eta', 
-#     'jet1_pt', 
-#     # 'jet2_pt', 
-#     # 'jj_dEta', 
-#     # 'jj_dPhi', 
-#     # 'jj_mass', 
-#     # 'mmj_min_dEta', 
-#     # 'mmj_min_dPhi', 
-#     'mu1_eta', 
-#     'mu1_pt_over_mass', 
-#     'mu2_eta', 
-#     'mu2_pt_over_mass', 
-#     'zeppenfeld',
-#     # 'njets'
-# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_Mu2_jet1Pt_Vars
-
-# training_features = [
-#     'dimuon_cos_theta_cs', 
-#     'dimuon_phi_cs', 
-#     'dimuon_rapidity', 
-#     'dimuon_pt', 
-#     # 'jet1_eta', 
-#     # 'jet2_eta', 
-#     'jet1_pt', 
-#     'jet2_pt', 
-#     # 'jj_dEta', 
-#     # 'jj_dPhi', 
-#     # 'jj_mass', 
-#     # 'mmj_min_dEta', 
-#     # 'mmj_min_dPhi', 
-#     'mu1_eta', 
-#     'mu1_pt_over_mass', 
-#     'mu2_eta', 
-#     'mu2_pt_over_mass', 
-#     'zeppenfeld',
-#     # 'njets'
-# ] # V2_fullRun_Jun21_2025_1n2Revised_noEbeMassRes_Dimu_Mu1_Mu2_jet1jet2Pt_Vars
-
-
 #---------------------------------------------------------------------------
 
 training_samples = {
@@ -910,7 +841,30 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     # df = df.loc[positive_wgts]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     return df
-    
+
+def normalizeBdtWgt(df, sig_datasets):
+    cols = ["dataset", "bdt_wgt", "dimuon_ebe_mass_res"]#debug
+    # print(f"df b4: {df[cols]}")
+    # Overwrite bdt_wgt for signals with wgt_nominal_orig
+    df.loc[df["dataset"].isin(sig_datasets), "bdt_wgt"] = df["wgt_nominal_orig"]
+
+    # Normalize only signal rows so to match the sum of bkg events
+    mask = df["dataset"].isin(sig_datasets)
+    print(f"df sig b4: {df.loc[mask, cols]}")
+    print(f"df bkg b4: {df.loc[~mask, cols]}")
+    sig_wgt_sum = df.loc[mask, "bdt_wgt"].sum()
+    bkg_wgt_sum = df.loc[~mask, "wgt_nominal_orig"].sum()
+    # normalize signal
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] * 1/sig_wgt_sum
+    # normalize bkg
+    df.loc[~mask, "bdt_wgt"] = df.loc[~mask, "bdt_wgt"] * 1/bkg_wgt_sum
+    print(f"sig_wgt_sum: {sig_wgt_sum}")
+    print(f"bkg_wgt_sum: {bkg_wgt_sum}")
+    # print(f"df after: {df[cols]}")
+    print(f"df sig after: {df.loc[mask, cols]}")
+    print(f"df bkg after: {df.loc[~mask, cols]}")
+    # raise ValueError
+    return df
 
 def prepare_dataset(df, ds_dict):
     # Convert dictionary of datasets to a more useful dataframe
@@ -942,20 +896,55 @@ def prepare_dataset(df, ds_dict):
     # sig_datasets = ["ggh_amcPS"]
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
+    df['bdt_wgt'] = (df['wgt_nominal_orig'])
+    df = normalizeBdtWgt(df, sig_datasets)
+
+    print(f"df any neg wgt: {np.any(df['wgt_nominal_orig']<0)}")
+    plotBdtWgt_path  = f"output/bdt_{name}_{year}/bdtWgts"
+    os.makedirs(plotBdtWgt_path, exist_ok=True)
+    plotBdtWgt(df, plotBdtWgt_path)
+    dimuMassResScatterPlot(df, plotBdtWgt_path)
+    dimuMassPlot(df, plotBdtWgt_path)
+
+
     for dataset in sig_datasets:
-        df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
+        ebe_factor = 1
+        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
     # original end -----------------------------------------------
     
-    #print(df.head)
-    columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
-    columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta','jet2_pt']
-    columns2 = ['mmj1_dEta', 'mmj1_dPhi', 'mmj2_dEta', 'mmj2_dPhi', 'mmj_min_dEta', 'mmj_min_dPhi']
-    # with open("df.txt", "w") as f:
-    #     print(df[columns_print], file=f)
-    # with open("df2.txt", "w") as f:
-    #     print(df[columns2], file=f)
-    # print(df[df['dataset']=="ggh_powheg"].head)
-    # print(f"prepare_dataset df: {df["dataset","class"]}")
+        print(f"df[cols] after: {df[cols]}")
+
+    # -------------------------------------------------
+    # normalize sig dataset again to one
+    # -------------------------------------------------
+    mask = df["dataset"].isin(sig_datasets)
+    sig_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / sig_wgt_sum
+
+    print(f"df[cols] after normalization: {df[cols]}")
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
+    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+
+
+    # -------------------------------------------------
+    # normalize bkg dataset again to one
+    # -------------------------------------------------
+    mask = ~df["dataset"].isin(sig_datasets)
+    bkg_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_sum
+
+    print(f"df[cols] after bkg normalization: {df[cols]}")
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
+    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+
+    # -------------------------------------------------
+    # increase bdt wgts for bdt to actually learn
+    # -------------------------------------------------
+    # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
+    df['bdt_wgt'] = df['bdt_wgt'] * 100_000
+    print(f"df[cols] after increase in value: {df[cols]}")
     return df
 
 def scale_data_withweight(inputs, x_train, x_val, x_eval, df_train, fold_label):
@@ -1079,7 +1068,7 @@ def classifier_train(df, args, training_samples):
         df_val = df[val_filter]
         df_eval = df[eval_filter]
 
-        # # annhilate neg wgts
+        # annhilate neg wgts
         df_train = PairNAnnhilateNegWgt(df_train)
         
         x_train = df_train[training_features]
@@ -1206,7 +1195,7 @@ def classifier_train(df, args, training_samples):
             print(f"xp_val.shape: {xp_val.shape}")
             print(f"xp_eval.shape: {xp_eval.shape}")
 
-            w_train = df_train['training_wgt'].values
+            w_train = df_train['bdt_wgt'].values #FIXME
             w_val = df_val['training_wgt'].values
             w_eval = df_eval['training_wgt'].values
 
@@ -1285,6 +1274,8 @@ def classifier_train(df, args, training_samples):
             
             # AN-19-124 p 45: "a correction factor is introduced to ensure that the same amount of background events are expected when either negative weighted events are discarded or they are considered with a positive weight"
             scale_pos_weight = float(np.sum(np.abs(weight_nom_train[y_train == 0]))) / np.sum(np.abs(weight_nom_train[y_train == 1])) 
+            scale_pos_weight = 0.7 # FIXME
+            print(f"(scale_pos_weight): {(scale_pos_weight)}")
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight
             # model = xgb.XGBClassifier(max_depth=4,
             #                           n_estimators=1000, # number of trees
@@ -1321,48 +1312,11 @@ def classifier_train(df, args, training_samples):
                 eval_metric='logloss',       # Ensures logloss used during training
                 n_jobs=30,                    # Use all CPU cores
                 # scale_pos_weight=scale_pos_weight*0.005,
-                scale_pos_weight=scale_pos_weight*0.75,
+                scale_pos_weight=scale_pos_weight,
                 # early_stopping_rounds=15,#15
                 verbosity=verbosity
             )
 
-
-            # after hyperparameter tuning date: Aug 14 2025
-            # model = XGBClassifier(
-            #     n_estimators=671,           # Number of trees
-            #     max_depth=4,                 # Max depth
-            #     learning_rate=0.02575292680212345,          # Shrinkage
-            #     subsample=0.5674535097716533,               # Bagged sample fraction
-            #     min_child_weight=0.02402331596760716 ,  # NOTE: this causes AUC == 0.5
-            #     tree_method='hist',          # Needed for max_bin
-            #     max_bin=270,                  # Number of cuts
-            #     objective='binary:logistic', # CrossEntropy (logloss)
-            #     eval_metric='auc',       # Ensures logloss used during training
-            #     n_jobs=-1,                   # Use all CPU cores
-            #     scale_pos_weight=0.3400054217637343,
-            #     # scale_pos_weight= 0.7251520918705945,
-            #     # early_stopping_rounds=15,#15
-            #     verbosity=verbosity
-            # )
-            # model = XGBClassifier(
-            #     n_estimators=2012,           # Number of trees
-            #     max_depth=9,                 # Max depth
-            #     learning_rate=0.13920789983454399,          # Shrinkage
-            #     subsample=0.9931710009445184,               # Bagged sample fraction
-            #     min_child_weight=5.074294458283235 ,  # NOTE: this causes AUC == 0.5
-            #     tree_method='hist',          # Needed for max_bin
-            #     max_bin=63,                  # Number of cuts
-            #     eval_metric='logloss',       # Ensures logloss used during training
-            #     n_jobs=-1,                   # Use all CPU cores
-            #     scale_pos_weight=scale_pos_weight*0.75,
-            #     early_stopping_rounds=15,#15
-            #     verbosity=verbosity
-            # )
-            # Trial 24 finished with value: 0.7116329875773034 and parameters: {'n_estimators': 2012, 'max_depth': 9, 'learning_rate': 0.13920789983454399, 'subsample': 0.9931710009445184, 'min_child_weight': 5.074294458283235, 'max_bin': 63}. Best is trial 24 with value: 0.7116329875773034.
-
-            #old:
-             # Trial 0 finished with value: 0.703271691016499 and parameters: {'n_estimators': 671, 'max_depth': 4, 'learning_rate': 0.02575292680212345, 'subsample': 0.5674535097716533, 'min_child_weight': 0.02402331596760716, 'max_bin': 270, 'scale_pos_weight': 0.4147691913761959}. Best is trial 0 with value: 0.703271691016499.
-            # Best params: {'n_estimators': 1798, 'max_depth': 7, 'learning_rate': 0.08533987880625084, 'subsample': 0.6971760478760521, 'min_child_weight': 0.005159689243001041, 'max_bin': 155, 'scale_pos_weight': 0.7251520918705945}
             # AN Model new end ---------------------------------------------------------------
             
             print(model)
