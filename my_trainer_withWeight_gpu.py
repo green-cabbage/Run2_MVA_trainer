@@ -571,6 +571,7 @@ training_features = [
     'mu2_pt_over_mass', 
     'zeppenfeld',
     'njets',
+    'rpt',
     'year',
 ]
 # V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75, bdt_V2_fullRun_Jun21_2025_1n2Revised_all
@@ -1079,7 +1080,7 @@ def classifier_train(df, args, training_samples):
         df_eval = df[eval_filter]
 
         # # annhilate neg wgts
-        # df_train = PairNAnnhilateNegWgt(df_train)
+        df_train = PairNAnnhilateNegWgt(df_train)
         
         x_train = df_train[training_features]
         #y_train = df_train['cls_idx']
