@@ -24,7 +24,7 @@ import mplhep as hep
 import pickle
 import glob
 import seaborn as sb
-
+# from modules.utils import removeForwardJets, PairNAnnhilateNegWgt, plotBdtWgt, dimuMassResScatterPlot, dimuMassPlot #, processYearCol
 
 
 
@@ -888,8 +888,9 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
             dPhis.append(field)
     # print(f"dPhis: {dPhis}")
     # fill none values in dPhis with -1, then 0 for rest
-    df.fillna({field: -1 for field in dPhis},inplace=True)
-    df.fillna(0,inplace=True)
+    nan_val = -999.0
+    df.fillna({field: nan_val for field in dPhis},inplace=True)
+    df.fillna(nan_val,inplace=True)
     # add columns
     df["dataset"] = dataset 
     df["cls_avg_wgt"] = -1.0
@@ -1074,6 +1075,9 @@ def classifier_train(df, args, training_samples):
         df_train = df[train_filter]
         df_val = df[val_filter]
         df_eval = df[eval_filter]
+
+        # # annhilate neg wgts
+        # df_train = PairNAnnhilateNegWgt(df_train)
         
         x_train = df_train[training_features]
         #y_train = df_train['cls_idx']
