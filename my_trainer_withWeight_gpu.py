@@ -1319,10 +1319,10 @@ def classifier_train(df, args, training_samples):
                 # objective='binary:logistic', # CrossEntropy (logloss)
                 # use_label_encoder=False,     # Optional: suppress warning
                 eval_metric='logloss',       # Ensures logloss used during training
-                n_jobs=-1,                   # Use all CPU cores
+                n_jobs=30,                    # Use all CPU cores
                 # scale_pos_weight=scale_pos_weight*0.005,
                 scale_pos_weight=scale_pos_weight*0.75,
-                early_stopping_rounds=15,#15
+                # early_stopping_rounds=15,#15
                 verbosity=verbosity
             )
 
