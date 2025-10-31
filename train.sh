@@ -174,9 +174,9 @@ set -e
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run2"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run2_repeat"
-model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_setRandomSeed"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_setRandomSeed"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_setRandomSeed_repeat"
-# model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProd_AddRpt"
+model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProd_AddRpt"
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff_newZptWgt25Mar2025"
