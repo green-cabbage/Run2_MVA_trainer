@@ -176,7 +176,15 @@ set -e
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run2_repeat"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_setRandomSeed"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_setRandomSeed_repeat"
-model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProd_AddRpt"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProd_AddRpt"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProd_RemoveRptKeepYr"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProd_FillNoneCorrected"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProd_RemoveRptKeepYr"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_earlyStop50"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_earlyStop50_repeat"
+model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_earlyStop50_diffSeed"
+
+
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff_newZptWgt25Mar2025"
@@ -191,10 +199,10 @@ label="fullRun_Jun23_2025_1n2Revised"
 
 # year="2018"
 # year="2017"
-# year="2016postVFP"
+year="2016postVFP"
 # year="2016preVFP"
 # year="2016"
-year="all"
+# year="all"
 # python BDT_BayesianOptim.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 

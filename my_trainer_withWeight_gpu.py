@@ -15,11 +15,10 @@ from distributed import LocalCluster, Client, progress
 import os
 import coffea.util as util
 import time
-from xgboost import plot_importance
+from xgboost import plot_importance, plot_tree
 import copy
-from xgboost import plot_tree
 import json
-import cmsstyle as CMS
+# import cmsstyle as CMS
 import mplhep as hep
 import pickle
 import glob
@@ -201,9 +200,6 @@ training_features = [
     'mu2_pt_over_mass', 
     'zeppenfeld',
     'njets',
-    'rpt',
-    'year',
-    # 'bdt_year',
 ]
 
 
@@ -665,7 +661,8 @@ def classifier_train(df, args, training_samples):
             weight_nom_val = df_val['wgt_nominal_orig'].values
             weight_nom_eval = df_eval['wgt_nominal_orig'].values
 
-            random_seed_val= 125 # M of Higgs as random seed
+            # random_seed_val= 125 # M of Higgs as random seed
+            random_seed_val= 1290 # M of Higgs as random seed
             
             np.random.seed(random_seed_val)
             
@@ -773,10 +770,10 @@ def classifier_train(df, args, training_samples):
                 # objective='binary:logistic', # CrossEntropy (logloss)
                 # use_label_encoder=False,     # Optional: suppress warning
                 eval_metric='logloss',       # Ensures logloss used during training
-                n_jobs=-1,                   # Use all CPU cores
+                n_jobs=20,                   
                 # scale_pos_weight=scale_pos_weight*0.005,
                 scale_pos_weight=scale_pos_weight*0.75,
-                early_stopping_rounds=15,#15
+                early_stopping_rounds=50,#15
                 verbosity=verbosity,
                 random_state=random_seed_val,
             )
@@ -787,7 +784,8 @@ def classifier_train(df, args, training_samples):
 
             eval_set = [(xp_train, y_train), (xp_val, y_val)]#Last used
             
-            model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
+            model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False,
+                     )
 
             y_pred_signal_val = model.predict_proba(xp_val)[:, 1].ravel()
             y_pred_signal_train = model.predict_proba(xp_train)[:, 1]
