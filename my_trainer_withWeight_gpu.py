@@ -21,6 +21,7 @@ import json
 # import cmsstyle as CMS
 import pickle
 import glob
+from modules.utils import PairNAnnhilateNegWgt
 
 def prepare_features(events, features, variation="nominal"):
     plt.style.use(hep.style.CMS)
@@ -786,6 +787,9 @@ def classifier_train(df, args, training_samples):
         df_train = df[train_filter]
         df_val = df[val_filter]
         df_eval = df[eval_filter]
+
+        # # annhilate neg wgts
+        df_train = PairNAnnhilateNegWgt(df_train)
         
         x_train = df_train[training_features]
         #y_train = df_train['cls_idx']

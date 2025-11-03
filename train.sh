@@ -188,7 +188,8 @@ set -e
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_noEarlyStop_diffSeed"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_earlyStop5"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_earlyStop5_diffSeed"
-model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_setRandomSeed_FillNoneCorrected"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_setRandomSeed_FillNoneCorrected"
+model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_setRandomSeed_annhilateWeight"
 
 
 
