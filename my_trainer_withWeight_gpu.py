@@ -19,7 +19,6 @@ from xgboost import plot_importance, plot_tree
 import copy
 import json
 # import cmsstyle as CMS
-import mplhep as hep
 import pickle
 import glob
 
@@ -663,6 +662,7 @@ def classifier_train(df, args, training_samples):
 
             # random_seed_val= 125 # M of Higgs as random seed
             random_seed_val= 1290 # M of Higgs as random seed
+            # random_seed_val= 47906 # M of Higgs as random seed
             
             np.random.seed(random_seed_val)
             
@@ -773,7 +773,7 @@ def classifier_train(df, args, training_samples):
                 n_jobs=20,                   
                 # scale_pos_weight=scale_pos_weight*0.005,
                 scale_pos_weight=scale_pos_weight*0.75,
-                early_stopping_rounds=50,#15
+                # early_stopping_rounds=50,#15
                 verbosity=verbosity,
                 random_state=random_seed_val,
             )
