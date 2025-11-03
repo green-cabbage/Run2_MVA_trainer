@@ -443,7 +443,8 @@ def scale_data_withweight(inputs, x_train, x_val, x_eval, df_train, fold_label):
     return training_data, validation_data, evaluation_data
 
 
-def classifier_train(df, args, training_samples):
+def classifier_train(df, args, training_samples, random_seed_val):
+    print(f"random_seed_val: {random_seed_val}")
     if args['dnn']:
         from tensorflow.keras.models import Model
         from tensorflow.keras.layers import Dense, Activation, Input, Dropout, Concatenate, Lambda, BatchNormalization
@@ -660,9 +661,6 @@ def classifier_train(df, args, training_samples):
             weight_nom_val = df_val['wgt_nominal_orig'].values
             weight_nom_eval = df_eval['wgt_nominal_orig'].values
 
-            # random_seed_val= 125 # M of Higgs as random seed
-            random_seed_val= 1290 # M of Higgs as random seed
-            # random_seed_val= 47906 # M of Higgs as random seed
             
             np.random.seed(random_seed_val)
             
@@ -773,7 +771,7 @@ def classifier_train(df, args, training_samples):
                 n_jobs=20,                   
                 # scale_pos_weight=scale_pos_weight*0.005,
                 scale_pos_weight=scale_pos_weight*0.75,
-                # early_stopping_rounds=50,#15
+                early_stopping_rounds=5,#15
                 verbosity=verbosity,
                 random_state=random_seed_val,
             )
@@ -1359,6 +1357,9 @@ if __name__ == "__main__":
             "mu2_pt",
         ]
 
+    # random_seed_val= 125 # M of Higgs as random seed
+    random_seed_val= 1290 # M of Higgs as random seed
+    # random_seed_val= 47906 # M of Higgs as random seed
     
 
     
@@ -1430,7 +1431,6 @@ if __name__ == "__main__":
     df_total = pd.concat(df_l,ignore_index=True)   
     # new code end --------------------------------------------------------------------------------------------
     # apply random shuffle, so that signal and bkg samples get mixed up well
-    random_seed_val = 125
     df_total = df_total.sample(frac=1, random_state=random_seed_val)
     # print(f"df_total after shuffle: {df_total}")
     
@@ -1445,7 +1445,7 @@ if __name__ == "__main__":
     print(f"df_total.columns: {df_total.columns}")
 
 
-    classifier_train(df_total, args, training_samples)
+    classifier_train(df_total, args, training_samples, random_seed_val)
     # evaluation(df_total, args)
     #df.to_pickle('/depot/cms/hmm/purohita/coffea/eval_dataset.pickle')
     #print(df)
