@@ -177,6 +177,294 @@ def customROC_curve_AN(label, pred, weight):
 
 
 
+#training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_ebe_mass_res', 'dimuon_ebe_mass_res_rel', 'dimuon_eta', 'dimuon_mass', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta nominal', 'jet1_phi nominal', 'jet1_pt nominal', 'jet1_qgl nominal', 'jet2_eta nominal', 'jet2_phi nominal', 'jet2_pt nominal', 'jet2_qgl nominal', 'jj_dEta nominal', 'jj_dPhi nominal', 'jj_eta nominal', 'jj_mass nominal', 'jj_mass_log nominal', 'jj_phi nominal', 'jj_pt nominal', 'll_zstar_log nominal', 'mmj1_dEta nominal', 'mmj1_dPhi nominal', 'mmj2_dEta nominal', 'mmj2_dPhi nominal', 'mmj_min_dEta nominal', 'mmj_min_dPhi nominal', 'mmjj_eta nominal', 'mmjj_mass nominal', 'mmjj_phi nominal', 'mmjj_pt nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt', 'mu2_pt_over_mass', 'zeppenfeld nominal']
+#training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_eta', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta_nominal', 'jet1_phi_nominal', 'jet1_pt_nominal', 'jet1_qgl_nominal', 'jet2_eta_nominal', 'jet2_phi_nominal', 'jet2_pt_nominal', 'jet2_qgl_nominal', 'jj_dEta_nominal', 'jj_dPhi_nominal', 'jj_eta_nominal', 'jj_mass_nominal', 'jj_mass_log_nominal', 'jj_phi_nominal', 'jj_pt_nominal', 'll_zstar_log_nominal', 'mmj1_dEta_nominal', 'mmj1_dPhi_nominal', 'mmj2_dEta_nominal', 'mmj2_dPhi_nominal', 'mmj_min_dEta_nominal', 'mmj_min_dPhi_nominal', 'mmjj_eta_nominal', 'mmjj_mass_nominal', 'mmjj_phi_nominal', 'mmjj_pt_nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt_over_mass', 'zeppenfeld_nominal']
+
+# training_features = ['dimuon_cos_theta_cs', 'dimuon_eta', 'dimuon_phi_cs', 'dimuon_pt', 'jet1_eta', 'jet1_pt', 'jet2_eta', 'jet2_pt', 'jj_dEta', 'jj_dPhi', 'jj_mass', 'mmj1_dEta', 'mmj1_dPhi',  'mmj_min_dEta', 'mmj_min_dPhi', 'mu1_eta', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_pt_over_mass', 'zeppenfeld', 'njets']  # AN 19-124
+
+
+# training_features = ['dimuon_cos_theta_cs', 'dimuon_eta', 'dimuon_phi_cs', 'dimuon_pt', 'jet1_eta', 'jet1_pt', 'jet2_eta', 'jet2_pt', 'jj_dEta', 'jj_dPhi', 'jj_mass', 'mmj1_dEta', 'mmj1_dPhi',  'mmj_min_dEta', 'mmj_min_dPhi', 'mu1_eta', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_pt_over_mass', 'zeppenfeld', 'njets', "jet1_qgl", "jet2_qgl"] 
+
+# features exactly matching BDT from AN
+# training_features = [
+#     'dimuon_pt', 
+#     'dimuon_rapidity',
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'mu1_pt_over_mass', 
+#     'mu1_eta', 
+#     'mu2_pt_over_mass', 
+#     'mu2_eta', 
+#     'jet1_eta', 
+#     'jet1_pt', 
+#     'jet2_pt', 
+#     'mmj1_dEta', 
+#     'mmj1_dPhi',  
+#     'jj_dEta', 
+#     'jj_dPhi', 
+#     'jj_mass', 
+#     'zeppenfeld', 
+#     'mmj_min_dEta', 
+#     'mmj_min_dPhi', 
+#     'njets'
+# ]  # WgtON_original_AN_BDT_Sept27
+
+# training_features = [
+#     'dimuon_pt', 
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'mu1_pt_over_mass', 
+#     'mu1_eta', 
+#     'mu2_pt_over_mass', 
+#     'mu2_eta', 
+#     'jet1_eta', 
+#     'jet1_pt', 
+#     'jet2_pt', 
+#     'mmj1_dEta', 
+#     'mmj1_dPhi',  
+#     'jj_dEta', 
+#     'jj_dPhi', 
+#     'jj_mass', 
+#     'zeppenfeld', 
+#     'mmj_min_dEta', 
+#     'mmj_min_dPhi', 
+#     'njets'
+# ]  # WgtON_original_AN_BDT_noDimuRap_Sept27
+
+
+
+# training_features = ['dimuon_cos_theta_cs', 'dimuon_dEta', 'dimuon_dPhi', 'dimuon_dR', 'dimuon_eta', 'dimuon_phi', 'dimuon_phi_cs', 'dimuon_pt', 'dimuon_pt_log', 'jet1_eta_nominal', 'jet1_phi_nominal', 'jet1_pt_nominal', 'jet2_eta_nominal', 'jet2_phi_nominal', 'jet2_pt_nominal',  'jj_dEta_nominal', 'jj_dPhi_nominal', 'jj_eta_nominal', 'jj_mass_nominal', 'jj_mass_log_nominal', 'jj_phi_nominal', 'jj_pt_nominal', 'll_zstar_log_nominal', 'mmj1_dEta_nominal', 'mmj1_dPhi_nominal', 'mmj2_dEta_nominal', 'mmj2_dPhi_nominal', 'mmj_min_dEta_nominal', 'mmj_min_dPhi_nominal', 'mmjj_eta_nominal', 'mmjj_mass_nominal', 'mmjj_phi_nominal', 'mmjj_pt_nominal', 'mu1_eta', 'mu1_iso', 'mu1_phi', 'mu1_pt_over_mass', 'mu2_eta', 'mu2_iso', 'mu2_phi', 'mu2_pt_over_mass', 'zeppenfeld_nominal'] 
+
+
+# training_features = [
+#     'dimuon_cos_theta_cs_pisa', 
+#     'dimuon_eta', 
+#     'dimuon_phi_cs_pisa', 
+#     'dimuon_pt', 
+#     'jet1_eta_nominal', 
+#     'jet1_pt_nominal', 
+#     'jet2_pt_nominal', 
+#     'jj_dEta_nominal', 
+#     'jj_dPhi_nominal', 
+#     'jj_mass_nominal', 
+#     'mmj1_dEta_nominal', 
+#     'mmj1_dPhi_nominal',  
+#     'mmj_min_dEta_nominal', 
+#     'mmj_min_dPhi_nominal', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld_nominal',
+#     'njets_nominal'
+# ]
+# PhiFixed_rereco_yun
+
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     'jet1_pt', 
+#     # 'jet2_pt', 
+#     'jj_dEta', 
+#     'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ]
+# # V2_UL_Mar30_2025_DyMiNNLOGghVbf_removeJetVar
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     # 'mu2_eta', 
+#     # 'mu2_pt_over_mass', 
+#     # 'zeppenfeld',
+#     # 'njets'
+# ]
+# # #V2_UL_Mar30_2025_DyMiNNLOGghVbf_removeAllJetVar
+
+# training_features = [
+#     'dimuon_pt', 
+# ]
+# #V2_UL_Mar30_2025_DyMiNNLOGghVbf_justDimuPt
+
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     # 'zeppenfeld',
+#     # 'njets'
+# ]
+# # #V2_UL_Mar30_2025_DyMiNNLOGghVbf_onlyMuVar
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     # 'njets'
+# ]
+# # V2_UL_Mar30_2025_DyMiNNLOGghVbf_onlyMuVar_ZeppenJjMass
+
+
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     'mmj_min_dEta', 
+#     'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ]
+# # V2_UL_Mar30_2025_DyMiNNLOGghVbf_onlyMuVar_ZeppenJjMass_DeltaVars
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ]
+# # V2_UL_Mar30_2025_DyMiNNLOGghVbf_onlyMuVar_ZeppenJjMass_Njets
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     # "dimuon_cos_theta_eta",
+#     # "dimuon_phi_eta",
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     'jet1_eta', 
+#     'jet1_pt', 
+#     'jet2_pt', 
+#     'jj_dEta', 
+#     'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     'mmj_min_dEta', 
+#     'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ]
+# # V2 Jan 18 UL
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     'jet1_eta', 
+#     'jet2_eta', 
+#     'jet1_pt', 
+#     'jet2_pt', 
+#     'jj_dEta', 
+#     'jj_dPhi', 
+#     'jj_mass', 
+#     # 'mmj1_dEta', 
+#     # 'mmj1_dPhi',  
+#     # 'mmj_min_dEta', 
+#     'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     'zeppenfeld',
+#     'njets'
+# ]
+# # V2_UL_Mar30_2025_DyMiNNLOGghVbf_onlyMuVar_ZeppenJjMass
+
+
 training_features = [
     'dimuon_cos_theta_cs', 
     'dimuon_phi_cs', 
@@ -198,8 +486,9 @@ training_features = [
     'mu2_eta', 
     'mu2_pt_over_mass', 
     'zeppenfeld',
-    'njets',
+    'njets'
 ]
+# V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75
 
 
 #---------------------------------------------------------------------------
@@ -319,14 +608,15 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     print(f"computed_zip : {computed_zip}")
     # for copperheadV1, you gotta fill none b4 and store them in a dictionary b4 converting to dataframe
     computed_dict = {}
+    nan_val = -999.0
     for field in computed_zip.fields:
         # print(f"field: {field}")
         # print(f"computed_dict[{field}] b4 fill none: {ak.to_dataframe(computed_zip[field]) }")
         
         if "dPhi" in field:
-            computed_dict[field] = ak.fill_none(computed_zip[field], value=-1.0)
+            computed_dict[field] = ak.fill_none(computed_zip[field], value=nan_val)
         else:
-            computed_dict[field] = ak.fill_none(computed_zip[field], value=0.0)
+            computed_dict[field] = ak.fill_none(computed_zip[field], value=nan_val)
         # print(f"computed_dict[{field}] : {computed_dict[field]}")
         
     # # recalculate pt over masses. They're all inf and zeros for copperheadV1
@@ -344,10 +634,8 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     for field in df.columns:
         if "dPhi" in field:
             dPhis.append(field)
-    # print(f"dPhis: {dPhis}")
-    # fill none values in dPhis with -1, then 0 for rest
-    df.fillna({field: -1 for field in dPhis},inplace=True)
-    df.fillna(0,inplace=True)
+    df.fillna({field: nan_val for field in dPhis},inplace=True)
+    df.fillna(nan_val,inplace=True)
     # add columns
     df["dataset"] = dataset 
     df["cls_avg_wgt"] = -1.0
@@ -378,7 +666,8 @@ def prepare_dataset(df, ds_dict):
                 train_samples.append(ds)
                 df_info.loc[ds, "class_name"] = cls
                 df_info.loc[ds, "iclass"] = icls
-    df_info["iclass"] = df_info["iclass"].fillna(-1).astype(int)
+    nan_val = -999.0
+    df_info["iclass"] = df_info["iclass"].fillna(nan_val).astype(int)
     df = df[df.dataset.isin(df_info.dataset.unique())]
     
     # Assign numerical classes to each event
@@ -443,8 +732,7 @@ def scale_data_withweight(inputs, x_train, x_val, x_eval, df_train, fold_label):
     return training_data, validation_data, evaluation_data
 
 
-def classifier_train(df, args, training_samples, random_seed_val):
-    print(f"random_seed_val: {random_seed_val}")
+def classifier_train(df, args, training_samples):
     if args['dnn']:
         from tensorflow.keras.models import Model
         from tensorflow.keras.layers import Dense, Activation, Input, Dropout, Concatenate, Lambda, BatchNormalization
@@ -661,6 +949,7 @@ def classifier_train(df, args, training_samples, random_seed_val):
             weight_nom_val = df_val['wgt_nominal_orig'].values
             weight_nom_eval = df_eval['wgt_nominal_orig'].values
 
+            random_seed_val= 125 # M of Higgs as random seed
             
             np.random.seed(random_seed_val)
             
@@ -768,10 +1057,10 @@ def classifier_train(df, args, training_samples, random_seed_val):
                 # objective='binary:logistic', # CrossEntropy (logloss)
                 # use_label_encoder=False,     # Optional: suppress warning
                 eval_metric='logloss',       # Ensures logloss used during training
-                n_jobs=20,                   
+                n_jobs=-1,                   # Use all CPU cores
                 # scale_pos_weight=scale_pos_weight*0.005,
                 scale_pos_weight=scale_pos_weight*0.75,
-                early_stopping_rounds=5,#15
+                early_stopping_rounds=15,#15
                 verbosity=verbosity,
                 random_state=random_seed_val,
             )
@@ -782,8 +1071,7 @@ def classifier_train(df, args, training_samples, random_seed_val):
 
             eval_set = [(xp_train, y_train), (xp_val, y_val)]#Last used
             
-            model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False,
-                     )
+            model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
 
             y_pred_signal_val = model.predict_proba(xp_val)[:, 1].ravel()
             y_pred_signal_train = model.predict_proba(xp_train)[:, 1]
@@ -1357,9 +1645,6 @@ if __name__ == "__main__":
             "mu2_pt",
         ]
 
-    # random_seed_val= 125 # M of Higgs as random seed
-    random_seed_val= 1290 # M of Higgs as random seed
-    # random_seed_val= 47906 # M of Higgs as random seed
     
 
     
@@ -1431,6 +1716,7 @@ if __name__ == "__main__":
     df_total = pd.concat(df_l,ignore_index=True)   
     # new code end --------------------------------------------------------------------------------------------
     # apply random shuffle, so that signal and bkg samples get mixed up well
+    random_seed_val = 125
     df_total = df_total.sample(frac=1, random_state=random_seed_val)
     # print(f"df_total after shuffle: {df_total}")
     
@@ -1445,7 +1731,7 @@ if __name__ == "__main__":
     print(f"df_total.columns: {df_total.columns}")
 
 
-    classifier_train(df_total, args, training_samples, random_seed_val)
+    classifier_train(df_total, args, training_samples)
     # evaluation(df_total, args)
     #df.to_pickle('/depot/cms/hmm/purohita/coffea/eval_dataset.pickle')
     #print(df)

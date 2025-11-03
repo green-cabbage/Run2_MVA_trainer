@@ -187,7 +187,8 @@ set -e
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_noEarlyStop"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_noEarlyStop_diffSeed"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_earlyStop5"
-model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_earlyStop5_diffSeed"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_earlyStop5_diffSeed"
+model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_setRandomSeed_FillNoneCorrected"
 
 
 
@@ -204,10 +205,10 @@ label="fullRun_Jun23_2025_1n2Revised"
 
 # year="2018"
 # year="2017"
-year="2016postVFP"
+# year="2016postVFP"
 # year="2016preVFP"
 # year="2016"
-# year="all"
+year="all"
 # python BDT_BayesianOptim.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 
