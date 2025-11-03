@@ -23,6 +23,85 @@ import pickle
 import glob
 from modules.utils import PairNAnnhilateNegWgt
 
+def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, fold_idx):
+    """
+    Get KS value for specific value
+    """
+    print(f"valid_hist: {valid_hist}")
+    print(f"train_hist: {train_hist}")
+    print(f"valid_hist: {np.sum(valid_hist)}")
+    print(f"train_hist: {np.sum(train_hist)}")
+    
+    data_counts = valid_hist
+    pdf_counts = train_hist
+
+
+    plot_line_width = 0.5
+
+    # -------------------------------------------
+    # Do KS test
+    # -------------------------------------------
+
+
+    
+    data_cdf = np.cumsum(data_counts) / np.sum(data_counts)
+    pdf_cdf = np.cumsum(pdf_counts) / np.sum(pdf_counts)
+    ks_statistic = np.max(np.abs(data_cdf - pdf_cdf))
+    print(f"ks_statistic: {ks_statistic}")
+    nevents = weight_val.size
+    print(f"nevents: {nevents}")
+    # raise ValueError
+    
+    
+    # alpha = 0.1
+    # pass_threshold = 1.22385 / (nevents**(0.5))
+    alpha = 0.001
+    pass_threshold = 1.94947 / (nevents**(0.5))
+
+    df_dict= {
+        "ks_statistic": [ks_statistic],
+        "nevents" : [nevents],
+        "alpha":[ alpha],
+        "pass threshold": [pass_threshold],
+        "test pass": [ks_statistic<pass_threshold],
+   }
+    gof_df = pd.DataFrame(df_dict)
+    gof_df.to_csv(f"{save_path}/KS_stats_{fold_idx}.csv")
+    
+
+    # Draw the cdf histogram
+    
+    # bin_centers = np.array(bin_centers)
+    bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+    plt.plot(bin_centers, data_cdf, label='Validation CDF', linewidth=plot_line_width)
+    plt.plot(bin_centers, pdf_cdf, label='Train CDF', linewidth=plot_line_width)
+    plt.xlabel('BDT SCORE')
+    plt.ylabel('')
+    plt.title('BDT distribution of signal sample')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f"{save_path}/GoF_cdfs_{fold_idx}.pdf")
+    plt.clf()
+
+    # Draw the normalized pdf histogram:
+    plt.plot(bin_centers, data_counts/np.sum(data_counts), label='Validation PDF', linewidth=plot_line_width)
+    plt.plot(bin_centers, pdf_counts/np.sum(pdf_counts), label='Train PDF', linewidth=plot_line_width)
+    plt.xlabel('BDT SCORE')
+    plt.ylabel('')
+    plt.title('BDT distribution of signal sample')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f"{save_path}/GoF_pdfs_{fold_idx}.pdf")
+    plt.clf()
+        
+
+def auc_from_eff(eff_sig, eff_bkg):
+    fpr = 1.0 - np.asarray(eff_bkg)
+    tpr = np.asarray(eff_sig)
+    # sort by FPR ascending before integrating
+    order = np.argsort(fpr)
+    return np.trapezoid(tpr[order], fpr[order])
+
 def prepare_features(events, features, variation="nominal"):
     plt.style.use(hep.style.CMS)
     features_var = []
@@ -653,7 +732,30 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     # df = df.loc[positive_wgts]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     return df
+
+def normalizeBdtWgt(df, sig_datasets):
+    cols = ["dataset", "bdt_wgt", "dimuon_ebe_mass_res"]#debug
+    # print(f"df b4: {df[cols]}")
+    # Overwrite bdt_wgt for signals with wgt_nominal_orig
+    df.loc[df["dataset"].isin(sig_datasets), "bdt_wgt"] = df["wgt_nominal_orig"]
     
+    # Normalize only signal rows so to match the sum of bkg events
+    mask = df["dataset"].isin(sig_datasets)
+    print(f"df sig b4: {df.loc[mask, cols]}")
+    print(f"df bkg b4: {df.loc[~mask, cols]}")
+    sig_wgt_sum = df.loc[mask, "bdt_wgt"].sum()
+    bkg_wgt_sum = df.loc[~mask, "wgt_nominal_orig"].sum()
+    # normalize signal
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] * 1/sig_wgt_sum
+    # normalize bkg
+    df.loc[~mask, "bdt_wgt"] = df.loc[~mask, "bdt_wgt"] * 1/bkg_wgt_sum
+    print(f"sig_wgt_sum: {sig_wgt_sum}")
+    print(f"bkg_wgt_sum: {bkg_wgt_sum}")
+    # print(f"df after: {df[cols]}")
+    print(f"df sig after: {df.loc[mask, cols]}")
+    print(f"df bkg after: {df.loc[~mask, cols]}")
+    # raise ValueError
+    return df
 
 def prepare_dataset(df, ds_dict):
     # Convert dictionary of datasets to a more useful dataframe
@@ -689,21 +791,59 @@ def prepare_dataset(df, ds_dict):
     # sig_datasets = training_samples["signal"]
     # sig_datasets = ["ggh_amcPS"]
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
+    bkg_datasets = ["dy_M-100To200_MiNNLO",]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
-    for dataset in sig_datasets:
-        df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
-    # original end -----------------------------------------------
+    df['bdt_wgt'] = (df['wgt_nominal_orig'])
+    df = normalizeBdtWgt(df, sig_datasets)
+
+    print(f"df any neg wgt: {np.any(df['wgt_nominal_orig']<0)}")
     
-    #print(df.head)
-    columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
-    columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta','jet2_pt']
-    columns2 = ['mmj1_dEta', 'mmj1_dPhi', 'mmj2_dEta', 'mmj2_dPhi', 'mmj_min_dEta', 'mmj_min_dPhi']
-    # with open("df.txt", "w") as f:
-    #     print(df[columns_print], file=f)
-    # with open("df2.txt", "w") as f:
-    #     print(df[columns2], file=f)
-    # print(df[df['dataset']=="ggh_powheg"].head)
-    # print(f"prepare_dataset df: {df["dataset","class"]}")
+    # # debugging 
+    cols = ['dataset', 'bdt_wgt', 'dimuon_ebe_mass_res',]
+    print(f"df[cols] b4: {df[cols]}")
+    # sig
+    for dataset in sig_datasets:
+        ebe_factor = 1
+        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
+    # bkg
+    # for dataset in bkg_datasets:
+    #     ebe_factor = 1
+    #     df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
+    # original end -----------------------------------------------
+    print(f"df[cols] after: {df[cols]}")
+
+    # -------------------------------------------------
+    # normalize sig dataset again to one
+    # -------------------------------------------------
+    mask = df["dataset"].isin(sig_datasets)
+    sig_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / sig_wgt_sum
+    
+    print(f"df[cols] after normalization: {df[cols]}")
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
+    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+
+
+    # -------------------------------------------------
+    # normalize bkg dataset again to one
+    # -------------------------------------------------
+    mask = ~df["dataset"].isin(sig_datasets)
+    bkg_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_sum
+    
+    print(f"df[cols] after bkg normalization: {df[cols]}")
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
+    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+
+    # -------------------------------------------------
+    # increase bdt wgts for bdt to actually learn
+    # -------------------------------------------------
+    # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
+    df['bdt_wgt'] = df['bdt_wgt'] * 100_000
+    print(f"df[cols] after increase in value: {df[cols]}")
+    
     return df
 
 def scale_data_withweight(inputs, x_train, x_val, x_eval, df_train, fold_label):
@@ -855,10 +995,9 @@ def classifier_train(df, args, training_samples):
 
         # # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight or V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
         # AN-19-124 line 1156: "the final BDTs have been trained by flipping the sign of negative weighted events"
-        df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
-        df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) / df_val['dimuon_ebe_mass_res']
-        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig']) / df_eval['dimuon_ebe_mass_res']
-        
+        df_train['training_wgt'] = np.abs(df_train['wgt_nominal'])/df_train['cls_avg_wgt']
+        df_val['training_wgt'] = np.abs(df_val['wgt_nominal'])
+        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal'])
         
         # scale data
         #x_train, x_val = scale_data(training_features, x_train, x_val, df_train, label)#Last used
@@ -945,7 +1084,8 @@ def classifier_train(df, args, training_samples):
             print(f"xp_val.shape: {xp_val.shape}")
             print(f"xp_eval.shape: {xp_eval.shape}")
 
-            w_train = df_train['training_wgt'].values
+            # w_train = df_train['training_wgt'].values
+            w_train = df_train['bdt_wgt'].values
             w_val = df_val['training_wgt'].values
             w_eval = df_eval['training_wgt'].values
 
@@ -1050,6 +1190,11 @@ def classifier_train(df, args, training_samples):
             
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
             # print(f"len(x_train): {len(x_train)}")
+            print(f"len(x_train): {len(x_train)}")
+            bdt_wgt = df_train["bdt_wgt"]
+            scale_pos_weight = 0.7 # FIXME
+            print(f"(scale_pos_weight): {(scale_pos_weight)}")
+            
             model = XGBClassifier(
                 n_estimators=1000,           # Number of trees
                 max_depth=4,                 # Max depth
@@ -1063,7 +1208,7 @@ def classifier_train(df, args, training_samples):
                 eval_metric='logloss',       # Ensures logloss used during training
                 n_jobs=-1,                   # Use all CPU cores
                 # scale_pos_weight=scale_pos_weight*0.005,
-                scale_pos_weight=scale_pos_weight*0.75,
+                scale_pos_weight=scale_pos_weight,
                 early_stopping_rounds=15,#15
                 verbosity=verbosity,
                 random_state=random_seed_val,
@@ -1252,6 +1397,19 @@ def classifier_train(df, args, training_samples):
 
             # output shape dist end --------------------------------------------------------------------------
 
+            # -------------------------------------------
+            # GoF test
+            # -------------------------------------------
+            gof_save_path = f"output/bdt_{name}_{year}/"
+            # print(f"weight_nom_val_sig: {weight_nom_val_sig}")
+            # print(f"weight_nom_train_sig: {weight_nom_train_sig}")
+            print(f"weight_nom_val_sig: {type(weight_nom_val_sig)}")
+            print(f"weight_nom_train_sig: {type(weight_nom_train_sig)}")
+            print(f"weight_nom_val_sig: {len(weight_nom_val_sig)}")
+            print(f"weight_nom_train_sig: {len(weight_nom_train_sig)}")
+            
+            # we compare validation distribution with evaluation distribution to see if there's any over-training
+            getGOF_KS_bdt(hist_eval_sig, hist_val_sig, weight_nom_val_sig, binning, gof_save_path, label)
             # superimposed log ROC start --------------------------------------------------------------------------
             eff_bkg_train, eff_sig_train, thresholds_train = customROC_curve_AN(y_train.ravel(), y_pred_train, weight_nom_train)
             eff_bkg_val, eff_sig_val, thresholds_val = customROC_curve_AN(y_val.ravel(), y_pred, weight_nom_val)
@@ -1647,6 +1805,7 @@ if __name__ == "__main__":
             "event",
             "mu1_pt",
             "mu2_pt",
+            "year",
         ]
 
     
@@ -1671,7 +1830,38 @@ if __name__ == "__main__":
             # zip_sample = dak.from_parquet(parquet_path) 
             filelist = glob.glob(parquet_path)
             print(f"filelist len: {len(filelist)}")
-            zip_sample = dak.from_parquet(filelist) 
+            if year == "all":
+                # year_paths = {
+                #     2015: f"{sysargs.load_path}/2016preVFP/f1_0/{sample}/*/*.parquet",
+                #     2016: f"{sysargs.load_path}/2016postVFP/f1_0/{sample}/*/*.parquet",
+                #     2017: f"{sysargs.load_path}/2017/f1_0/{sample}/*/*.parquet",
+                #     2018: f"{sysargs.load_path}/2018/f1_0/{sample}/*/*.parquet",
+                # }
+                # print(parquet_path)
+                # zip_sample =  ReadNMergeParquet_dak(year_paths, fields2load)
+                zip_sample = dak.from_parquet(filelist)
+                # print(f"zip_sample.fields: {zip_sample.fields}")
+                # zip_sample["bdt_year"] = int(year)
+                # fields2load = fields2load + ["bdt_year_nominal"]
+                print(f"fields2load b4: {fields2load}")
+                fields2load_prepared = prepare_features(zip_sample, fields2load) # add variation to the name
+                print(f"fields2load after: {fields2load_prepared}")
+                zip_sample = ak.zip({
+                    field : zip_sample[field] for field in fields2load_prepared
+                })
+                zip_sample = zip_sample.compute()
+            else:
+                zip_sample = dak.from_parquet(filelist)
+                # print(f"zip_sample.fields: {zip_sample.fields}")
+                # zip_sample["bdt_year"] = int(year)
+                # fields2load = fields2load + ["bdt_year_nominal"]
+                print(f"fields2load b4: {fields2load}")
+                fields2load_prepared = prepare_features(zip_sample, fields2load) # add variation to the name
+                print(f"fields2load after: {fields2load_prepared}")
+                zip_sample = ak.zip({
+                    field : zip_sample[field] for field in fields2load_prepared
+                })
+                zip_sample = zip_sample.compute()
         except Exception as error:
             print(f"Parquet for {sample} not found with error {error}. skipping!")
             continue
@@ -1691,7 +1881,7 @@ if __name__ == "__main__":
             training_features = prepare_features(zip_sample, training_features) # do the same thing to training features
             zip_sample = ak.zip({
                 field : zip_sample[field] for field in fields2load
-            }).compute()
+            })#.compute()
             # wgts2deactivate = [
             #     # 'wgt_nominal_btag_wgt',
             #     # 'wgt_nominal_pu',
@@ -1713,7 +1903,7 @@ if __name__ == "__main__":
             training_features = prepare_features(zip_sample, training_features) # do the same thing to training features
             zip_sample = ak.zip({
                 field : zip_sample[field] for field in fields2load
-            }).compute()
+            })#.compute()
         is_vbf = sysargs.is_vbf
         df_sample = convert2df(zip_sample, sample, is_vbf=is_vbf, is_UL=is_UL)
         df_l.append(df_sample)
