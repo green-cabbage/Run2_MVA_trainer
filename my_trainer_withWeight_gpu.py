@@ -568,6 +568,7 @@ training_features = [
     'zeppenfeld',
     'njets',
     'rpt',
+    'year',
 ]
 # V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75
 
