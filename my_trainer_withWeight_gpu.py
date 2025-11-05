@@ -22,6 +22,7 @@ import json
 import pickle
 import glob
 from modules.utils import PairNAnnhilateNegWgt
+import seaborn as sb
 
 def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, fold_idx):
     """
@@ -182,7 +183,8 @@ def get6_5(label, pred, weight, save_path:str, name: str):
     ax_main.legend()
     
     # Set Range
-    ax_main.set_xlim(-0.9, 0.9)
+    # ax_main.set_xlim(-0.9, 0.9)
+    ax_main.set_xlim(-1.0, 1.0)
     ax_main.set_xticks([ -0.8, -0.6, -0.4, -0.2 , 0. ,  0.2 , 0.4 , 0.6,  0.8])
     ax_main.set_ylim(0, 0.09)
     
@@ -566,9 +568,7 @@ training_features = [
     'mu2_eta', 
     'mu2_pt_over_mass', 
     'zeppenfeld',
-    'njets',
-    # 'rpt',
-    'year',
+    'njets'
 ]
 # V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75
 
@@ -874,8 +874,43 @@ def scale_data_withweight(inputs, x_train, x_val, x_eval, df_train, fold_label):
     np.save(save_path + f"/scalers_{name}_{fold_label}", [x_mean, x_std]) 
     return training_data, validation_data, evaluation_data
 
+def removeStrInColumn(df, str2remove):
+    """
+    helper function that removes str2remove in df columns if they exist
+    """
+    new_df = df.rename(
+        columns=lambda c: c.replace(str2remove, "") if str2remove in c else c
+    )
+    return new_df
 
-def classifier_train(df, args, training_samples):
+def getCorrMatrix(df, training_features, save_path=""):
+    plt.style.use('default')
+    corr_features = training_features + ["dimuon_mass"]
+    corr_df = df[corr_features]
+    corr_df = removeStrInColumn(corr_df, "_nominal")
+    corr_matrix = corr_df.corr() 
+
+    if save_path != "": # save as csv and heatmap
+        corr_matrix.to_csv(f"{save_path}/correlation_matrix.csv")
+        # corr_matrix = corr_matrix.round(2) # round to 2 d.p.
+        
+        corr = corr_matrix # NOTE: do this instead when loading from csv: corr = corr_matrix.set_index(corr_matrix.columns[0]).astype(float) 
+        heatmap = sb.heatmap(corr, fmt=".2f", cmap="coolwarm", annot=True, annot_kws={"fontsize": 12})
+        heatmap.set_yticklabels(heatmap.get_yticklabels(), rotation = 0, fontsize = 12)
+        heatmap.set_xticklabels(heatmap.get_xticklabels(), rotation = 45, fontsize = 12)
+        
+        plt.title("BDT input features + dimuon mass correlation matrix")
+        # plt.tight_layout()
+        fig = heatmap.get_figure()
+        fig.set_size_inches(16,12)
+        fig.savefig(f"{save_path}/correlation_matrix.pdf", bbox_inches='tight', pad_inches=0)
+
+    plt.style.use(hep.style.CMS)
+    # raise ValueError
+    return corr_matrix
+
+def classifier_train(df, args, training_samples, random_seed_val: int):
+    print(f"random_seed_val: {random_seed_val}")
     if args['dnn']:
         from tensorflow.keras.models import Model
         from tensorflow.keras.layers import Dense, Activation, Input, Dropout, Concatenate, Lambda, BatchNormalization
@@ -902,7 +937,9 @@ def classifier_train(df, args, training_samples):
     with open(f'{save_path}/training_features.json', 'w') as file:
         json.dump(training_features, file)
     
-    
+    # get the overal correlation matrix
+    corr_matrix = getCorrMatrix(df, training_features, save_path=save_path)
+
     
     for i in range(nfolds):
         if args['year']=='':
@@ -1095,7 +1132,7 @@ def classifier_train(df, args, training_samples):
             weight_nom_val = df_val['wgt_nominal_orig'].values
             weight_nom_eval = df_eval['wgt_nominal_orig'].values
 
-            random_seed_val= 125 # M of Higgs as random seed
+            # random_seed_val= 125 # M of Higgs as random seed
             
             np.random.seed(random_seed_val)
             
@@ -1412,13 +1449,22 @@ def classifier_train(df, args, training_samples):
             
             # we compare validation distribution with evaluation distribution to see if there's any over-training
             getGOF_KS_bdt(hist_eval_sig, hist_val_sig, weight_nom_val_sig, binning, gof_save_path, label)
-            # superimposed log ROC start --------------------------------------------------------------------------
+
+            # -------------------------------------------
+            # Log scale ROC curve
+            # -------------------------------------------
+            
             eff_bkg_train, eff_sig_train, thresholds_train = customROC_curve_AN(y_train.ravel(), y_pred_train, weight_nom_train)
             eff_bkg_val, eff_sig_val, thresholds_val = customROC_curve_AN(y_val.ravel(), y_pred, weight_nom_val)
             eff_bkg_eval, eff_sig_eval, thresholds_eval = customROC_curve_AN(y_eval.ravel(), y_eval_pred, weight_nom_eval)
-            plt.plot(eff_sig_eval, eff_bkg_eval, label="Stage2 ROC Curve (Eval)")
-            plt.plot(eff_sig_train, eff_bkg_train, label="Stage2 ROC Curve (Train)")
-            plt.plot(eff_sig_val, eff_bkg_val, label="Stage2 ROC Curve (Val)")
+
+            auc_eval  = auc_from_eff(eff_sig_eval,  eff_bkg_eval)
+            auc_train = auc_from_eff(eff_sig_train, eff_bkg_train)
+            auc_val   = auc_from_eff(eff_sig_val,   eff_bkg_val)
+
+            
+            plt.plot(eff_sig_eval, eff_bkg_eval, label=f"ROC (Eval)  — AUC={auc_eval:.3f}")
+            plt.plot(eff_sig_val, eff_bkg_val, label=f"ROC (Val)   — AUC={auc_val:.3f}")
             
             # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
             plt.vlines(np.linspace(0,1,11), 0, 1, linestyle="dashed", color="grey")
@@ -1433,14 +1479,20 @@ def classifier_train(df, args, training_samples):
             
             plt.legend(loc="lower right")
             plt.title(f'ROC curve for ggH BDT {year}')
-            fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}.png")
+            fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}.pdf")
+
+            
+            plt.plot(eff_sig_train, eff_bkg_train, label=f"ROC (Train) — AUC={auc_train:.3f}")
+            plt.legend(loc="lower right")
+            fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}_w_train.pdf")
+            
             plt.clf()
             # superimposed log ROC end --------------------------------------------------------------------------
 
             # superimposed flipped log ROC start --------------------------------------------------------------------------
-            plt.plot(1-eff_sig_eval, 1-eff_bkg_eval, label="Stage2 ROC Curve (Eval)")
-            plt.plot(1-eff_sig_train, 1-eff_bkg_train, label="Stage2 ROC Curve (Train)")
-            plt.plot(1-eff_sig_val, 1-eff_bkg_val, label="Stage2 ROC Curve (Val)")
+            plt.plot(1-eff_sig_eval,  1-eff_bkg_eval,  label=f"Stage2 ROC (Eval)  — AUC={auc_eval:.3f}")
+            plt.plot(1-eff_sig_val,   1-eff_bkg_val,   label=f"Stage2 ROC (Val)   — AUC={auc_val:.3f}")
+
             
             # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
             plt.vlines(np.linspace(0,1,11), 0, 1, linestyle="dashed", color="grey")
@@ -1455,8 +1507,12 @@ def classifier_train(df, args, training_samples):
             
             plt.legend(loc="lower right")
             plt.title(f'ROC curve for ggH BDT {year}')
-            fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}.png")
             fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}.pdf")
+
+            plt.plot(1-eff_sig_train, 1-eff_bkg_train, label=f"Stage2 ROC (Train) — AUC={auc_train:.3f}")
+            plt.legend(loc="lower right")
+            fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}_w_train.pdf")
+            
             plt.clf()
             # superimposed flipped log ROC end --------------------------------------------------------------------------
             
@@ -1927,7 +1983,7 @@ if __name__ == "__main__":
     print(f"df_total.columns: {df_total.columns}")
 
 
-    classifier_train(df_total, args, training_samples)
+    classifier_train(df_total, args, training_samples, random_seed_val)
     # evaluation(df_total, args)
     #df.to_pickle('/depot/cms/hmm/purohita/coffea/eval_dataset.pickle')
     #print(df)
