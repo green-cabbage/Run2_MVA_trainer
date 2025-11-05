@@ -567,7 +567,7 @@ training_features = [
     'mu2_pt_over_mass', 
     'zeppenfeld',
     'njets',
-    'rpt',
+    # 'rpt',
     'year',
 ]
 # V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75
