@@ -54,17 +54,21 @@ def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, 
     # raise ValueError
     
     
-    # alpha = 0.1
-    # pass_threshold = 1.22385 / (nevents**(0.5))
-    alpha = 0.001
-    pass_threshold = 1.94947 / (nevents**(0.5))
+    alpha1 = 0.1
+    pass_threshold1 = 1.22385 / (nevents**(0.5))
+    alpha2 = 0.001
+    pass_threshold2 = 1.94947 / (nevents**(0.5))
 
     df_dict= {
         "ks_statistic": [ks_statistic],
         "nevents" : [nevents],
-        "alpha":[ alpha],
-        "pass threshold": [pass_threshold],
-        "test pass": [ks_statistic<pass_threshold],
+        "alpha1":[ alpha1],
+        "alpha1 pass threshold": [pass_threshold1],
+        "alpha1 test pass": [ks_statistic<pass_threshold1],
+        "alpha2":[ alpha2],
+        "alpha2 pass threshold": [pass_threshold2],
+        "alpha2 test pass": [ks_statistic<pass_threshold2],
+        
    }
     gof_df = pd.DataFrame(df_dict)
     gof_df.to_csv(f"{save_path}/KS_stats_{fold_idx}.csv")
@@ -1261,6 +1265,11 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             
             model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
 
+                
+            
+        
+            
+
             y_pred_signal_val = model.predict_proba(xp_val)[:, 1].ravel()
             y_pred_signal_train = model.predict_proba(xp_train)[:, 1]
             y_pred_bkg_val = model.predict_proba(xp_val)[ :,0 ].ravel()
@@ -1458,6 +1467,18 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             eff_bkg_val, eff_sig_val, thresholds_val = customROC_curve_AN(y_val.ravel(), y_pred, weight_nom_val)
             eff_bkg_eval, eff_sig_eval, thresholds_eval = customROC_curve_AN(y_eval.ravel(), y_eval_pred, weight_nom_eval)
 
+            # print(f"eff_sig_eval: {eff_sig_eval}")
+            csv_savepath = f"output/bdt_{name}_{year}/rocEffs_{label}.csv"
+            roc_df = pd.DataFrame({
+                "eff_sig_eval" : eff_sig_eval,
+                "eff_bkg_eval" : eff_bkg_eval,
+                "eff_sig_train" : eff_sig_train,
+                "eff_bkg_train" : eff_bkg_train,
+                "eff_sig_val" : eff_sig_val,
+                "eff_bkg_val" : eff_bkg_val,
+            })
+            roc_df.to_csv(csv_savepath)
+            
             auc_eval  = auc_from_eff(eff_sig_eval,  eff_bkg_eval)
             auc_train = auc_from_eff(eff_sig_train, eff_bkg_train)
             auc_val   = auc_from_eff(eff_sig_val,   eff_bkg_val)
@@ -1554,13 +1575,51 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             # Also save ROC curve for evaluation just in case end --------------
 
             
+            # results = model.evals_result()
+            # print(results.keys())
+            # plt.plot(results['validation_0']['logloss'], label='train')
+            # plt.plot(results['validation_1']['logloss'], label='test')
+            # # show the legend
+            # plt.legend()
+            # plt.savefig(f"output/bdt_{name}_{year}/Loss_{label}.png")
+
+            # -----------------------------
+            # Retrieve evaluation results
+            # -----------------------------
             results = model.evals_result()
-            print(results.keys())
-            plt.plot(results['validation_0']['logloss'], label='train')
-            plt.plot(results['validation_1']['logloss'], label='test')
-            # show the legend
-            plt.legend()
-            plt.savefig(f"output/bdt_{name}_{year}/Loss_{label}.png")
+            epochs = len(results["validation_0"]["logloss"])
+            plot_x_axis = range(0, epochs)
+            
+            # -----------------------------
+            # Plot training vs. validation loss
+            # -----------------------------
+            plt.clf()
+            train_loss = results["validation_0"]["logloss"]
+            val_loss = results["validation_1"]["logloss"]
+            plt.plot(plot_x_axis, train_loss, label="Train Loss")
+            plt.plot(plot_x_axis, val_loss, label="Validation Loss")
+
+            plt.xlabel("Boosting Round")
+            plt.ylabel("Log Loss")
+            plt.title("XGBoost Training vs. Validation Loss")
+            perf_text = plt.Line2D([], [], color='none', label=f'Best iteration: {model.best_iteration} \n Best validation loss: {model.best_score:.5f}')
+            plt.legend(handles=[perf_text])
+            plt.savefig(f"output/bdt_{name}_{year}/loss_{label}.png")
+            
+            # -----------------------------
+            # 6. Check the best iteration
+            # -----------------------------
+            print(f"Best iteration: {model.best_iteration}")
+            print(f"Best validation loss: {model.best_score:.5f}")
+            
+            csv_savepath = f"output/bdt_{name}_{year}/loss_{label}.csv"
+            loss_df = pd.DataFrame({
+                "epoch" : plot_x_axis,
+                "train_loss" : train_loss,
+                "val_loss" : val_loss,
+            })
+            loss_df.to_csv(csv_savepath)
+            
 
             labels = [feat.replace("_nominal","") for feat in training_features]
             model.get_booster().feature_names = labels # set my training features as feature names
