@@ -315,7 +315,17 @@ def removeForwardJets(df):
     df_new = fillNanJetvariables(df_new, forward_filter, jet_variables)
     return df_new
 
+def auc_from_eff(eff_sig, eff_bkg):
+    fpr = 1.0 - np.asarray(eff_bkg)
+    tpr = np.asarray(eff_sig)
+    # sort by FPR ascending before integrating
+    order = np.argsort(fpr)
+    return np.trapezoid(tpr[order], fpr[order])
 
+
+
+
+        
 # def processYearCol(df):
 #     df_new = copy.deepcopy(df)
 #     print(df_new["year"].unique())

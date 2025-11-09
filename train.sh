@@ -230,5 +230,5 @@ label="fullRun_Jun23_2025_1n2Revised"
 # python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 
 # plot ROC curve by fold
-years="2016 2017 2018"
-python plot_roc_by_fold.py --model $model_name --years $years
+years="2016 2017 2018 all"
+python plot_roc_byFoldNYear.py --model $model_name --years $years
