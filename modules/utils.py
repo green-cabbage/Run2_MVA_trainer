@@ -323,9 +323,41 @@ def auc_from_eff(eff_sig, eff_bkg):
     return np.trapezoid(tpr[order], fpr[order])
 
 
+def addErrByQuadrature(df, columns=[]):
+    rel_errByCol = []
+    for col in columns:
+        val = df[col]
+        val_err = df[f"{col}_err"]
+        rel_err = val_err/val
+        rel_err = np.nan_to_num(rel_err, nan=0.0)
+        rel_errByCol.append(rel_err)
+    print(f"rel_errByCol: {len(rel_errByCol)}")
+    rel_errByCol = np.array(rel_errByCol).T
+    print(f"rel_errByCol: {(rel_errByCol)}")
+    print(f"rel_errByCol: {(rel_errByCol.shape)}")
+    rel_errByQuad = np.sqrt(np.sum(rel_errByCol**2, axis=1))
+    print(f"rel_errByQuad len: {(rel_errByQuad.shape)}")
+    print(f"rel_errByQuad: {rel_errByQuad}")
+    print(f"rel_errByQuad: {np.mean(rel_errByQuad)}")
+    df["relErrTotal"] = rel_errByQuad
+    return df
 
-
-        
+def GetAucStdErrHanleyMcNeil(auc, n_positive, n_negative):
+    """
+    Source: https://jhanley.biostat.mcgill.ca/software/Hanley_McNeil_Radiology_82.pdf
+    
+    """
+    print(f"auc: {auc}")
+    print(f"n_positive: {n_positive}")
+    print(f"n_negative: {n_negative}")
+    Q1 = auc/(2-auc)
+    Q2 = 2*auc**2/(1+auc)
+    var_auc = auc*(1-auc)
+    var_auc += (n_positive-1)*(Q1-auc**2)
+    var_auc += (n_negative-1)*(Q2-auc**2)
+    var_auc = var_auc / (n_positive*n_negative)
+    return np.sqrt(var_auc)
+    
 # def processYearCol(df):
 #     df_new = copy.deepcopy(df)
 #     print(df_new["year"].unique())

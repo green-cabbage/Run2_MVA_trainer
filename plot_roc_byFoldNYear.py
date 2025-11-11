@@ -34,8 +34,11 @@ def PlotRocByFold(model_name, year, nfolds=4 ):
             eff_sig = roc_df[f"eff_sig_{mode}"]
             eff_bkg = roc_df[f"eff_bkg_{mode}"]
             auc  = auc_from_eff(eff_sig,  eff_bkg)
-            
-            plt.plot(eff_sig, eff_bkg, label=f"fold{nfold} ROC ({mode})   — AUC={auc:.3f}")
+            csv_savepath = f"output/{model_name}_{year}/aucInfo_{year}_{nfold}.csv"
+            auc_df = pd.read_csv(csv_savepath)
+            assert(np.isclose(auc,auc_df[f"auc_{mode}"][0]))
+            auc_err = auc_df[f"auc_err_{mode}"][0]
+            plt.plot(eff_sig, eff_bkg, label=f"fold{nfold} ROC ({mode})   — AUC={auc:.4f}+/-{auc_err:.4f}")
             
             # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
             plt.vlines(np.linspace(0,1,11), 0, 1, linestyle="dashed", color="grey")
@@ -81,7 +84,11 @@ def PlotRocByYear(base_model: str, years: list[str], nfolds: int = 4):
                 eff_bkg = roc_df[f"eff_bkg_{mode}"]
                 
                 auc  = auc_from_eff(eff_sig,  eff_bkg)
-                plt.plot(eff_sig, eff_bkg, label=f"YEAR {year} ROC ({mode})   — AUC={auc:.3f}")
+                csv_savepath = f"output/{model_name}/aucInfo_{year}_{fold_num}.csv"
+                auc_df = pd.read_csv(csv_savepath)
+                assert(np.isclose(auc,auc_df[f"auc_{mode}"][0]))
+                auc_err = auc_df[f"auc_err_{mode}"][0]
+                plt.plot(eff_sig, eff_bkg, label=f"YEAR {year} ROC ({mode})   — AUC={auc:.4f}+/-{auc_err:.4f}")
 
             # --- finalize plot ---
             

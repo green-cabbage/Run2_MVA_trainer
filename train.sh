@@ -211,23 +211,23 @@ model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_applyClassWgtBala
 label="fullRun_Jun23_2025_1n2Revised"
 # label="BSC_off_Aug26_2025"
 
-# # year="2018"
-# # year="2017"
-# # year="2016postVFP"
-# # year="2016preVFP"
-# year="2016"
-# # year="all"
-# # python BDT_BayesianOptim.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
-# python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
-
-# year="2017"
-# python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
-
 # year="2018"
-# python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
-
+# year="2017"
+# year="2016postVFP"
+# year="2016preVFP"
+year="2016"
 # year="all"
-# python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
+# python BDT_BayesianOptim.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
+python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
+
+year="2017"
+python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
+
+year="2018"
+python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
+
+year="all"
+python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 
 # plot ROC curve by fold
 years="2016 2017 2018 all"

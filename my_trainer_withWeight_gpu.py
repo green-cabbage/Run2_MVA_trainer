@@ -21,7 +21,7 @@ import json
 # import cmsstyle as CMS
 import pickle
 import glob
-from modules.utils import PairNAnnhilateNegWgt
+from modules.utils import PairNAnnhilateNegWgt, addErrByQuadrature, GetAucStdErrHanleyMcNeil
 import seaborn as sb
 
 def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, fold_idx):
@@ -51,7 +51,6 @@ def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, 
     print(f"ks_statistic: {ks_statistic}")
     nevents = weight_val.size
     print(f"nevents: {nevents}")
-    # raise ValueError
     
     
     alpha1 = 0.1
@@ -209,6 +208,15 @@ def customROC_curve_AN(label, pred, weight):
     thresholds = np.linspace(start=0,stop=1, num=500) 
     effBkg_total = -99*np.ones_like(thresholds) # effBkg = false positive rate
     effSig_total = -99*np.ones_like(thresholds) # effSig = true positive rate
+    FP_total = -99*np.ones_like(thresholds) 
+    TP_total = -99*np.ones_like(thresholds) 
+    TN_total = -99*np.ones_like(thresholds) 
+    FN_total = -99*np.ones_like(thresholds) 
+    FP_err_total = -99*np.ones_like(thresholds) 
+    TP_err_total = -99*np.ones_like(thresholds) 
+    TN_err_total = -99*np.ones_like(thresholds) 
+    FN_err_total = -99*np.ones_like(thresholds) 
+    
     for ix in range(len(thresholds)):
         threshold = thresholds[ix]
         # get FP and TP
@@ -227,7 +235,12 @@ def customROC_curve_AN(label, pred, weight):
         FN = np.sum(weight[falseNegative_filter])#  FN = false negative
 
         
-
+        # obtain the err of FP, TP, TN, FN
+        FP_err = np.sqrt(np.sum(weight[falsePositive_filter]**2))
+        TP_err = np.sqrt(np.sum(weight[truePositive_filter]**2))
+        TN_err = np.sqrt(np.sum(weight[trueNegative_filter]**2))
+        FN_err = np.sqrt(np.sum(weight[falseNegative_filter]**2))
+        
 
         # effBkg = TN / (TN + FP) # Dmitry PhD thesis definition
         # effSig = FN / (FN + TP) # Dmitry PhD thesis definition
@@ -236,11 +249,14 @@ def customROC_curve_AN(label, pred, weight):
         effBkg_total[ix] = effBkg
         effSig_total[ix] = effSig
 
-        # print(f"ix: {ix}") 
-        # print(f"threshold: {threshold}")
-        # print(f"effBkg: {effBkg}")
-        # print(f"effSig: {effSig}")
-        
+        FP_total[ix] = FP
+        TP_total[ix] = TP
+        TN_total[ix] = TN
+        FN_total[ix] = FN
+        FP_err_total[ix] = FP_err
+        TP_err_total[ix] = TP_err
+        TN_err_total[ix] = TN_err
+        FN_err_total[ix] = FN_err
         
         # sanity check
         assert ((np.sum(positive_filter) + np.sum(negative_filter)) == len(pred))
@@ -259,7 +275,19 @@ def customROC_curve_AN(label, pred, weight):
     # print(f"effSig_total: {effSig_total}")
     # print(f"thresholds: {thresholds}")
     # raise ValueError
-    return (effBkg_total, effSig_total, thresholds)
+
+    effBkgSig_df = pd.DataFrame({
+        "FP" : FP_total,
+        "TP" : TP_total,
+        "TN" : TN_total,
+        "FN" : FN_total,
+        "FP_err" : FP_err_total,
+        "TP_err" : TP_err_total,
+        "TN_err" : TN_err_total,
+        "FN_err" : FN_err_total,
+    })
+    
+    return (effBkg_total, effSig_total, thresholds, effBkgSig_df)
 
 
 
@@ -1463,11 +1491,21 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             # Log scale ROC curve
             # -------------------------------------------
             
-            eff_bkg_train, eff_sig_train, thresholds_train = customROC_curve_AN(y_train.ravel(), y_pred_train, weight_nom_train)
-            eff_bkg_val, eff_sig_val, thresholds_val = customROC_curve_AN(y_val.ravel(), y_pred, weight_nom_val)
-            eff_bkg_eval, eff_sig_eval, thresholds_eval = customROC_curve_AN(y_eval.ravel(), y_eval_pred, weight_nom_eval)
+            eff_bkg_train, eff_sig_train, thresholds_train, TpFpTnFn_df_train = customROC_curve_AN(y_train.ravel(), y_pred_train, weight_nom_train)
+            eff_bkg_val, eff_sig_val, thresholds_val, TpFpTnFn_df_val = customROC_curve_AN(y_val.ravel(), y_pred, weight_nom_val)
+            eff_bkg_eval, eff_sig_eval, thresholds_eval, TpFpTnFn_df_eval = customROC_curve_AN(y_eval.ravel(), y_eval_pred, weight_nom_eval)
 
-            # print(f"eff_sig_eval: {eff_sig_eval}")
+            # deprecated -----------------------
+            # cols2merge = ["TP","FP","TN","FN"]
+            # TpFpTnFn_df_train = addErrByQuadrature(TpFpTnFn_df_train, columns=cols2merge)
+            # TpFpTnFn_df_val = addErrByQuadrature(TpFpTnFn_df_val, columns=cols2merge)
+            # TpFpTnFn_df_eval = addErrByQuadrature(TpFpTnFn_df_eval, columns=cols2merge)
+            # deprecated -----------------------
+            
+
+            # -------------------------------------
+            # save ROC curve
+            # -------------------------------------
             csv_savepath = f"output/bdt_{name}_{year}/rocEffs_{label}.csv"
             roc_df = pd.DataFrame({
                 "eff_sig_eval" : eff_sig_eval,
@@ -1477,15 +1515,45 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
                 "eff_sig_val" : eff_sig_val,
                 "eff_bkg_val" : eff_bkg_val,
             })
+            # roc_df = pd.concat([roc_df, TpFpTnFn_df_train, TpFpTnFn_df_val, TpFpTnFn_df_eval], axis=1)
             roc_df.to_csv(csv_savepath)
+
             
             auc_eval  = auc_from_eff(eff_sig_eval,  eff_bkg_eval)
             auc_train = auc_from_eff(eff_sig_train, eff_bkg_train)
             auc_val   = auc_from_eff(eff_sig_val,   eff_bkg_val)
 
+            # Calculate auc err using HM method
+            n_pos_eval = np.sum(y_eval.ravel() ==1)
+            n_neg_eval = np.sum(y_eval.ravel() !=1)
+            auc_err_eval = GetAucStdErrHanleyMcNeil(auc_eval, n_pos_eval, n_neg_eval)
+            n_pos_train = np.sum(y_train.ravel() ==1)
+            n_neg_train = np.sum(y_train.ravel() !=1)
+            auc_err_train = GetAucStdErrHanleyMcNeil(auc_train, n_pos_train, n_neg_train)
+            n_pos_val = np.sum(y_val.ravel() ==1)
+            n_neg_val = np.sum(y_val.ravel() !=1)
+            auc_err_val = GetAucStdErrHanleyMcNeil(auc_val, n_pos_val, n_neg_val)
             
-            plt.plot(eff_sig_eval, eff_bkg_eval, label=f"ROC (Eval)  — AUC={auc_eval:.3f}")
-            plt.plot(eff_sig_val, eff_bkg_val, label=f"ROC (Val)   — AUC={auc_val:.3f}")
+            print(f"auc_err_train: {auc_err_train}")
+
+            # -------------------------------------
+            # save auc and auc err
+            # -------------------------------------
+            csv_savepath = f"output/bdt_{name}_{year}/aucInfo_{label}.csv"
+            auc_df = pd.DataFrame({
+                "auc_eval" : [auc_eval],
+                "auc_err_eval" : [auc_err_eval],
+                "auc_train" : [auc_train],
+                "auc_err_train" : [auc_err_train],
+                "auc_val" : [auc_val],
+                "auc_err_val" : [auc_err_val],
+            })
+            # roc_df = pd.concat([roc_df, TpFpTnFn_df_train, TpFpTnFn_df_val, TpFpTnFn_df_eval], axis=1)
+            auc_df.to_csv(csv_savepath)
+
+            
+            plt.plot(eff_sig_eval, eff_bkg_eval, label=f"ROC (Eval)  — AUC={auc_eval:.4f}+/-{auc_err_eval:.4f}")
+            plt.plot(eff_sig_val, eff_bkg_val, label=f"ROC (Val)   — AUC={auc_val:.4f}+/-{auc_err_val:.4f}")
             
             # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
             plt.vlines(np.linspace(0,1,11), 0, 1, linestyle="dashed", color="grey")
@@ -1503,7 +1571,7 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}.pdf")
 
             
-            plt.plot(eff_sig_train, eff_bkg_train, label=f"ROC (Train) — AUC={auc_train:.3f}")
+            plt.plot(eff_sig_train, eff_bkg_train, label=f"ROC (Train) — AUC={auc_train:.4f}+/-{auc_err_train:.4f}")
             plt.legend(loc="lower right")
             fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}_w_train.pdf")
             
@@ -1511,8 +1579,8 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             # superimposed log ROC end --------------------------------------------------------------------------
 
             # superimposed flipped log ROC start --------------------------------------------------------------------------
-            plt.plot(1-eff_sig_eval,  1-eff_bkg_eval,  label=f"Stage2 ROC (Eval)  — AUC={auc_eval:.3f}")
-            plt.plot(1-eff_sig_val,   1-eff_bkg_val,   label=f"Stage2 ROC (Val)   — AUC={auc_val:.3f}")
+            plt.plot(1-eff_sig_eval,  1-eff_bkg_eval,  label=f"Stage2 ROC (Eval)  — AUC={auc_eval:.4f}+/-{auc_err_eval:.4f}")
+            plt.plot(1-eff_sig_val,   1-eff_bkg_val,   label=f"Stage2 ROC (Val)   — AUC={auc_val:.4f}+/-{auc_err_val:.4f}")
 
             
             # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
@@ -1530,7 +1598,7 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             plt.title(f'ROC curve for ggH BDT {year}')
             fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}.pdf")
 
-            plt.plot(1-eff_sig_train, 1-eff_bkg_train, label=f"Stage2 ROC (Train) — AUC={auc_train:.3f}")
+            plt.plot(1-eff_sig_train, 1-eff_bkg_train, label=f"Stage2 ROC (Train) — AUC={auc_train:.4f}+/-{auc_err_train:.4f}")
             plt.legend(loc="lower right")
             fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}_w_train.pdf")
             
