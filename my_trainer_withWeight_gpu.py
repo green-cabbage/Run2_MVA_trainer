@@ -106,6 +106,7 @@ def auc_from_eff(eff_sig, eff_bkg):
     order = np.argsort(fpr)
     return np.trapezoid(tpr[order], fpr[order])
 
+
 def prepare_features(events, features, variation="nominal"):
     plt.style.use(hep.style.CMS)
     features_var = []
@@ -234,7 +235,6 @@ def customROC_curve_AN(label, pred, weight):
         falseNegative_filter = negative_filter & (label == 1)
         FN = np.sum(weight[falseNegative_filter])#  FN = false negative
 
-        
         # obtain the err of FP, TP, TN, FN
         FP_err = np.sqrt(np.sum(weight[falsePositive_filter]**2))
         TP_err = np.sqrt(np.sum(weight[truePositive_filter]**2))
@@ -242,12 +242,18 @@ def customROC_curve_AN(label, pred, weight):
         FN_err = np.sqrt(np.sum(weight[falseNegative_filter]**2))
         
 
+
         # effBkg = TN / (TN + FP) # Dmitry PhD thesis definition
         # effSig = FN / (FN + TP) # Dmitry PhD thesis definition
         effBkg = FP / (TN + FP) # AN-19-124 ggH Cat definition
         effSig = TP / (FN + TP) # AN-19-124 ggH Cat definition
         effBkg_total[ix] = effBkg
         effSig_total[ix] = effSig
+
+        # print(f"ix: {ix}") 
+        # print(f"threshold: {threshold}")
+        # print(f"effBkg: {effBkg}")
+        # print(f"effSig: {effSig}")
 
         FP_total[ix] = FP
         TP_total[ix] = TP
@@ -257,6 +263,7 @@ def customROC_curve_AN(label, pred, weight):
         TP_err_total[ix] = TP_err
         TN_err_total[ix] = TN_err
         FN_err_total[ix] = FN_err
+        
         
         # sanity check
         assert ((np.sum(positive_filter) + np.sum(negative_filter)) == len(pred))
@@ -275,7 +282,6 @@ def customROC_curve_AN(label, pred, weight):
     # print(f"effSig_total: {effSig_total}")
     # print(f"thresholds: {thresholds}")
     # raise ValueError
-
     effBkgSig_df = pd.DataFrame({
         "FP" : FP_total,
         "TP" : TP_total,
@@ -288,6 +294,7 @@ def customROC_curve_AN(label, pred, weight):
     })
     
     return (effBkg_total, effSig_total, thresholds, effBkgSig_df)
+
 
 
 
@@ -767,30 +774,6 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     return df
 
-def normalizeBdtWgt(df, sig_datasets):
-    cols = ["dataset", "bdt_wgt", "dimuon_ebe_mass_res"]#debug
-    # print(f"df b4: {df[cols]}")
-    # Overwrite bdt_wgt for signals with wgt_nominal_orig
-    df.loc[df["dataset"].isin(sig_datasets), "bdt_wgt"] = df["wgt_nominal_orig"]
-    
-    # Normalize only signal rows so to match the sum of bkg events
-    mask = df["dataset"].isin(sig_datasets)
-    print(f"df sig b4: {df.loc[mask, cols]}")
-    print(f"df bkg b4: {df.loc[~mask, cols]}")
-    sig_wgt_sum = df.loc[mask, "bdt_wgt"].sum()
-    bkg_wgt_sum = df.loc[~mask, "wgt_nominal_orig"].sum()
-    # normalize signal
-    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] * 1/sig_wgt_sum
-    # normalize bkg
-    df.loc[~mask, "bdt_wgt"] = df.loc[~mask, "bdt_wgt"] * 1/bkg_wgt_sum
-    print(f"sig_wgt_sum: {sig_wgt_sum}")
-    print(f"bkg_wgt_sum: {bkg_wgt_sum}")
-    # print(f"df after: {df[cols]}")
-    print(f"df sig after: {df.loc[mask, cols]}")
-    print(f"df bkg after: {df.loc[~mask, cols]}")
-    # raise ValueError
-    return df
-
 def prepare_dataset(df, ds_dict):
     # Convert dictionary of datasets to a more useful dataframe
     df_info = pd.DataFrame()
@@ -825,59 +808,21 @@ def prepare_dataset(df, ds_dict):
     # sig_datasets = training_samples["signal"]
     # sig_datasets = ["ggh_amcPS"]
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
-    bkg_datasets = ["dy_M-100To200_MiNNLO",]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
-    df['bdt_wgt'] = (df['wgt_nominal_orig'])
-    df = normalizeBdtWgt(df, sig_datasets)
-
-    print(f"df any neg wgt: {np.any(df['wgt_nominal_orig']<0)}")
-    
-    # # debugging 
-    cols = ['dataset', 'bdt_wgt', 'dimuon_ebe_mass_res',]
-    print(f"df[cols] b4: {df[cols]}")
-    # sig
     for dataset in sig_datasets:
-        ebe_factor = 1
-        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
-    # bkg
-    # for dataset in bkg_datasets:
-    #     ebe_factor = 1
-    #     df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
+        df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
     # original end -----------------------------------------------
-    print(f"df[cols] after: {df[cols]}")
-
-    # -------------------------------------------------
-    # normalize sig dataset again to one
-    # -------------------------------------------------
-    mask = df["dataset"].isin(sig_datasets)
-    sig_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
-    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
-    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / sig_wgt_sum
     
-    print(f"df[cols] after normalization: {df[cols]}")
-    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
-    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
-
-
-    # -------------------------------------------------
-    # normalize bkg dataset again to one
-    # -------------------------------------------------
-    mask = ~df["dataset"].isin(sig_datasets)
-    bkg_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
-    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
-    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_sum
-    
-    print(f"df[cols] after bkg normalization: {df[cols]}")
-    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
-    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
-
-    # -------------------------------------------------
-    # increase bdt wgts for bdt to actually learn
-    # -------------------------------------------------
-    # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
-    df['bdt_wgt'] = df['bdt_wgt'] * 100_000
-    print(f"df[cols] after increase in value: {df[cols]}")
-    
+    #print(df.head)
+    columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
+    columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta','jet2_pt']
+    columns2 = ['mmj1_dEta', 'mmj1_dPhi', 'mmj2_dEta', 'mmj2_dPhi', 'mmj_min_dEta', 'mmj_min_dPhi']
+    # with open("df.txt", "w") as f:
+    #     print(df[columns_print], file=f)
+    # with open("df2.txt", "w") as f:
+    #     print(df[columns2], file=f)
+    # print(df[df['dataset']=="ggh_powheg"].head)
+    # print(f"prepare_dataset df: {df["dataset","class"]}")
     return df
 
 def scale_data_withweight(inputs, x_train, x_val, x_eval, df_train, fold_label):
@@ -968,10 +913,10 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
     # save training features as json for readability
     with open(f'{save_path}/training_features.json', 'w') as file:
         json.dump(training_features, file)
-    
     # get the overal correlation matrix
     corr_matrix = getCorrMatrix(df, training_features, save_path=save_path)
 
+    
     
     for i in range(nfolds):
         if args['year']=='':
@@ -1066,9 +1011,10 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
 
         # # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight or V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
         # AN-19-124 line 1156: "the final BDTs have been trained by flipping the sign of negative weighted events"
-        df_train['training_wgt'] = np.abs(df_train['wgt_nominal'])/df_train['cls_avg_wgt']
-        df_val['training_wgt'] = np.abs(df_val['wgt_nominal'])
-        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal'])
+        df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
+        df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) / df_val['dimuon_ebe_mass_res']
+        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig']) / df_eval['dimuon_ebe_mass_res']
+        
         
         # scale data
         #x_train, x_val = scale_data(training_features, x_train, x_val, df_train, label)#Last used
@@ -1155,8 +1101,7 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             print(f"xp_val.shape: {xp_val.shape}")
             print(f"xp_eval.shape: {xp_eval.shape}")
 
-            # w_train = df_train['training_wgt'].values
-            w_train = df_train['bdt_wgt'].values
+            w_train = df_train['training_wgt'].values
             w_val = df_val['training_wgt'].values
             w_eval = df_eval['training_wgt'].values
 
@@ -1195,77 +1140,16 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             
             w_train = w_train[shuf_ind_tr]
             w_val = w_val[shuf_ind_val]
-            #data_dmatrix = xgb.DMatrix(data=X,label=y)
-            # # original start ---------------------------------------------------------------   
-            # model = xgb.XGBClassifier(max_depth=4,#for 2018
-            #                           #max_depth=6,previous value
-            #                           n_estimators=100000,
-            #                           #n_estimators=100,
-            #                           early_stopping_rounds=15, # 80
-            #                           eval_metric="logloss",
-            #                           #learning_rate=0.001,#for 2018
-            #                           learning_rate=0.1,#previous value
-            #                           #reg_alpha=0.680159426755822,
-            #                           #colsample_bytree=0.47892268305051233,
-            #                           colsample_bytree=0.5,
-            #                           min_child_weight=3,
-            #                           subsample=0.5,
-            #                           #reg_lambda=16.6,
-            #                           #gamma=24.505,
-            #                           #n_jobs=35,
-            #                           tree_method='hist')
-            #                           #tree_method='hist')
-            # # original end ---------------------------------------------------------------
-            
-            # AN Model start ---------------------------------------------------------------   
-            # model = xgb.XGBClassifier(max_depth=4,
-            #                           n_estimators=1000, # number of trees
-            #                           early_stopping_rounds=80, 
-            #                           eval_metric="logloss", # cross entropy
-            #                           learning_rate=0.1,# shrinkage?
-            #                           #reg_alpha=0.680159426755822,
-            #                           #colsample_bytree=0.47892268305051233,
-            #                           colsample_bytree=0.5,
-            #                           min_child_weight=3,
-            #                           subsample=0.5, # Bagged sample fraction ?
-            #                           #reg_lambda=16.6,
-            #                           #gamma=24.505,
-            #                           #n_jobs=35,
-            #                           tree_method='hist')
-            # AN Model end ---------------------------------------------------------------
 
             # AN Model new start ---------------------------------------------------------------   
             verbosity=2
             
             # AN-19-124 p 45: "a correction factor is introduced to ensure that the same amount of background events are expected when either negative weighted events are discarded or they are considered with a positive weight"
             scale_pos_weight = float(np.sum(np.abs(weight_nom_train[y_train == 0]))) / np.sum(np.abs(weight_nom_train[y_train == 1])) 
-            # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight
-            # model = xgb.XGBClassifier(max_depth=4,
-            #                           n_estimators=1000, # number of trees
-            #                           early_stopping_rounds=15, #15
-            #                           eval_metric="logloss", # cross entropy
-            #                           learning_rate=0.1,# shrinkage?
-            #                           #reg_alpha=0.680159426755822,
-            #                           #colsample_bytree=0.47892268305051233,
-            #                           # colsample_bytree=0.5,
-            #                           # min_child_weight=3,
-            #                           # subsample=0.5, # Bagged sample fraction ?
-            #                           #reg_lambda=16.6,
-            #                           #gamma=24.505,
-            #                           n_jobs=-1,
-            #                           # tree_method='hist',
-            #                           verbosity=verbosity,
-            #                           scale_pos_weight=scale_pos_weight,
-            #                          )
             
             
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
             # print(f"len(x_train): {len(x_train)}")
-            print(f"len(x_train): {len(x_train)}")
-            bdt_wgt = df_train["bdt_wgt"]
-            scale_pos_weight = 0.7 # FIXME
-            print(f"(scale_pos_weight): {(scale_pos_weight)}")
-            
             model = XGBClassifier(
                 n_estimators=1000,           # Number of trees
                 max_depth=4,                 # Max depth
@@ -1277,9 +1161,9 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
                 # objective='binary:logistic', # CrossEntropy (logloss)
                 # use_label_encoder=False,     # Optional: suppress warning
                 eval_metric='logloss',       # Ensures logloss used during training
-                n_jobs=-1,                   # Use all CPU cores
+                n_jobs=30,                   # Use all CPU cores
                 # scale_pos_weight=scale_pos_weight*0.005,
-                scale_pos_weight=scale_pos_weight,
+                scale_pos_weight=scale_pos_weight*0.75,
                 early_stopping_rounds=15,#15
                 verbosity=verbosity,
                 random_state=random_seed_val,
@@ -1292,11 +1176,6 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             eval_set = [(xp_train, y_train), (xp_val, y_val)]#Last used
             
             model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
-
-                
-            
-        
-            
 
             y_pred_signal_val = model.predict_proba(xp_val)[:, 1].ravel()
             y_pred_signal_train = model.predict_proba(xp_train)[:, 1]
@@ -1473,6 +1352,7 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
 
             # output shape dist end --------------------------------------------------------------------------
 
+            
             # -------------------------------------------
             # GoF test
             # -------------------------------------------
@@ -2108,7 +1988,6 @@ if __name__ == "__main__":
     # raise ValueError
     # print(f"len(df_total): {len(df_total)}")
     print(f"df_total.columns: {df_total.columns}")
-
 
     classifier_train(df_total, args, training_samples, random_seed_val)
     # evaluation(df_total, args)
