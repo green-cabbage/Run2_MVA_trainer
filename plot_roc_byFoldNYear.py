@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mplhep as hep
 import pandas as pd
-# from modules.utils import PlotRocByFold
+from modules.utils import plot6_5FromHist
 
 plt.style.use(hep.style.CMS)
 
@@ -108,12 +108,65 @@ def PlotRocByYear(base_model: str, years: list[str], nfolds: int = 4):
             # save the plot on each year's bdt save path
             for year in years:
                 model_name = f"{base_model}_{year}"
-                save_path = f"output/{model_name}/RocByYear_{fold_num}.pdf"
+                save_path = f"output/{model_name}/RocByYear_{mode}_{fold_num}.pdf"
                 # save_path = f"test_fold{fold_num}.pdf"
                 plt.savefig(save_path, bbox_inches="tight")
             plt.clf()
 
         print(f"[INFO] Saved combined ROC for fold {fold_num}: {save_path}")
+
+def Plot6_5ByYear(base_model: str, years: list[str], nfolds: int = 4):
+    """
+    Combine ROC curves across years into one plot per fold.
+    Searches for CSVs like:
+      <base_model>_<year>/roc_data_<year>_fold*.csv
+    and merges all years onto a single ROC per fold.
+    """
+
+    # Extract unique fold numbers
+    folds = list(range(nfolds))
+
+    trainValEval_l = ["val", "eval"]
+    sigBkg_l = ["sig", "bkg", "both"]
+    # --- Loop over folds ---
+    for sigOrBkg in sigBkg_l:
+        for mode in trainValEval_l:
+            for fold_num in folds:
+                hist_dict = {}
+                for year in years:
+                    model_name = f"{base_model}_{year}"
+                    csv_path = f"output/{model_name}/6_5_{mode}_{year}_{fold_num}.csv"
+        # 6_5_val_all_3.csv
+                    df_6_5 = pd.read_csv(csv_path)
+                    if sigOrBkg == "both":
+                        hist_dict_year = {
+                            f"Bkg {year} {mode} fold {fold_num}" : df_6_5["bkg_hist"],
+                            f"Sig {year} {mode} fold {fold_num}" : df_6_5["sig_hist"],
+                        }
+                        save_fname = f"6_5ByYear_{mode}_{fold_num}"
+                    else:
+                        hist_dict_year = {
+                            f"Bkg {year} {mode} fold {fold_num}" : df_6_5[f"{sigOrBkg}_hist"],
+                        }
+                        save_fname = f"6_5ByYear_{sigOrBkg}_{mode}_{fold_num}"
+                    hist_dict.update(hist_dict_year)
+                    bin_edges = np.concatenate([df_6_5['bin_left'], [df_6_5['bin_right'].iloc[-1]]]) # this is same among different years and folds
+                    
+    
+                # plot and save the plot on each year's bdt save path
+                for year in years:
+                    model_name = f"{base_model}_{year}"
+                    save_path = f"output/{model_name}"
+                    if sigOrBkg == "both":
+                        plot6_5FromHist(hist_dict, bin_edges, save_path, save_fname, unifiedColorScheme=True)
+                    else:
+                        plot6_5FromHist(hist_dict, bin_edges, save_path, save_fname)
+                    
+                plt.clf()
+    
+            print(f"[INFO] Saved fig 6.5 for {mode} fold {fold_num}: {save_path}")
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -133,13 +186,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     base_model = args.model
+    model_name = f"bdt_{base_model}"
     years = args.years
-
+    
     for year in years:
-        model_name = f"bdt_{base_model}"
-        # model_name = f"bdt_{base_model}_{year}"
         print(f"[INFO] Processing model: {model_name}")
         PlotRocByFold(model_name, year)
 
     PlotRocByYear(model_name, years)
+    Plot6_5ByYear(model_name, years)
     

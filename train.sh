@@ -230,6 +230,6 @@ python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/dep
 year="all"
 python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 
-# plot ROC curve by fold
+# add extra plots
 years="2016 2017 2018 all"
 python plot_roc_byFoldNYear.py --model $model_name --years $years

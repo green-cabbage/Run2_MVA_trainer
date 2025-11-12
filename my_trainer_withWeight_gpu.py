@@ -196,8 +196,18 @@ def get6_5(label, pred, weight, save_path:str, name: str):
     hep.cms.label(data=False, ax=ax_main)
     
     plt.savefig(f"{save_path}/6_5_{name}.png")
+    plt.savefig(f"{save_path}/6_5_{name}.pdf")
     plt.clf()
-    
+
+    # save hist in pd df
+    df_6p5 = pd.DataFrame({
+        'bin_left': binning[:-1],
+        'bin_right': binning[1:],
+        'bin_center': 0.5 * (binning[:-1] + binning[1:]),
+        "bkg_hist" : bkg_hist,
+        "sig_hist" : sig_hist,
+    })
+    df_6p5.to_csv(f"{save_path}/6_5_{name}.csv")
     
 
 def customROC_curve_AN(label, pred, weight):
