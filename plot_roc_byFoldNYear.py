@@ -25,16 +25,20 @@ def auc_from_eff(eff_sig, eff_bkg):
     return np.trapezoid(tpr[order], fpr[order])
 
 
-def PlotRocByFold(model_name, year, nfolds=4 ):
+def PlotRocByFold(model_name, year, nfolds=4, doEqlSigWgt=True):
+    if doEqlSigWgt:
+        save_str_addendum = "_eqlSigWgt"
+    else:
+        save_str_addendum = ""
     trainValEval_l = ["train", "val", "eval"]
     for mode in trainValEval_l:
         for nfold in range(nfolds):
-            csv_savepath = f"output/{model_name}_{year}/rocEffs_{year}_{nfold}.csv"
+            csv_savepath = f"output/{model_name}_{year}/rocEffs_{year}_{nfold}{save_str_addendum}.csv"
             roc_df = pd.read_csv(csv_savepath)
             eff_sig = roc_df[f"eff_sig_{mode}"]
             eff_bkg = roc_df[f"eff_bkg_{mode}"]
             auc  = auc_from_eff(eff_sig,  eff_bkg)
-            csv_savepath = f"output/{model_name}_{year}/aucInfo_{year}_{nfold}.csv"
+            csv_savepath = f"output/{model_name}_{year}/aucInfo_{year}_{nfold}{save_str_addendum}.csv"
             auc_df = pd.read_csv(csv_savepath)
             assert(np.isclose(auc,auc_df[f"auc_{mode}"][0]))
             auc_err = auc_df[f"auc_err_{mode}"][0]
@@ -53,19 +57,21 @@ def PlotRocByFold(model_name, year, nfolds=4 ):
             
             plt.legend(loc="lower right")
             plt.title(f'ROC curve for ggH BDT {year}')
-        fig_savepath = f"output/{model_name}_{year}/RocByFold_{year}_{mode}.pdf"
+        fig_savepath = f"output/{model_name}_{year}/RocByFold_{year}_{mode}{save_str_addendum}.pdf"
         plt.savefig(fig_savepath)
         plt.clf()
     
-
-def PlotRocByYear(base_model: str, years: list[str], nfolds: int = 4):
+def PlotRocByYear(base_model: str, years: list[str], nfolds: int = 4, doEqlSigWgt=False):
     """
     Combine ROC curves across years into one plot per fold.
     Searches for CSVs like:
       <base_model>_<year>/roc_data_<year>_fold*.csv
     and merges all years onto a single ROC per fold.
     """
-
+    if doEqlSigWgt:
+        save_str_addendum = "_eqlSigWgt"
+    else:
+        save_str_addendum = ""
     # Extract unique fold numbers
     folds = list(range(nfolds))
 
@@ -76,7 +82,7 @@ def PlotRocByYear(base_model: str, years: list[str], nfolds: int = 4):
         for fold_num in folds:
             for year in years:
                 model_name = f"{base_model}_{year}"
-                csv_path = f"output/{model_name}/rocEffs_{year}_{fold_num}.csv"
+                csv_path = f"output/{model_name}/rocEffs_{year}_{fold_num}{save_str_addendum}.csv"
     
                 roc_df = pd.read_csv(csv_path)
     
@@ -84,7 +90,7 @@ def PlotRocByYear(base_model: str, years: list[str], nfolds: int = 4):
                 eff_bkg = roc_df[f"eff_bkg_{mode}"]
                 
                 auc  = auc_from_eff(eff_sig,  eff_bkg)
-                csv_savepath = f"output/{model_name}/aucInfo_{year}_{fold_num}.csv"
+                csv_savepath = f"output/{model_name}/aucInfo_{year}_{fold_num}{save_str_addendum}.csv"
                 auc_df = pd.read_csv(csv_savepath)
                 assert(np.isclose(auc,auc_df[f"auc_{mode}"][0]))
                 auc_err = auc_df[f"auc_err_{mode}"][0]
@@ -108,7 +114,7 @@ def PlotRocByYear(base_model: str, years: list[str], nfolds: int = 4):
             # save the plot on each year's bdt save path
             for year in years:
                 model_name = f"{base_model}_{year}"
-                save_path = f"output/{model_name}/RocByYear_{mode}_{fold_num}.pdf"
+                save_path = f"output/{model_name}/RocByYear_{mode}_{fold_num}{save_str_addendum}.pdf"
                 # save_path = f"test_fold{fold_num}.pdf"
                 plt.savefig(save_path, bbox_inches="tight")
             plt.clf()
@@ -168,6 +174,7 @@ def Plot6_5ByYear(base_model: str, years: list[str], nfolds: int = 4):
 
 
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Plot ROC curves by fold for given model name and list of years."
@@ -191,8 +198,10 @@ if __name__ == "__main__":
     
     for year in years:
         print(f"[INFO] Processing model: {model_name}")
-        PlotRocByFold(model_name, year)
+        # PlotRocByFold(model_name, year)
+        PlotRocByFold(model_name, year, doEqlSigWgt=True)
 
-    PlotRocByYear(model_name, years)
-    Plot6_5ByYear(model_name, years)
+    # PlotRocByYear(model_name, years)
+    PlotRocByYear(model_name, years, doEqlSigWgt=True)
+    # Plot6_5ByYear(model_name, years)
     
