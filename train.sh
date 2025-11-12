@@ -198,7 +198,9 @@ set -e
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_applyClassWgtBalance_repeat"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_applyClassWgtBalance_separateYears_Nov06repeat"
 
-model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_setRandomSeed_annhilateWeight_separateYears_Nov11repeat"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_setRandomSeed_annhilateWeight_separateYears_Nov11repeat"
+model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_setRandomSeed_annhilateWeight_addOnlyYear"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_setRandomSeed_annhilateWeight_addOnlyYear_MaxDepth8"
 
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"
@@ -216,20 +218,20 @@ label="fullRun_Jun23_2025_1n2Revised"
 # year="2017"
 # year="2016postVFP"
 # year="2016preVFP"
-year="2016"
-# year="all"
+# year="2016"
+year="all"
 # # python BDT_BayesianOptim.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 
-year="2017"
-python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
+# year="2017"
+# python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 
-year="2018"
-python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
+# year="2018"
+# python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 
-year="all"
-python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
+# year="all"
+# python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 
-# add extra plots
-years="2016 2017 2018 all"
-python plot_roc_byFoldNYear.py --model $model_name --years $years
+# # add extra plots
+# years="2016 2017 2018 all"
+# python plot_roc_byFoldNYear.py --model $model_name --years $years
