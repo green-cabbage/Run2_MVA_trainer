@@ -1643,6 +1643,8 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             values = list(feature_important.values())
             score_name = "Weight Score"
             data = pd.DataFrame(data=values, index=keys, columns=[score_name]).sort_values(by = score_name, ascending=True)
+            data["Normalized Score"] = data[score_name] / data[score_name].sum()
+            data.to_csv(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byWeight.csv")
             data.nlargest(50, columns=score_name).plot(kind='barh', figsize = (20,10))
             data.plot(kind='barh', figsize = (20,10))
             plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byWeight.png")
@@ -1652,6 +1654,8 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             values = list(feature_important.values())
             score_name = "Gain Score"
             data = pd.DataFrame(data=values, index=keys, columns=[score_name]).sort_values(by = score_name, ascending=True)
+            data["Normalized Score"] = data[score_name] / data[score_name].sum()
+            data.to_csv(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byGain.csv")
             data.nlargest(50, columns=score_name).plot(kind='barh', figsize = (20,10))
             data.plot(kind='barh', figsize = (20,10))
             plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byGain.png")
