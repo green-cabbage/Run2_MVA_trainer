@@ -816,8 +816,6 @@ def normalizeBdtWgt(df, sig_datasets):
     # print(f"df after: {df[cols]}")
     print(f"df sig after: {df.loc[mask, cols]}")
     print(f"df bkg after: {df.loc[~mask, cols]}")
-    print(f"sig_wgt_sum: {df.loc[mask, "bdt_wgt"].sum()}")
-    print(f"bkg_wgt_sum: {df.loc[~mask, "bdt_wgt"].sum()}")
     # raise ValueError
     return df
 
@@ -860,20 +858,21 @@ def prepare_dataset(df, ds_dict):
     df['bdt_wgt'] = (df['wgt_nominal_orig'])
     df = normalizeBdtWgt(df, sig_datasets)
 
+    print(f"df any neg wgt: {np.any(df['wgt_nominal_orig']<0)}")
+
     # # debugging 
     cols = ['dataset', 'bdt_wgt', 'dimuon_ebe_mass_res',]
-    print(f"df[cols] b4 ebe: {df[cols]}")
+    print(f"df[cols] b4: {df[cols]}")
     # sig
-    ebe_pow_factor = 0.5
     for dataset in sig_datasets:
         ebe_factor = 1
-        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / (df[df['dataset']==dataset]['dimuon_ebe_mass_res']**ebe_pow_factor))
+        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
     # bkg
     # for dataset in bkg_datasets:
     #     ebe_factor = 1
     #     df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
     # original end -----------------------------------------------
-    print(f"df[cols] after ebe: {df[cols]}")
+    print(f"df[cols] after: {df[cols]}")
 
     # -------------------------------------------------
     # normalize sig dataset again to one
@@ -899,8 +898,6 @@ def prepare_dataset(df, ds_dict):
     print(f"df[cols] after bkg normalization: {df[cols]}")
     print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
     print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
-    print(f're-check sig np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[~mask, "bdt_wgt"])}')
-    # raise ValueError
 
     # -------------------------------------------------
     # increase bdt wgts for bdt to actually learn
@@ -1247,7 +1244,7 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             print(f"len(x_train): {len(x_train)}")
             bdt_wgt = df_train["bdt_wgt"]
             scale_pos_weight = 0.7 # FIXME
-            print(f"(scale_pos_weight): {(scale_pos_weight)}")
+            # print(f"(scale_pos_weight): {(scale_pos_weight)}")
             model = XGBClassifier(
                 n_estimators=1000,           # Number of trees
                 max_depth=4,                 # Max depth
@@ -1261,7 +1258,7 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
                 eval_metric='logloss',       # Ensures logloss used during training
                 n_jobs=30,                   # Use all CPU cores
                 # scale_pos_weight=scale_pos_weight*0.005,
-                scale_pos_weight=scale_pos_weight,
+                # scale_pos_weight=scale_pos_weight,
                 early_stopping_rounds=15,#15
                 verbosity=verbosity,
                 random_state=random_seed_val,
