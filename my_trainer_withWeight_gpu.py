@@ -826,13 +826,45 @@ def prepare_dataset(df, ds_dict):
     # --------------------------------------------------------
     # multiply by dimuon mass resolutions if signal
     # --------------------------------------------------------
-    df['bdt_wgt'] = (df['wgt_nominal_orig'])
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
-    for dataset in sig_datasets:
-        ebe_factor = 1
-        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
+    # apply ebe mass to all
+    df['bdt_wgt'] = np.abs(df['wgt_nominal_orig']) /df['dimuon_ebe_mass_res']
     # original end -----------------------------------------------
+
+    # -------------------------------------------------
+    # normalize sig dataset again to one
+    # -------------------------------------------------
+    cols = ['dataset', 'bdt_wgt', 'dimuon_ebe_mass_res',]
+    mask = df["dataset"].isin(sig_datasets)
+    sig_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / sig_wgt_sum
+
+    print(f"df[cols] after normalization: {df[cols]}")
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
+    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+
+
+    # -------------------------------------------------
+    # normalize bkg dataset again to one
+    # -------------------------------------------------
+    mask = ~df["dataset"].isin(sig_datasets)
+    bkg_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_sum
+
+    print(f"df[cols] after bkg normalization: {df[cols]}")
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
+    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+
+    # -------------------------------------------------
+    # increase bdt wgts for bdt to actually learn
+    # -------------------------------------------------
+    # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
+    df['bdt_wgt'] = df['bdt_wgt'] * 100_000
+    print(f"df[cols] after increase in value: {df[cols]}")
+
     
     #print(df.head)
     columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
@@ -1142,9 +1174,9 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             verbosity=2
             
             # AN-19-124 p 45: "a correction factor is introduced to ensure that the same amount of background events are expected when either negative weighted events are discarded or they are considered with a positive weight"
-            scale_pos_weight = float(np.sum(np.abs(weight_nom_train[y_train == 0]))) / np.sum(np.abs(weight_nom_train[y_train == 1])) 
-            scale_pos_weight = scale_pos_weight*0.75
-            print(f"scale_pos_weight: {scale_pos_weight}")
+            # scale_pos_weight = float(np.sum(np.abs(weight_nom_train[y_train == 0]))) / np.sum(np.abs(weight_nom_train[y_train == 1])) 
+            # scale_pos_weight = scale_pos_weight*0.75
+            # print(f"scale_pos_weight: {scale_pos_weight}")
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
             # print(f"len(x_train): {len(x_train)}")
             model = XGBClassifier(
@@ -1160,7 +1192,7 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
                 eval_metric='logloss',       # Ensures logloss used during training
                 n_jobs=30,                   # Use all CPU cores
                 # scale_pos_weight=scale_pos_weight*0.005,
-                scale_pos_weight=scale_pos_weight,
+                # scale_pos_weight=scale_pos_weight,
                 early_stopping_rounds=15,#15
                 verbosity=verbosity,
                 random_state=random_seed_val,
