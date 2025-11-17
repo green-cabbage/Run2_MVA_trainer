@@ -210,7 +210,8 @@ set -e
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_applyClassWgtBalance_addOnlyYear_noPosWgt"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_applyClassWgtBalance_addOnlyYear_test"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_ebeSigOnly"
-model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_StdClsWgt"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_StdClsWgt"
+model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_StdClsWgt_Variation1"
 
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"

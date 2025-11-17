@@ -832,39 +832,53 @@ def prepare_dataset(df, ds_dict):
     df['bdt_wgt'] = np.abs(df['wgt_nominal_orig']) /df['dimuon_ebe_mass_res']
     # original end -----------------------------------------------
 
+    # # -------------------------------------------------
+    # # normalize sig dataset again to one
+    # # -------------------------------------------------
+    # cols = ['dataset', 'bdt_wgt', 'dimuon_ebe_mass_res',]
+    # mask = df["dataset"].isin(sig_datasets)
+    # sig_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
+    # print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
+    # df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / sig_wgt_sum
+
+    # print(f"df[cols] after normalization: {df[cols]}")
+    # print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
+    # print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+
+
+    # # -------------------------------------------------
+    # # normalize bkg dataset again to one
+    # # -------------------------------------------------
+    # mask = ~df["dataset"].isin(sig_datasets)
+    # bkg_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
+    # print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
+    # df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_sum
+
+    # print(f"df[cols] after bkg normalization: {df[cols]}")
+    # print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
+    # print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+
+    # # -------------------------------------------------
+    # # increase bdt wgts for bdt to actually learn
+    # # -------------------------------------------------
+    # # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
+    # df['bdt_wgt'] = df['bdt_wgt'] * 100_000
+    # print(f"df[cols] after increase in value: {df[cols]}")
+
+
     # -------------------------------------------------
-    # normalize sig dataset again to one
+    # match sig dataset sum weight to background sum weight
     # -------------------------------------------------
     cols = ['dataset', 'bdt_wgt', 'dimuon_ebe_mass_res',]
     mask = df["dataset"].isin(sig_datasets)
     sig_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
-    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
-    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / sig_wgt_sum
-
-    print(f"df[cols] after normalization: {df[cols]}")
-    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
-    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
-
-
-    # -------------------------------------------------
-    # normalize bkg dataset again to one
-    # -------------------------------------------------
-    mask = ~df["dataset"].isin(sig_datasets)
-    bkg_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
-    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
-    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_sum
-
-    print(f"df[cols] after bkg normalization: {df[cols]}")
-    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
-    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
-
-    # -------------------------------------------------
-    # increase bdt wgts for bdt to actually learn
-    # -------------------------------------------------
-    # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
-    df['bdt_wgt'] = df['bdt_wgt'] * 100_000
-    print(f"df[cols] after increase in value: {df[cols]}")
-
+    bkg_wgt_sum = np.sum(df.loc[~mask, "bdt_wgt"])
+    sig_sf = bkg_wgt_sum/sig_wgt_sum
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] * sig_sf
+    print(f'old sig np.sum(df.loc[mask, "bdt_wgt"]): {sig_sf}')
+    print(f'new sig np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+    print(f'bkg np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+    
     
     #print(df.head)
     columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
