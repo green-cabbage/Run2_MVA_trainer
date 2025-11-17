@@ -1076,35 +1076,11 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
         # bkg_l = training_samples["background"]
         # sig_l = training_samples["signal"]
         
-        # df_train.loc[filter, "training_wgt"] = df_train.loc[filter,"training_wgt"]/df_train.loc[filter,"cls_avg_wgt"]
-        # test end -------------------------------------------------------
-        
-        # df_train['training_wgt'] = df_train['wgt_nominal_total']/df_train['cls_avg_wgt']
-        # df_val['training_wgt'] = df_val['wgt_nominal_total']/df_val['cls_avg_wgt']
-        # df_eval['training_wgt'] = df_eval['wgt_nominal_total']/df_eval['cls_avg_wgt']
-        # df_train.loc[:,'training_wgt'] = df_train['training_wgt']/df_train['cls_avg_wgt']
-        # df_val.loc[:,'training_wgt'] = df_val['training_wgt']/df_val['cls_avg_wgt']
-        # df_eval.loc[:,'training_wgt'] = df_eval['training_wgt']/df_eval['cls_avg_wgt']
-
-
-        # df_train['training_wgt'] = df_train['wgt_nominal']/df_train['cls_avg_wgt']
-        # df_val['training_wgt'] = df_val['wgt_nominal']/df_val['cls_avg_wgt']
-        # df_eval['training_wgt'] = df_eval['wgt_nominal']/df_eval['cls_avg_wgt']
-
-        
-        # df_train['training_wgt'] = np.ones_like(df_train['wgt_nominal'])
-        # df_val['training_wgt'] = np.ones_like(df_val['wgt_nominal'])
-        # df_eval['training_wgt'] = np.ones_like(df_eval['wgt_nominal'])
-
-        # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf
-        # df_train['training_wgt'] = np.ones_like(df_train['wgt_nominal']) / df_train['dimuon_ebe_mass_res']
-        # df_val['training_wgt'] = np.ones_like(df_val['wgt_nominal']) / df_val['dimuon_ebe_mass_res']
-        # df_eval['training_wgt'] = np.ones_like(df_eval['wgt_nominal']) / df_eval['dimuon_ebe_mass_res']
-
         # # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight or V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
         # AN-19-124 line 1156: "the final BDTs have been trained by flipping the sign of negative weighted events"
-        df_val['training_wgt'] = np.abs(df_val['wgt_nominal'])
-        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal'])
+        df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
+        df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) 
+        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig'])
         
         
         # scale data
@@ -1192,7 +1168,8 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             print(f"xp_val.shape: {xp_val.shape}")
             print(f"xp_eval.shape: {xp_eval.shape}")
 
-            w_train = df_train['bdt_wgt'].values
+            w_train = df_train['training_wgt'].values
+            # w_train = df_train['bdt_wgt'].values
             w_val = df_val['training_wgt'].values
             w_eval = df_eval['training_wgt'].values
 
@@ -1237,14 +1214,14 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             
             # AN-19-124 p 45: "a correction factor is introduced to ensure that the same amount of background events are expected when either negative weighted events are discarded or they are considered with a positive weight"
             scale_pos_weight = float(np.sum(np.abs(weight_nom_train[y_train == 0]))) / np.sum(np.abs(weight_nom_train[y_train == 1])) 
-            
+            scale_pos_weight=float(scale_pos_weight*0.75)
             
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
             # print(f"len(x_train): {len(x_train)}")
             print(f"len(x_train): {len(x_train)}")
             bdt_wgt = df_train["bdt_wgt"]
-            scale_pos_weight = 0.7 # FIXME
-            # print(f"(scale_pos_weight): {(scale_pos_weight)}")
+            # scale_pos_weight = 0.7 # FIXME
+            print(f"(scale_pos_weight): {(scale_pos_weight)}")
             model = XGBClassifier(
                 n_estimators=1000,           # Number of trees
                 max_depth=4,                 # Max depth
@@ -1258,7 +1235,7 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
                 eval_metric='logloss',       # Ensures logloss used during training
                 n_jobs=30,                   # Use all CPU cores
                 # scale_pos_weight=scale_pos_weight*0.005,
-                # scale_pos_weight=scale_pos_weight,
+                scale_pos_weight=scale_pos_weight,
                 early_stopping_rounds=15,#15
                 verbosity=verbosity,
                 random_state=random_seed_val,
