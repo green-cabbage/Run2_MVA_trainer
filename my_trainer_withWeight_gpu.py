@@ -795,30 +795,6 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     return df
 
-def normalizeBdtWgt(df, sig_datasets):
-    cols = ["dataset", "bdt_wgt", "dimuon_ebe_mass_res"]#debug
-    # print(f"df b4: {df[cols]}")
-    # Overwrite bdt_wgt for signals with wgt_nominal_orig
-    df.loc[df["dataset"].isin(sig_datasets), "bdt_wgt"] = df["wgt_nominal_orig"]
-
-    # Normalize only signal rows so to match the sum of bkg events
-    mask = df["dataset"].isin(sig_datasets)
-    print(f"df sig b4: {df.loc[mask, cols]}")
-    print(f"df bkg b4: {df.loc[~mask, cols]}")
-    sig_wgt_sum = df.loc[mask, "bdt_wgt"].sum()
-    bkg_wgt_sum = df.loc[~mask, "wgt_nominal_orig"].sum()
-    # normalize signal
-    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] * 1/sig_wgt_sum
-    # normalize bkg
-    df.loc[~mask, "bdt_wgt"] = df.loc[~mask, "bdt_wgt"] * 1/bkg_wgt_sum
-    print(f"sig_wgt_sum: {sig_wgt_sum}")
-    print(f"bkg_wgt_sum: {bkg_wgt_sum}")
-    # print(f"df after: {df[cols]}")
-    print(f"df sig after: {df.loc[mask, cols]}")
-    print(f"df bkg after: {df.loc[~mask, cols]}")
-    # raise ValueError
-    return df
-
 def prepare_dataset(df, ds_dict):
     # Convert dictionary of datasets to a more useful dataframe
     df_info = pd.DataFrame()
@@ -848,63 +824,16 @@ def prepare_dataset(df, ds_dict):
 
     
     # --------------------------------------------------------
-    # df["wgt_nominal_orig"] = copy.deepcopy(df["wgt_nominal"])
     # multiply by dimuon mass resolutions if signal
-    # sig_datasets = training_samples["signal"]
-    # sig_datasets = ["ggh_amcPS"]
-    sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
-    bkg_datasets = ["dy_M-100To200_MiNNLO",]
-    print(f"df.dataset.unique(): {df.dataset.unique()}")
+    # --------------------------------------------------------
     df['bdt_wgt'] = (df['wgt_nominal_orig'])
-    df = normalizeBdtWgt(df, sig_datasets)
-
-    print(f"df any neg wgt: {np.any(df['wgt_nominal_orig']<0)}")
-
-    # # debugging 
-    cols = ['dataset', 'bdt_wgt', 'dimuon_ebe_mass_res',]
-    print(f"df[cols] b4: {df[cols]}")
-    # sig
+    sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
+    print(f"df.dataset.unique(): {df.dataset.unique()}")
     for dataset in sig_datasets:
         ebe_factor = 1
         df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
-    # bkg
-    # for dataset in bkg_datasets:
-    #     ebe_factor = 1
-    #     df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] * ebe_factor*(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res']) # FIXME
     # original end -----------------------------------------------
-    print(f"df[cols] after: {df[cols]}")
-
-    # -------------------------------------------------
-    # normalize sig dataset again to one
-    # -------------------------------------------------
-    mask = df["dataset"].isin(sig_datasets)
-    sig_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
-    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
-    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / sig_wgt_sum
-
-    print(f"df[cols] after normalization: {df[cols]}")
-    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
-    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
-
-
-    # -------------------------------------------------
-    # normalize bkg dataset again to one
-    # -------------------------------------------------
-    mask = ~df["dataset"].isin(sig_datasets)
-    bkg_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
-    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
-    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_sum
-
-    print(f"df[cols] after bkg normalization: {df[cols]}")
-    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
-    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
-
-    # -------------------------------------------------
-    # increase bdt wgts for bdt to actually learn
-    # -------------------------------------------------
-    # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
-    df['bdt_wgt'] = df['bdt_wgt'] * 100_000
-    print(f"df[cols] after increase in value: {df[cols]}")
+    
     #print(df.head)
     columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
     columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta','jet2_pt']
@@ -1075,12 +1004,13 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
         # test start -------------------------------------------------------
         # bkg_l = training_samples["background"]
         # sig_l = training_samples["signal"]
-        
+
+
         # # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight or V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
         # AN-19-124 line 1156: "the final BDTs have been trained by flipping the sign of negative weighted events"
-        df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
-        df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) 
-        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig'])
+        # df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
+        df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) / df_val['dimuon_ebe_mass_res']
+        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig']) / df_eval['dimuon_ebe_mass_res']
         
         
         # scale data
@@ -1168,8 +1098,7 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             print(f"xp_val.shape: {xp_val.shape}")
             print(f"xp_eval.shape: {xp_eval.shape}")
 
-            w_train = df_train['training_wgt'].values
-            # w_train = df_train['bdt_wgt'].values
+            w_train = df_train['bdt_wgt'].values
             w_val = df_val['training_wgt'].values
             w_eval = df_eval['training_wgt'].values
 
@@ -1214,14 +1143,10 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             
             # AN-19-124 p 45: "a correction factor is introduced to ensure that the same amount of background events are expected when either negative weighted events are discarded or they are considered with a positive weight"
             scale_pos_weight = float(np.sum(np.abs(weight_nom_train[y_train == 0]))) / np.sum(np.abs(weight_nom_train[y_train == 1])) 
-            scale_pos_weight=float(scale_pos_weight*0.75)
-            
+            scale_pos_weight = scale_pos_weight*0.75
+            print(f"scale_pos_weight: {scale_pos_weight}")
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
             # print(f"len(x_train): {len(x_train)}")
-            print(f"len(x_train): {len(x_train)}")
-            bdt_wgt = df_train["bdt_wgt"]
-            # scale_pos_weight = 0.7 # FIXME
-            print(f"(scale_pos_weight): {(scale_pos_weight)}")
             model = XGBClassifier(
                 n_estimators=1000,           # Number of trees
                 max_depth=4,                 # Max depth
@@ -1694,8 +1619,6 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             values = list(feature_important.values())
             score_name = "Weight Score"
             data = pd.DataFrame(data=values, index=keys, columns=[score_name]).sort_values(by = score_name, ascending=True)
-            data["Normalized Score"] = data[score_name] / data[score_name].sum()
-            data.to_csv(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byWeight.csv")
             data.nlargest(50, columns=score_name).plot(kind='barh', figsize = (20,10))
             data.plot(kind='barh', figsize = (20,10))
             plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byWeight.png")
@@ -1705,8 +1628,6 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             values = list(feature_important.values())
             score_name = "Gain Score"
             data = pd.DataFrame(data=values, index=keys, columns=[score_name]).sort_values(by = score_name, ascending=True)
-            data["Normalized Score"] = data[score_name] / data[score_name].sum()
-            data.to_csv(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byGain.csv")
             data.nlargest(50, columns=score_name).plot(kind='barh', figsize = (20,10))
             data.plot(kind='barh', figsize = (20,10))
             plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byGain.png")
