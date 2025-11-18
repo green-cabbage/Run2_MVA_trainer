@@ -867,17 +867,18 @@ def prepare_dataset(df, ds_dict):
 
 
     # -------------------------------------------------
-    # match sig dataset sum weight to background sum weight
+    # match bkg dataset sum weight to background sum weight
     # -------------------------------------------------
     cols = ['dataset', 'bdt_wgt', 'dimuon_ebe_mass_res',]
     mask = df["dataset"].isin(sig_datasets)
     sig_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
     bkg_wgt_sum = np.sum(df.loc[~mask, "bdt_wgt"])
-    sig_sf = bkg_wgt_sum/sig_wgt_sum
-    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] * sig_sf
-    print(f'old sig np.sum(df.loc[mask, "bdt_wgt"]): {sig_sf}')
+    bkg_sf = sig_wgt_sum/bkg_wgt_sum
+    df.loc[~mask, "bdt_wgt"] = df.loc[~mask, "bdt_wgt"] * bkg_sf
+    print(f'old sig np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
     print(f'new sig np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
-    print(f'bkg np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+    print(f'old bkg np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
+    print(f'new bkg np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[~mask, "bdt_wgt"])}')
     
     
     #print(df.head)
