@@ -629,6 +629,7 @@ training_features = [
     'zeppenfeld',
     'njets',
     'year',
+    'dimuon_ebe_mass_res_rel',
 ]
 # V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75
 
@@ -829,57 +830,42 @@ def prepare_dataset(df, ds_dict):
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     # apply ebe mass to all
-    df['bdt_wgt'] = np.abs(df['wgt_nominal_orig']) /df['dimuon_ebe_mass_res']
+    df['bdt_wgt'] = np.abs(df['wgt_nominal_orig'])
     # original end -----------------------------------------------
 
-    # # -------------------------------------------------
-    # # normalize sig dataset again to one
-    # # -------------------------------------------------
-    # cols = ['dataset', 'bdt_wgt', 'dimuon_ebe_mass_res',]
-    # mask = df["dataset"].isin(sig_datasets)
-    # sig_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
-    # print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
-    # df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / sig_wgt_sum
-
-    # print(f"df[cols] after normalization: {df[cols]}")
-    # print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
-    # print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
-
-
-    # # -------------------------------------------------
-    # # normalize bkg dataset again to one
-    # # -------------------------------------------------
-    # mask = ~df["dataset"].isin(sig_datasets)
-    # bkg_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
-    # print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
-    # df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_sum
-
-    # print(f"df[cols] after bkg normalization: {df[cols]}")
-    # print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
-    # print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
-
-    # # -------------------------------------------------
-    # # increase bdt wgts for bdt to actually learn
-    # # -------------------------------------------------
-    # # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
-    # df['bdt_wgt'] = df['bdt_wgt'] * 100_000
-    # print(f"df[cols] after increase in value: {df[cols]}")
-
-
     # -------------------------------------------------
-    # match bkg dataset sum weight to background sum weight
+    # normalize sig dataset again to one
     # -------------------------------------------------
     cols = ['dataset', 'bdt_wgt', 'dimuon_ebe_mass_res',]
     mask = df["dataset"].isin(sig_datasets)
     sig_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
-    bkg_wgt_sum = np.sum(df.loc[~mask, "bdt_wgt"])
-    bkg_sf = sig_wgt_sum/bkg_wgt_sum
-    df.loc[~mask, "bdt_wgt"] = df.loc[~mask, "bdt_wgt"] * bkg_sf
-    print(f'old sig np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
-    print(f'new sig np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
-    print(f'old bkg np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
-    print(f'new bkg np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[~mask, "bdt_wgt"])}')
-    
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / sig_wgt_sum
+
+    print(f"df[cols] after normalization: {df[cols]}")
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
+    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+
+
+    # -------------------------------------------------
+    # normalize bkg dataset again to one
+    # -------------------------------------------------
+    mask = ~df["dataset"].isin(sig_datasets)
+    bkg_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_sum
+
+    print(f"df[cols] after bkg normalization: {df[cols]}")
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
+    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+
+    # -------------------------------------------------
+    # increase bdt wgts for bdt to actually learn
+    # -------------------------------------------------
+    # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
+    df['bdt_wgt'] = df['bdt_wgt'] * 100_000
+    print(f"df[cols] after increase in value: {df[cols]}")
+
     
     #print(df.head)
     columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
