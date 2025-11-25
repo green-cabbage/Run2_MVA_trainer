@@ -858,61 +858,18 @@ def prepare_dataset(df, ds_dict):
     print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
     print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
 
-
-    # -------------------------------------------------------------------
-    # Example data
-    mask = df["dataset"].isin(sig_datasets)
-    signal_wgt = np.abs(df.loc[mask, "bdt_wgt"])
-    background_wgt = np.abs(df.loc[~mask, "bdt_wgt"])
-    mask = df["dataset"].isin(["ggh_powhegPS"])
-    ggh_wgt = np.abs(df.loc[mask, "bdt_wgt"])
-    
-    sig_mean = np.mean(signal_wgt)
-    bkg_mean = np.mean(background_wgt)
-    ggh_mean = np.mean(ggh_wgt)
-    
-    # --- Plot signal only ---
-    # plt.figure(figsize=(6,4))
-    plt.hist(signal_wgt, bins=50, alpha=0.7, label=f"Signal wgt (mean={sig_mean:.3g})")
-    plt.xlabel("\n Weight"); plt.ylabel("Entries")
-    plt.title("Signal Weights")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig("sig_wgt_dist.pdf")
-    plt.clf()
-    
-    # --- Plot background only ---
-    # plt.figure(figsize=(6,4))
-    plt.hist(background_wgt, bins=50, alpha=0.7, color='C3',
-             label=f"Background wgt (mean={bkg_mean:.3g})")
-    plt.xlabel("\n Weight"); plt.ylabel("Entries")
-    plt.title("Background Weights")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig("bkg_wgt_dist.pdf")
-    plt.clf()
-
-    # --- Plot ggh only ---
-    # plt.figure(figsize=(6,4))
-    plt.hist(ggh_wgt, bins=50, alpha=0.7, label=f"ggH wgt (mean={sig_mean:.3g})")
-    plt.xlabel("\n Weight"); plt.ylabel("Entries")
-    plt.title("Signal Weights")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig("ggh_wgt_dist.pdf")
-    plt.clf()
-    # -------------------------------------------------------------------
-    raise ValueError
-
-
-    
     # -------------------------------------------------
     # increase bdt wgts for bdt to actually learn
     # -------------------------------------------------
     # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
-    df['bdt_wgt'] = df['bdt_wgt'] * 100_000 * 3
+    df['bdt_wgt'] = df['bdt_wgt'] * 100_000 * 100
     print(f"df[cols] after increase in value: {df[cols]}")
-
+    mask = df["dataset"].isin(sig_datasets)
+    print(f'new signal df.loc[mask, "bdt_wgt"]): {df.loc[mask, "bdt_wgt"]}')
+    print(f'new background (df.loc[mask, "bdt_wgt"]): {df.loc[~mask, "bdt_wgt"]}')
+    print(f'new bdt_wgt mean: {np.mean(df["bdt_wgt"])}')
+    print(f'new sig bdt_wgt mean: {np.mean(df.loc[mask, "bdt_wgt"])}')
+    print(f'new bkg bdt_wgt mean: {np.mean(df.loc[~mask, "bdt_wgt"])}')
     
     #print(df.head)
     columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
