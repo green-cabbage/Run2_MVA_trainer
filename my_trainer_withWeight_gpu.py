@@ -629,7 +629,6 @@ training_features = [
     'zeppenfeld',
     'njets',
     'year',
-    'dimuon_ebe_mass_res_rel',
 ]
 # V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75
 
@@ -830,7 +829,7 @@ def prepare_dataset(df, ds_dict):
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     # apply ebe mass to all
-    df['bdt_wgt'] = np.abs(df['wgt_nominal_orig'])
+    df['bdt_wgt'] = np.abs(df['wgt_nominal_orig']) /df['dimuon_ebe_mass_res']
     # original end -----------------------------------------------
 
     # -------------------------------------------------
@@ -859,11 +858,59 @@ def prepare_dataset(df, ds_dict):
     print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
     print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
 
+
+    # -------------------------------------------------------------------
+    # Example data
+    mask = df["dataset"].isin(sig_datasets)
+    signal_wgt = np.abs(df.loc[mask, "bdt_wgt"])
+    background_wgt = np.abs(df.loc[~mask, "bdt_wgt"])
+    mask = df["dataset"].isin(["ggh_powhegPS"])
+    ggh_wgt = np.abs(df.loc[mask, "bdt_wgt"])
+    
+    sig_mean = np.mean(signal_wgt)
+    bkg_mean = np.mean(background_wgt)
+    ggh_mean = np.mean(ggh_wgt)
+    
+    # --- Plot signal only ---
+    # plt.figure(figsize=(6,4))
+    plt.hist(signal_wgt, bins=50, alpha=0.7, label=f"Signal wgt (mean={sig_mean:.3g})")
+    plt.xlabel("\n Weight"); plt.ylabel("Entries")
+    plt.title("Signal Weights")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("sig_wgt_dist.pdf")
+    plt.clf()
+    
+    # --- Plot background only ---
+    # plt.figure(figsize=(6,4))
+    plt.hist(background_wgt, bins=50, alpha=0.7, color='C3',
+             label=f"Background wgt (mean={bkg_mean:.3g})")
+    plt.xlabel("\n Weight"); plt.ylabel("Entries")
+    plt.title("Background Weights")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("bkg_wgt_dist.pdf")
+    plt.clf()
+
+    # --- Plot ggh only ---
+    # plt.figure(figsize=(6,4))
+    plt.hist(ggh_wgt, bins=50, alpha=0.7, label=f"ggH wgt (mean={sig_mean:.3g})")
+    plt.xlabel("\n Weight"); plt.ylabel("Entries")
+    plt.title("Signal Weights")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("ggh_wgt_dist.pdf")
+    plt.clf()
+    # -------------------------------------------------------------------
+    raise ValueError
+
+
+    
     # -------------------------------------------------
     # increase bdt wgts for bdt to actually learn
     # -------------------------------------------------
     # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
-    df['bdt_wgt'] = df['bdt_wgt'] * 100_000
+    df['bdt_wgt'] = df['bdt_wgt'] * 100_000 * 3
     print(f"df[cols] after increase in value: {df[cols]}")
 
     
