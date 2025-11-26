@@ -837,9 +837,12 @@ def prepare_dataset(df, ds_dict):
     # -------------------------------------------------
     cols = ['dataset', 'bdt_wgt', 'dimuon_ebe_mass_res',]
     mask = df["dataset"].isin(sig_datasets)
+    n_sig_samples = np.sum(mask)
+    n_bkg_samples = np.sum(~mask)
     sig_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
+    sig_wgt_mean = np.mean(df.loc[mask, "bdt_wgt"])
     print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
-    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / sig_wgt_sum
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / sig_wgt_mean
 
     print(f"df[cols] after normalization: {df[cols]}")
     print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
@@ -851,8 +854,10 @@ def prepare_dataset(df, ds_dict):
     # -------------------------------------------------
     mask = ~df["dataset"].isin(sig_datasets)
     bkg_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
+    bkg_wgt_mean = np.mean(df.loc[mask, "bdt_wgt"])
+    bkg_sf = n_sig_samples/n_bkg_samples
     print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
-    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_sum
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_mean * bkg_sf
 
     print(f"df[cols] after bkg normalization: {df[cols]}")
     print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
