@@ -837,12 +837,9 @@ def prepare_dataset(df, ds_dict):
     # -------------------------------------------------
     cols = ['dataset', 'bdt_wgt', 'dimuon_ebe_mass_res',]
     mask = df["dataset"].isin(sig_datasets)
-    n_sig_samples = np.sum(mask)
-    n_bkg_samples = np.sum(~mask)
     sig_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
-    sig_wgt_mean = np.mean(df.loc[mask, "bdt_wgt"])
     print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
-    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / sig_wgt_mean
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / sig_wgt_sum
 
     print(f"df[cols] after normalization: {df[cols]}")
     print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
@@ -854,10 +851,8 @@ def prepare_dataset(df, ds_dict):
     # -------------------------------------------------
     mask = ~df["dataset"].isin(sig_datasets)
     bkg_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
-    bkg_wgt_mean = np.mean(df.loc[mask, "bdt_wgt"])
-    bkg_sf = n_sig_samples/n_bkg_samples
     print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
-    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_mean * bkg_sf
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_sum
 
     print(f"df[cols] after bkg normalization: {df[cols]}")
     print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
@@ -867,14 +862,10 @@ def prepare_dataset(df, ds_dict):
     # increase bdt wgts for bdt to actually learn
     # -------------------------------------------------
     # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
-    df['bdt_wgt'] = df['bdt_wgt'] * 100_000 * 100
+    C_coeff = 1e3
+    df['bdt_wgt'] = df['bdt_wgt'] * C_coeff
     print(f"df[cols] after increase in value: {df[cols]}")
-    mask = df["dataset"].isin(sig_datasets)
-    print(f'new signal df.loc[mask, "bdt_wgt"]): {df.loc[mask, "bdt_wgt"]}')
-    print(f'new background (df.loc[mask, "bdt_wgt"]): {df.loc[~mask, "bdt_wgt"]}')
-    print(f'new bdt_wgt mean: {np.mean(df["bdt_wgt"])}')
-    print(f'new sig bdt_wgt mean: {np.mean(df.loc[mask, "bdt_wgt"])}')
-    print(f'new bkg bdt_wgt mean: {np.mean(df.loc[~mask, "bdt_wgt"])}')
+
     
     #print(df.head)
     columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
@@ -1661,6 +1652,8 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             values = list(feature_important.values())
             score_name = "Weight Score"
             data = pd.DataFrame(data=values, index=keys, columns=[score_name]).sort_values(by = score_name, ascending=True)
+            data["Normalized Score"] = data[score_name] / data[score_name].sum()
+            data.to_csv(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byWeight.csv")
             data.nlargest(50, columns=score_name).plot(kind='barh', figsize = (20,10))
             data.plot(kind='barh', figsize = (20,10))
             plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byWeight.png")
@@ -1670,6 +1663,8 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             values = list(feature_important.values())
             score_name = "Gain Score"
             data = pd.DataFrame(data=values, index=keys, columns=[score_name]).sort_values(by = score_name, ascending=True)
+            data["Normalized Score"] = data[score_name] / data[score_name].sum()
+            data.to_csv(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byGain.csv")
             data.nlargest(50, columns=score_name).plot(kind='barh', figsize = (20,10))
             data.plot(kind='barh', figsize = (20,10))
             plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byGain.png")
