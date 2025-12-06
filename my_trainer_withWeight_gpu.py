@@ -862,7 +862,7 @@ def prepare_dataset(df, ds_dict):
     # increase bdt wgts for bdt to actually learn
     # -------------------------------------------------
     # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
-    C_coeff = 1e3
+    C_coeff = 1e5
     df['bdt_wgt'] = df['bdt_wgt'] * C_coeff
     print(f"df[cols] after increase in value: {df[cols]}")
 
@@ -1185,7 +1185,7 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
                 max_depth=4,                 # Max depth
                 learning_rate=0.10,          # Shrinkage
                 subsample=0.5,               # Bagged sample fraction
-                min_child_weight=0.03 ,  # NOTE: this causes AUC == 0.5
+                min_child_weight=2.804532632148785 ,  # NOTE: this causes AUC == 0.5
                 tree_method='hist',          # Needed for max_bin
                 max_bin=30,                  # Number of cuts
                 # objective='binary:logistic', # CrossEntropy (logloss)

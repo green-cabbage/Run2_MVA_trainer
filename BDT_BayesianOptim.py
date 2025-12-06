@@ -31,53 +31,60 @@ from xgboost import XGBClassifier
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score
+from modules.utils import PairNAnnhilateNegWgt, addErrByQuadrature, GetAucStdErrHanleyMcNeil, fullROC_operations, customROC_curve_AN
 
-def objective(trial, Xtr, Xva, ytr, yva, w_train, w_val) -> float:
+def objective(trial, xp_train, xp_val, y_train, y_val, w_train, w_val, weight_nom_val, random_seed) -> float:
     # params = {
-    #     "objective": "binary:logistic",
-    #     "eval_metric": "auc",
-    #     "tree_method": "hist",            # change to "gpu_hist" if you have a GPU
-    #     "random_state": 1337,
-    #     "n_estimators": trial.suggest_int("n_estimators", 200, 2000),
-    #     "max_depth": trial.suggest_int("max_depth", 3, 10),
-    #     "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
-    #     "subsample": trial.suggest_float("subsample", 0.5, 1.0),
-    #     "min_child_weight": trial.suggest_float("min_child_weight", 0.1, 20.0, log=True),
-    #     "max_bin": trial.suggest_int("max_bin", 64, 512),
-    #     "n_jobs": -1,
+    #     # "objective": "binary:logistic",
+    #     # "eval_metric": "auc",
+    #     "eval_metric": "logloss",
+    #     # "tree_method": "hist",            # change to "gpu_hist" if you have a GPU
+    #     "random_state": random_seed,
+    #     # "n_estimators": trial.suggest_int("n_estimators", 500, 2100),
+    #     # "max_depth": trial.suggest_int("max_depth", 3, 10),
+    #     # "learning_rate": trial.suggest_float("learning_rate", 0.05, 0.3),
+    #     # "subsample": trial.suggest_float("subsample", 0.2, 1.0),
+    #     "min_child_weight": trial.suggest_float("min_child_weight", 0.001, 20.0),
+    #     # "max_bin": trial.suggest_int("max_bin", 10, 80),
+    #     "n_jobs": 30,
     # }
-    neg, pos = (ytr == 0).sum(), (ytr == 1).sum()
-    default_spw = float(neg) / max(pos, 1)
-    params = {
-        # "objective": "binary:logistic",
-        # "eval_metric": "auc",
-        "eval_metric": "logloss",
-        "tree_method": "hist",            # change to "gpu_hist" if you have a GPU
-        "random_state": 1337,
-        "n_estimators": trial.suggest_int("n_estimators", 500, 2100),
-        "max_depth": trial.suggest_int("max_depth", 3, 10),
-        "learning_rate": trial.suggest_float("learning_rate", 0.05, 0.3),
-        "subsample": trial.suggest_float("subsample", 0.2, 1.0),
-        "min_child_weight": trial.suggest_float("min_child_weight", 0.001, 20.0),
-        "max_bin": trial.suggest_int("max_bin", 10, 80),
-        "n_jobs": -1,
+    verbosity=2
+    clf = XGBClassifier(
+        n_estimators=1000,           # Number of trees
+        max_depth=4,                 # Max depth
+        learning_rate=0.10,          # Shrinkage
+        subsample=0.5,               # Bagged sample fraction
+        min_child_weight=trial.suggest_float("min_child_weight", 0.001, 10.0),
+        tree_method='hist',          # Needed for max_bin
+        max_bin=30,                  # Number of cuts
+        # objective='binary:logistic', # CrossEntropy (logloss)
+        # use_label_encoder=False,     # Optional: suppress warning
+        eval_metric='logloss',       # Ensures logloss used during training
+        n_jobs=30,                   # Use all CPU cores
+        # scale_pos_weight=scale_pos_weight*0.005,
+        # scale_pos_weight=scale_pos_weight,
+        early_stopping_rounds=15,#15
+        verbosity=verbosity,
+        random_state=random_seed_val,
+    )
 
-
-
-    }
-
+    # clf = XGBClassifier(**params)
+    eval_set = [(xp_train, y_train), (xp_val, y_val)]
     
-
-    clf = XGBClassifier(**params)
     clf.fit(
-        Xtr, ytr,
-        eval_set=[(Xva, yva)],
+        xp_train, y_train,
+        # eval_set=[(xp_val, y_val)],
+        eval_set=eval_set,
         sample_weight=w_train,
         verbose=False
     )
 
-    proba = clf.predict_proba(Xva)[:, 1]
-    auc = roc_auc_score(yva, proba, sample_weight=w_val)
+    proba = clf.predict_proba(xp_val)[:, 1]
+    # auc = roc_auc_score(y_val, proba, sample_weight=w_val)
+    eff_bkg_val, eff_sig_val, thresholds_val, TpFpTnFn_df_val = customROC_curve_AN(y_val, proba, weight_nom_val, doClassBalance=False)
+    
+    auc  = auc_from_eff(eff_sig_val, eff_bkg_val)
+    
 
     trial.report(auc, step=getattr(clf, "best_iteration", 0) or 0)
     if trial.should_prune():
@@ -85,10 +92,15 @@ def objective(trial, Xtr, Xva, ytr, yva, w_train, w_val) -> float:
 
     return auc
 
-def getGOF_KS_bdt(valid_hist, train_hist, bin_edges, save_path:str, fold_idx):
+def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, fold_idx):
     """
     Get KS value for specific value
     """
+    print(f"valid_hist: {valid_hist}")
+    print(f"train_hist: {train_hist}")
+    print(f"valid_hist: {np.sum(valid_hist)}")
+    print(f"train_hist: {np.sum(train_hist)}")
+    
     data_counts = valid_hist
     pdf_counts = train_hist
 
@@ -105,18 +117,25 @@ def getGOF_KS_bdt(valid_hist, train_hist, bin_edges, save_path:str, fold_idx):
     pdf_cdf = np.cumsum(pdf_counts) / np.sum(pdf_counts)
     ks_statistic = np.max(np.abs(data_cdf - pdf_cdf))
     print(f"ks_statistic: {ks_statistic}")
-    nevents = np.sum(data_counts)
+    nevents = weight_val.size
+    print(f"nevents: {nevents}")
     
     
-    alpha = 0.1
-    pass_threshold = 1.22385 / (nevents**(0.5))
+    alpha1 = 0.1
+    pass_threshold1 = 1.22385 / (nevents**(0.5))
+    alpha2 = 0.001
+    pass_threshold2 = 1.94947 / (nevents**(0.5))
 
     df_dict= {
         "ks_statistic": [ks_statistic],
         "nevents" : [nevents],
-        "alpha":[ alpha],
-        "pass threshold": [pass_threshold],
-        "test pass": [ks_statistic<pass_threshold],
+        "alpha1":[ alpha1],
+        "alpha1 pass threshold": [pass_threshold1],
+        "alpha1 test pass": [ks_statistic<pass_threshold1],
+        "alpha2":[ alpha2],
+        "alpha2 pass threshold": [pass_threshold2],
+        "alpha2 test pass": [ks_statistic<pass_threshold2],
+        
    }
     gof_df = pd.DataFrame(df_dict)
     gof_df.to_csv(f"{save_path}/KS_stats_{fold_idx}.csv")
@@ -149,11 +168,15 @@ def getGOF_KS_bdt(valid_hist, train_hist, bin_edges, save_path:str, fold_idx):
         
 
 def auc_from_eff(eff_sig, eff_bkg):
+    """
+    same auc_from_eff function from modules but uses np.trapz instead of np.trapezoid
+    """
     fpr = 1.0 - np.asarray(eff_bkg)
     tpr = np.asarray(eff_sig)
     # sort by FPR ascending before integrating
     order = np.argsort(fpr)
-    return np.trapezoid(tpr[order], fpr[order])
+    return np.trapz(tpr[order], fpr[order])
+
 
 def prepare_features(events, features, variation="nominal"):
     plt.style.use(hep.style.CMS)
@@ -235,7 +258,8 @@ def get6_5(label, pred, weight, save_path:str, name: str):
     ax_main.legend()
     
     # Set Range
-    ax_main.set_xlim(-0.9, 0.9)
+    # ax_main.set_xlim(-0.9, 0.9)
+    ax_main.set_xlim(-1.0, 1.0)
     ax_main.set_xticks([ -0.8, -0.6, -0.4, -0.2 , 0. ,  0.2 , 0.4 , 0.6,  0.8])
     ax_main.set_ylim(0, 0.09)
     
@@ -243,73 +267,19 @@ def get6_5(label, pred, weight, save_path:str, name: str):
     hep.cms.label(data=False, ax=ax_main)
     
     plt.savefig(f"{save_path}/6_5_{name}.png")
+    plt.savefig(f"{save_path}/6_5_{name}.pdf")
     plt.clf()
+
+    # save hist in pd df
+    df_6p5 = pd.DataFrame({
+        'bin_left': binning[:-1],
+        'bin_right': binning[1:],
+        'bin_center': 0.5 * (binning[:-1] + binning[1:]),
+        "bkg_hist" : bkg_hist,
+        "sig_hist" : sig_hist,
+    })
+    df_6p5.to_csv(f"{save_path}/6_5_{name}.csv")
     
-    
-
-def customROC_curve_AN(label, pred, weight):
-    """
-    generates signal and background efficiency consistent with the AN,
-    as described by Fig 4.6 of Dmitry's PhD thesis
-    """
-    # we assume sigmoid output with labels 0 = background, 1 = signal
-    thresholds = np.linspace(start=0,stop=1, num=500) 
-    effBkg_total = -99*np.ones_like(thresholds) # effBkg = false positive rate
-    effSig_total = -99*np.ones_like(thresholds) # effSig = true positive rate
-    for ix in range(len(thresholds)):
-        threshold = thresholds[ix]
-        # get FP and TP
-        positive_filter = (pred > threshold)
-        falsePositive_filter = positive_filter & (label == 0)
-        FP = np.sum(weight[falsePositive_filter])#  FP = false positive
-        truePositive_filter = positive_filter & (label == 1)
-        TP = np.sum(weight[truePositive_filter])#  TP = true positive
-        
-
-        # get TN and FN
-        negative_filter = (pred <= threshold) # just picked negative to be <=
-        trueNegative_filter = negative_filter & (label == 0)
-        TN = np.sum(weight[trueNegative_filter])#  TN = true negative
-        falseNegative_filter = negative_filter & (label == 1)
-        FN = np.sum(weight[falseNegative_filter])#  FN = false negative
-
-        
-
-
-        # effBkg = TN / (TN + FP) # Dmitry PhD thesis definition
-        # effSig = FN / (FN + TP) # Dmitry PhD thesis definition
-        effBkg = FP / (TN + FP) # AN-19-124 ggH Cat definition
-        effSig = TP / (FN + TP) # AN-19-124 ggH Cat definition
-        effBkg_total[ix] = effBkg
-        effSig_total[ix] = effSig
-
-        # print(f"ix: {ix}") 
-        # print(f"threshold: {threshold}")
-        # print(f"effBkg: {effBkg}")
-        # print(f"effSig: {effSig}")
-        
-        
-        # sanity check
-        assert ((np.sum(positive_filter) + np.sum(negative_filter)) == len(pred))
-        total_yield = FP + TP + FN + TN
-        assert(np.isclose(total_yield, np.sum(weight)))
-        # print(f"total_yield: {total_yield}")
-        # print(f"np.sum(weight): {np.sum(weight)}")
-    
-    # print(f"np.sum(effBkg_total ==-99) : {np.sum(effBkg_total ==-99)}")
-    # print(f"np.sum(effSig_total ==-99) : {np.sum(effSig_total ==-99)}")
-    # neither_zeroNorOne = ~((label == 0) | (label == 1))
-    # print(f"np.sum(neither_zeroNorOne) : {np.sum(neither_zeroNorOne)}")
-    effBkg_total[np.isnan(effBkg_total)] = 1
-    effSig_total[np.isnan(effSig_total)] = 1
-    # print(f"effBkg_total: {effBkg_total}")
-    # print(f"effSig_total: {effSig_total}")
-    # print(f"thresholds: {thresholds}")
-    # raise ValueError
-    return (effBkg_total, effSig_total, thresholds)
-
-
-
 training_features = [
     'dimuon_cos_theta_cs', 
     'dimuon_phi_cs', 
@@ -331,9 +301,11 @@ training_features = [
     'mu2_eta', 
     'mu2_pt_over_mass', 
     'zeppenfeld',
-    'njets'
+    'njets',
+    'year',
 ]
-# V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75, bdt_V2_fullRun_Jun21_2025_1n2Revised_all
+# V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75
+
 
 #---------------------------------------------------------------------------
 
@@ -452,14 +424,15 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     print(f"computed_zip : {computed_zip}")
     # for copperheadV1, you gotta fill none b4 and store them in a dictionary b4 converting to dataframe
     computed_dict = {}
+    nan_val = -999.0
     for field in computed_zip.fields:
         # print(f"field: {field}")
         # print(f"computed_dict[{field}] b4 fill none: {ak.to_dataframe(computed_zip[field]) }")
         
         if "dPhi" in field:
-            computed_dict[field] = ak.fill_none(computed_zip[field], value=-1.0)
+            computed_dict[field] = ak.fill_none(computed_zip[field], value=nan_val)
         else:
-            computed_dict[field] = ak.fill_none(computed_zip[field], value=0.0)
+            computed_dict[field] = ak.fill_none(computed_zip[field], value=nan_val)
         # print(f"computed_dict[{field}] : {computed_dict[field]}")
         
     # # recalculate pt over masses. They're all inf and zeros for copperheadV1
@@ -477,10 +450,8 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     for field in df.columns:
         if "dPhi" in field:
             dPhis.append(field)
-    # print(f"dPhis: {dPhis}")
-    # fill none values in dPhis with -1, then 0 for rest
-    df.fillna({field: -1 for field in dPhis},inplace=True)
-    df.fillna(0,inplace=True)
+    df.fillna({field: nan_val for field in dPhis},inplace=True)
+    df.fillna(nan_val,inplace=True)
     # add columns
     df["dataset"] = dataset 
     df["cls_avg_wgt"] = -1.0
@@ -497,7 +468,6 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     # df = df.loc[positive_wgts]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     return df
-    
 
 def prepare_dataset(df, ds_dict):
     # Convert dictionary of datasets to a more useful dataframe
@@ -511,7 +481,8 @@ def prepare_dataset(df, ds_dict):
                 train_samples.append(ds)
                 df_info.loc[ds, "class_name"] = cls
                 df_info.loc[ds, "iclass"] = icls
-    df_info["iclass"] = df_info["iclass"].fillna(-1).astype(int)
+    nan_val = -999.0
+    df_info["iclass"] = df_info["iclass"].fillna(nan_val).astype(int)
     df = df[df.dataset.isin(df_info.dataset.unique())]
     
     # Assign numerical classes to each event
@@ -520,18 +491,55 @@ def prepare_dataset(df, ds_dict):
     cls_name_map = dict(df_info[["dataset", "class_name"]].values)
     df["class"] = df.dataset.map(cls_map)
     df["class_name"] = df.dataset.map(cls_name_map)
+    # df.loc[:,'mu1_pt_over_mass'] = np.divide(df['mu1_pt'], df['dimuon_mass'])
+    # df.loc[:,'mu2_pt_over_mass'] = np.divide(df['mu2_pt'], df['dimuon_mass'])
+    # df[df['njets']<2]['jj_dPhi'] = -1
+    #df[df['dataset']=="ggh_amcPS"].loc[:,'wgt_nominal_total'] = np.divide(df[df['dataset']=="ggh_amcPS"]['wgt_nominal_total'], df[df['dataset']=="ggh_amcPS"]['dimuon_ebe_mass_res'])
 
     
     # --------------------------------------------------------
-    # df["wgt_nominal_orig"] = copy.deepcopy(df["wgt_nominal"])
     # multiply by dimuon mass resolutions if signal
-    # sig_datasets = training_samples["signal"]
-    # sig_datasets = ["ggh_amcPS"]
+    # --------------------------------------------------------
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
-    for dataset in sig_datasets:
-        df.loc[df['dataset']==dataset,'wgt_nominal'] = np.divide(df[df['dataset']==dataset]['wgt_nominal'], df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
+    # apply ebe mass to all
+    df['bdt_wgt'] = np.abs(df['wgt_nominal_orig']) /df['dimuon_ebe_mass_res']
     # original end -----------------------------------------------
+
+    # -------------------------------------------------
+    # normalize sig dataset again to one
+    # -------------------------------------------------
+    cols = ['dataset', 'bdt_wgt', 'dimuon_ebe_mass_res',]
+    mask = df["dataset"].isin(sig_datasets)
+    sig_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / sig_wgt_sum
+
+    print(f"df[cols] after normalization: {df[cols]}")
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
+    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+
+
+    # -------------------------------------------------
+    # normalize bkg dataset again to one
+    # -------------------------------------------------
+    mask = ~df["dataset"].isin(sig_datasets)
+    bkg_wgt_sum = np.sum(df.loc[mask, "bdt_wgt"])
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
+    df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_sum
+
+    print(f"df[cols] after bkg normalization: {df[cols]}")
+    print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
+    print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
+
+    # -------------------------------------------------
+    # increase bdt wgts for bdt to actually learn
+    # -------------------------------------------------
+    # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
+    C_coeff = 1e5
+    df['bdt_wgt'] = df['bdt_wgt'] * C_coeff
+    print(f"df[cols] after increase in value: {df[cols]}")
+
     
     #print(df.head)
     columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
@@ -571,7 +579,6 @@ def scale_data_withweight(inputs, x_train, x_val, x_eval, df_train, fold_label):
     np.save(save_path + f"/scalers_{name}_{fold_label}", [x_mean, x_std]) 
     return training_data, validation_data, evaluation_data
 
-
 def removeStrInColumn(df, str2remove):
     """
     helper function that removes str2remove in df columns if they exist
@@ -607,7 +614,8 @@ def getCorrMatrix(df, training_features, save_path=""):
     # raise ValueError
     return corr_matrix
 
-def classifier_train(df, args, training_samples):
+def classifier_train(df, args, training_samples, random_seed_val: int):
+    print(f"random_seed_val: {random_seed_val}")
     if args['dnn']:
         from tensorflow.keras.models import Model
         from tensorflow.keras.layers import Dense, Activation, Input, Dropout, Concatenate, Lambda, BatchNormalization
@@ -633,12 +641,10 @@ def classifier_train(df, args, training_samples):
     # save training features as json for readability
     with open(f'{save_path}/training_features.json', 'w') as file:
         json.dump(training_features, file)
-    
-
     # get the overal correlation matrix
     corr_matrix = getCorrMatrix(df, training_features, save_path=save_path)
+
     
-    # start training
     
     for i in range(nfolds):
         if args['year']=='':
@@ -665,6 +671,9 @@ def classifier_train(df, args, training_samples):
         df_train = df[train_filter]
         df_val = df[val_filter]
         df_eval = df[eval_filter]
+
+        # # annhilate neg wgts
+        df_train = PairNAnnhilateNegWgt(df_train)
         
         x_train = df_train[training_features]
         #y_train = df_train['cls_idx']
@@ -699,17 +708,17 @@ def classifier_train(df, args, training_samples):
             # df_eval.loc[y_eval==icls,'cls_avg_wgt'] = df_eval.loc[y_eval==icls,'wgt_nominal'].values.sum()
             print(f"{train_evts} training events in class {cls}")
         # original end -------------------------------------------------------
-        
-        
+        # test start -------------------------------------------------------
+        # bkg_l = training_samples["background"]
+        # sig_l = training_samples["signal"]
+
+
         # # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight or V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
         # AN-19-124 line 1156: "the final BDTs have been trained by flipping the sign of negative weighted events"
         # df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
-        # df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) / df_val['dimuon_ebe_mass_res']
-        # df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig']) / df_eval['dimuon_ebe_mass_res']
-
-        df_train['training_wgt'] = df_train['wgt_nominal']/df_train['cls_avg_wgt']
-        df_val['training_wgt'] = np.abs(df_val['wgt_nominal'])
-        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal'])
+        df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) / df_val['dimuon_ebe_mass_res']
+        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig']) / df_eval['dimuon_ebe_mass_res']
+        
         
         # scale data
         #x_train, x_val = scale_data(training_features, x_train, x_val, df_train, label)#Last used
@@ -744,6 +753,9 @@ def classifier_train(df, args, training_samples):
             model.compile(loss='binary_crossentropy', optimizer='adam', metrics=["accuracy"])
             model.summary()
 
+            #history = model.fit(x_train[training_features], y_train, epochs=100, batch_size=1024,\
+            #                    sample_weight=df_train['training_wgt'].values, verbose=1,\
+            #                    validation_data=(x_val[training_features], y_val, df_val['training_wgt'].values), shuffle=True)
             history = model.fit(x_train[training_features], y_train, epochs=10, batch_size=1024,
                                 verbose=1,
                                 validation_data=(x_val[training_features], y_val), shuffle=True)
@@ -793,13 +805,17 @@ def classifier_train(df, args, training_samples):
             print(f"xp_val.shape: {xp_val.shape}")
             print(f"xp_eval.shape: {xp_eval.shape}")
 
-            w_train = df_train['training_wgt'].values
+            w_train = df_train['bdt_wgt'].values
             w_val = df_val['training_wgt'].values
             w_eval = df_eval['training_wgt'].values
 
             weight_nom_train = df_train['wgt_nominal_orig'].values
             weight_nom_val = df_val['wgt_nominal_orig'].values
             weight_nom_eval = df_eval['wgt_nominal_orig'].values
+
+            # random_seed_val= 125 # M of Higgs as random seed
+            
+            np.random.seed(random_seed_val)
             
             shuf_ind_tr = np.arange(len(xp_train))
             np.random.shuffle(shuf_ind_tr)
@@ -828,19 +844,44 @@ def classifier_train(df, args, training_samples):
             
             w_train = w_train[shuf_ind_tr]
             w_val = w_val[shuf_ind_val]
+
+            # AN Model new start ---------------------------------------------------------------   
+            verbosity=2
             
-            
-            
-            
+            # AN-19-124 p 45: "a correction factor is introduced to ensure that the same amount of background events are expected when either negative weighted events are discarded or they are considered with a positive weight"
+            # scale_pos_weight = float(np.sum(np.abs(weight_nom_train[y_train == 0]))) / np.sum(np.abs(weight_nom_train[y_train == 1])) 
+            # scale_pos_weight = scale_pos_weight*0.75
+            # print(f"scale_pos_weight: {scale_pos_weight}")
+            # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
+            # print(f"len(x_train): {len(x_train)}")
+            model = XGBClassifier(
+                n_estimators=1000,           # Number of trees
+                max_depth=4,                 # Max depth
+                learning_rate=0.10,          # Shrinkage
+                subsample=0.5,               # Bagged sample fraction
+                min_child_weight=0.03 ,  # NOTE: this causes AUC == 0.5
+                tree_method='hist',          # Needed for max_bin
+                max_bin=30,                  # Number of cuts
+                # objective='binary:logistic', # CrossEntropy (logloss)
+                # use_label_encoder=False,     # Optional: suppress warning
+                eval_metric='logloss',       # Ensures logloss used during training
+                n_jobs=30,                   # Use all CPU cores
+                # scale_pos_weight=scale_pos_weight*0.005,
+                # scale_pos_weight=scale_pos_weight,
+                early_stopping_rounds=15,#15
+                verbosity=verbosity,
+                random_state=random_seed_val,
+            )
             # AN Model new end ---------------------------------------------------------------
             
+            print(model)
             print(f"negative w_train: {w_train[w_train <0]}")
+            # model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
 
             eval_set = [(xp_train, y_train), (xp_val, y_val)]#Last used
-            
-            # model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
-            study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=1337))
-            study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, w_val), n_trials=30)
+
+            study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=random_seed_val))
+            study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, w_val, weight_nom_val, random_seed=random_seed_val), n_trials=30)
             print("Best AUC:", study.best_value)
             print("Best params:", study.best_params)
 
@@ -1021,69 +1062,156 @@ def classifier_train(df, args, training_samples):
 
             # output shape dist end --------------------------------------------------------------------------
 
+            
             # -------------------------------------------
             # GoF test
             # -------------------------------------------
             gof_save_path = f"output/bdt_{name}_{year}/"
-            getGOF_KS_bdt(hist_val_sig, hist_train_sig, binning, gof_save_path, label)
+            # print(f"weight_nom_val_sig: {weight_nom_val_sig}")
+            # print(f"weight_nom_train_sig: {weight_nom_train_sig}")
+            print(f"weight_nom_val_sig: {type(weight_nom_val_sig)}")
+            print(f"weight_nom_train_sig: {type(weight_nom_train_sig)}")
+            print(f"weight_nom_val_sig: {len(weight_nom_val_sig)}")
+            print(f"weight_nom_train_sig: {len(weight_nom_train_sig)}")
+            
+            # we compare validation distribution with evaluation distribution to see if there's any over-training
+            getGOF_KS_bdt(hist_eval_sig, hist_val_sig, weight_nom_val_sig, binning, gof_save_path, label)
 
             # -------------------------------------------
             # Log scale ROC curve
             # -------------------------------------------
+            roc_data_dict = {
+                "y_train": y_train.ravel(),
+                "y_pred_train": y_pred_train,
+                "weight_nom_train": weight_nom_train,
             
-            eff_bkg_train, eff_sig_train, thresholds_train = customROC_curve_AN(y_train.ravel(), y_pred_train, weight_nom_train)
-            eff_bkg_val, eff_sig_val, thresholds_val = customROC_curve_AN(y_val.ravel(), y_pred, weight_nom_val)
-            eff_bkg_eval, eff_sig_eval, thresholds_eval = customROC_curve_AN(y_eval.ravel(), y_eval_pred, weight_nom_eval)
+                "y_val": y_val.ravel(),
+                "y_pred": y_pred,
+                "weight_nom_val": weight_nom_val,
+            
+                "y_eval": y_eval.ravel(),
+                "y_eval_pred": y_eval_pred,
+                "weight_nom_eval": weight_nom_eval,
+            }
+            fullROC_operations(fig, roc_data_dict, name, year, label, doClassBalance=False)
+            fullROC_operations(fig, roc_data_dict, name, year, label, doClassBalance=True)
+            
+            # # eff_bkg_train, eff_sig_train, thresholds_train, TpFpTnFn_df_train = customROC_curve_AN(y_train.ravel(), y_pred_train, weight_nom_train)
+            # # eff_bkg_val, eff_sig_val, thresholds_val, TpFpTnFn_df_val = customROC_curve_AN(y_val.ravel(), y_pred, weight_nom_val)
+            # # eff_bkg_eval, eff_sig_eval, thresholds_eval, TpFpTnFn_df_eval = customROC_curve_AN(y_eval.ravel(), y_eval_pred, weight_nom_eval)
 
-            auc_eval  = auc_from_eff(eff_sig_eval,  eff_bkg_eval)
-            auc_train = auc_from_eff(eff_sig_train, eff_bkg_train)
-            auc_val   = auc_from_eff(eff_sig_val,   eff_bkg_val)
+            # eff_bkg_train, eff_sig_train, thresholds_train, _ = customROC_curve_AN(y_train.ravel(), y_pred_train, weight_nom_train, doClassBalance=True)
+            # eff_bkg_val, eff_sig_val, thresholds_val, _ = customROC_curve_AN(y_val.ravel(), y_pred, weight_nom_val, doClassBalance=True)
+            # eff_bkg_eval, eff_sig_eval, thresholds_eval, _ = customROC_curve_AN(y_eval.ravel(), y_eval_pred, weight_nom_eval, doClassBalance=True)
 
-            # superimposed log ROC start --------------------------------------------------------------------------
+            # # deprecated -----------------------
+            # # cols2merge = ["TP","FP","TN","FN"]
+            # # TpFpTnFn_df_train = addErrByQuadrature(TpFpTnFn_df_train, columns=cols2merge)
+            # # TpFpTnFn_df_val = addErrByQuadrature(TpFpTnFn_df_val, columns=cols2merge)
+            # # TpFpTnFn_df_eval = addErrByQuadrature(TpFpTnFn_df_eval, columns=cols2merge)
+            # # deprecated -----------------------
             
-            plt.plot(eff_sig_eval, eff_bkg_eval, label=f"Stage2 ROC (Eval)  — AUC={auc_eval:.3f}")
-            plt.plot(eff_sig_train, eff_bkg_train, label=f"Stage2 ROC (Train) — AUC={auc_train:.3f}")
-            plt.plot(eff_sig_val, eff_bkg_val, label=f"Stage2 ROC (Val)   — AUC={auc_val:.3f}")
+
+            # # -------------------------------------
+            # # save ROC curve
+            # # -------------------------------------
+            # csv_savepath = f"output/bdt_{name}_{year}/rocEffs_{label}.csv"
+            # roc_df = pd.DataFrame({
+            #     "eff_sig_eval" : eff_sig_eval,
+            #     "eff_bkg_eval" : eff_bkg_eval,
+            #     "eff_sig_train" : eff_sig_train,
+            #     "eff_bkg_train" : eff_bkg_train,
+            #     "eff_sig_val" : eff_sig_val,
+            #     "eff_bkg_val" : eff_bkg_val,
+            # })
+            # # roc_df = pd.concat([roc_df, TpFpTnFn_df_train, TpFpTnFn_df_val, TpFpTnFn_df_eval], axis=1)
+            # roc_df.to_csv(csv_savepath)
+
             
-            # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
-            plt.vlines(np.linspace(0,1,11), 0, 1, linestyle="dashed", color="grey")
-            plt.hlines(np.logspace(-4,0,5), 0, 1, linestyle="dashed", color="grey")
-            # plt.hlines(eff_bkg, 0, eff_sig, linestyle="dashed")
-            plt.xlim([0.0, 1.0])
-            # plt.ylim([0.0, 1.0])
-            plt.xlabel('Signal eff')
-            plt.ylabel('Background eff')
-            plt.yscale("log")
-            plt.ylim([0.0001, 1.0])
+            # auc_eval  = auc_from_eff(eff_sig_eval,  eff_bkg_eval)
+            # auc_train = auc_from_eff(eff_sig_train, eff_bkg_train)
+            # auc_val   = auc_from_eff(eff_sig_val,   eff_bkg_val)
+
+            # # Calculate auc err using HM method
+            # n_pos_eval = np.sum(y_eval.ravel() ==1)
+            # n_neg_eval = np.sum(y_eval.ravel() !=1)
+            # auc_err_eval = GetAucStdErrHanleyMcNeil(auc_eval, n_pos_eval, n_neg_eval)
+            # n_pos_train = np.sum(y_train.ravel() ==1)
+            # n_neg_train = np.sum(y_train.ravel() !=1)
+            # auc_err_train = GetAucStdErrHanleyMcNeil(auc_train, n_pos_train, n_neg_train)
+            # n_pos_val = np.sum(y_val.ravel() ==1)
+            # n_neg_val = np.sum(y_val.ravel() !=1)
+            # auc_err_val = GetAucStdErrHanleyMcNeil(auc_val, n_pos_val, n_neg_val)
             
-            plt.legend(loc="lower right")
-            plt.title(f'ROC curve for ggH BDT {year}')
-            fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}.png")
-            plt.clf()
+            # print(f"auc_err_train: {auc_err_train}")
+
+            # # -------------------------------------
+            # # save auc and auc err
+            # # -------------------------------------
+            # csv_savepath = f"output/bdt_{name}_{year}/aucInfo_{label}.csv"
+            # auc_df = pd.DataFrame({
+            #     "auc_eval" : [auc_eval],
+            #     "auc_err_eval" : [auc_err_eval],
+            #     "auc_train" : [auc_train],
+            #     "auc_err_train" : [auc_err_train],
+            #     "auc_val" : [auc_val],
+            #     "auc_err_val" : [auc_err_val],
+            # })
+            # # roc_df = pd.concat([roc_df, TpFpTnFn_df_train, TpFpTnFn_df_val, TpFpTnFn_df_eval], axis=1)
+            # auc_df.to_csv(csv_savepath)
+
+            
+            # plt.plot(eff_sig_eval, eff_bkg_eval, label=f"ROC (Eval)  — AUC={auc_eval:.4f}+/-{auc_err_eval:.4f}")
+            # plt.plot(eff_sig_val, eff_bkg_val, label=f"ROC (Val)   — AUC={auc_val:.4f}+/-{auc_err_val:.4f}")
+            
+            # # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
+            # plt.vlines(np.linspace(0,1,11), 0, 1, linestyle="dashed", color="grey")
+            # plt.hlines(np.logspace(-4,0,5), 0, 1, linestyle="dashed", color="grey")
+            # # plt.hlines(eff_bkg, 0, eff_sig, linestyle="dashed")
+            # plt.xlim([0.0, 1.0])
+            # # plt.ylim([0.0, 1.0])
+            # plt.xlabel('Signal eff')
+            # plt.ylabel('Background eff')
+            # plt.yscale("log")
+            # plt.ylim([0.0001, 1.0])
+            
+            # plt.legend(loc="lower right")
+            # plt.title(f'ROC curve for ggH BDT {year}')
+            # fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}.pdf")
+
+            
+            # plt.plot(eff_sig_train, eff_bkg_train, label=f"ROC (Train) — AUC={auc_train:.4f}+/-{auc_err_train:.4f}")
+            # plt.legend(loc="lower right")
+            # fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}_w_train.pdf")
+            
+            # plt.clf()
             # superimposed log ROC end --------------------------------------------------------------------------
 
-            # superimposed flipped log ROC start --------------------------------------------------------------------------
-            plt.plot(1-eff_sig_eval,  1-eff_bkg_eval,  label=f"Stage2 ROC (Eval)  — AUC={auc_eval:.3f}")
-            plt.plot(1-eff_sig_train, 1-eff_bkg_train, label=f"Stage2 ROC (Train) — AUC={auc_train:.3f}")
-            plt.plot(1-eff_sig_val,   1-eff_bkg_val,   label=f"Stage2 ROC (Val)   — AUC={auc_val:.3f}")
+            # # superimposed flipped log ROC start --------------------------------------------------------------------------
+            # plt.plot(1-eff_sig_eval,  1-eff_bkg_eval,  label=f"Stage2 ROC (Eval)  — AUC={auc_eval:.4f}+/-{auc_err_eval:.4f}")
+            # plt.plot(1-eff_sig_val,   1-eff_bkg_val,   label=f"Stage2 ROC (Val)   — AUC={auc_val:.4f}+/-{auc_err_val:.4f}")
 
             
-            # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
-            plt.vlines(np.linspace(0,1,11), 0, 1, linestyle="dashed", color="grey")
-            plt.hlines(np.logspace(-4,0,5), 0, 1, linestyle="dashed", color="grey")
-            # plt.hlines(eff_bkg, 0, eff_sig, linestyle="dashed")
-            plt.xlim([0.0, 1.0])
-            # plt.ylim([0.0, 1.0])
-            plt.xlabel('1 - Signal eff')
-            plt.ylabel('1- Background eff')
-            plt.yscale("log")
-            plt.ylim([0.0001, 1.0])
+            # # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
+            # plt.vlines(np.linspace(0,1,11), 0, 1, linestyle="dashed", color="grey")
+            # plt.hlines(np.logspace(-4,0,5), 0, 1, linestyle="dashed", color="grey")
+            # # plt.hlines(eff_bkg, 0, eff_sig, linestyle="dashed")
+            # plt.xlim([0.0, 1.0])
+            # # plt.ylim([0.0, 1.0])
+            # plt.xlabel('1 - Signal eff')
+            # plt.ylabel('1- Background eff')
+            # plt.yscale("log")
+            # plt.ylim([0.0001, 1.0])
             
-            plt.legend(loc="lower right")
-            plt.title(f'ROC curve for ggH BDT {year}')
-            fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}.png")
-            fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}.pdf")
-            plt.clf()
+            # plt.legend(loc="lower right")
+            # plt.title(f'ROC curve for ggH BDT {year}')
+            # fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}.pdf")
+
+            # plt.plot(1-eff_sig_train, 1-eff_bkg_train, label=f"Stage2 ROC (Train) — AUC={auc_train:.4f}+/-{auc_err_train:.4f}")
+            # plt.legend(loc="lower right")
+            # fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}_w_train.pdf")
+            
+            # plt.clf()
             # superimposed flipped log ROC end --------------------------------------------------------------------------
             
             
@@ -1124,13 +1252,51 @@ def classifier_train(df, args, training_samples):
             # Also save ROC curve for evaluation just in case end --------------
 
             
+            # results = model.evals_result()
+            # print(results.keys())
+            # plt.plot(results['validation_0']['logloss'], label='train')
+            # plt.plot(results['validation_1']['logloss'], label='test')
+            # # show the legend
+            # plt.legend()
+            # plt.savefig(f"output/bdt_{name}_{year}/Loss_{label}.png")
+
+            # -----------------------------
+            # Retrieve evaluation results
+            # -----------------------------
             results = model.evals_result()
-            print(results.keys())
-            plt.plot(results['validation_0']['logloss'], label='train')
-            plt.plot(results['validation_1']['logloss'], label='test')
-            # show the legend
-            plt.legend()
-            plt.savefig(f"output/bdt_{name}_{year}/Loss_{label}.png")
+            epochs = len(results["validation_0"]["logloss"])
+            plot_x_axis = range(0, epochs)
+            
+            # -----------------------------
+            # Plot training vs. validation loss
+            # -----------------------------
+            plt.clf()
+            train_loss = results["validation_0"]["logloss"]
+            val_loss = results["validation_1"]["logloss"]
+            plt.plot(plot_x_axis, train_loss, label="Train Loss")
+            plt.plot(plot_x_axis, val_loss, label="Validation Loss")
+
+            plt.xlabel("Boosting Round")
+            plt.ylabel("Log Loss")
+            plt.title("XGBoost Training vs. Validation Loss")
+            perf_text = plt.Line2D([], [], color='none', label=f'Best iteration: {model.best_iteration} \n Best validation loss: {model.best_score:.5f}')
+            plt.legend(handles=[perf_text])
+            plt.savefig(f"output/bdt_{name}_{year}/loss_{label}.png")
+            
+            # -----------------------------
+            # 6. Check the best iteration
+            # -----------------------------
+            print(f"Best iteration: {model.best_iteration}")
+            print(f"Best validation loss: {model.best_score:.5f}")
+            
+            csv_savepath = f"output/bdt_{name}_{year}/loss_{label}.csv"
+            loss_df = pd.DataFrame({
+                "epoch" : plot_x_axis,
+                "train_loss" : train_loss,
+                "val_loss" : val_loss,
+            })
+            loss_df.to_csv(csv_savepath)
+            
 
             labels = [feat.replace("_nominal","") for feat in training_features]
             model.get_booster().feature_names = labels # set my training features as feature names
@@ -1140,6 +1306,26 @@ def classifier_train(df, args, training_samples):
             plt.savefig(f"output/bdt_{name}_{year}/{name}_{year}_TreePlot_{i}.png",dpi=400)
             
             # plot importance
+            # plot_importance(model, importance_type='weight', xlabel="Score by weight",show_values=False)
+            # plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byWeight.png")
+            # plt.clf()
+            # plot_importance(model, importance_type='gain', xlabel="Score by gain",show_values=False)
+            # plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byGain.png")
+            # plt.clf()
+            
+            # feature_important = model.get_booster().get_score(importance_type='gain')
+            # feature_important = model.get_booster().get_score(importance_type='weight')
+            # keys = list(feature_important.keys())
+            # values = list(feature_important.values())
+            # print(f"feat importance keys b4 sorting: {keys}")
+            # print(f"feat importance value b4 sorting: {values}")
+            # print(f"feat importance training_features b4 sorting: {training_features}")
+
+            # # data = pd.DataFrame(data=values, index=training_features, columns=["score"]).sort_values(by = "score", ascending=True)
+            # data = pd.DataFrame(data=values, index=training_features[:-2], columns=["score"]).sort_values(by = "score", ascending=True)
+            # data.nlargest(50, columns="score").plot(kind='barh', figsize = (20,10))
+            # plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}.png")
+            # plt.clf()
 
             feature_important = model.get_booster().get_score(importance_type='weight')
             keys = list(feature_important.keys())
@@ -1349,7 +1535,7 @@ if __name__ == "__main__":
         "label": ""
     }
     start_time = time.time()
-    client =  Client(n_workers=60,  threads_per_worker=1, processes=True, memory_limit='10 GiB') 
+    client =  Client(n_workers=31,  threads_per_worker=1, processes=True, memory_limit='4 GiB') 
 
     
     if year == "2016":
@@ -1363,6 +1549,43 @@ if __name__ == "__main__":
     sample_l = training_samples["background"] + training_samples["signal"]
     is_UL = True
     
+    
+    # if is_UL:
+    #     fields2load = [ # copperheadV2
+    #         "dimuon_mass",
+    #         "jj_mass",
+    #         "jj_dEta",
+    #         "jet1_pt",
+    #         "nBtagLoose",
+    #         "nBtagMedium",
+    #         "mmj1_dEta",
+    #         "mmj2_dEta",
+    #         "mmj1_dPhi",
+    #         "mmj2_dPhi",
+    #         "wgt_nominal_total",
+    #         "dimuon_ebe_mass_res",
+    #         "event",
+    #         "mu1_pt",
+    #         "mu2_pt",
+    #     ]
+    # else:
+    #     fields2load = [ # copperheadV1
+    #         "dimuon_mass",
+    #         "jj_mass_nominal",
+    #         "jj_dEta_nominal",
+    #         "jet1_pt_nominal",
+    #         "nBtagLoose_nominal",
+    #         "nBtagMedium_nominal",
+    #         "mmj1_dEta_nominal",
+    #         "mmj2_dEta_nominal",
+    #         "mmj1_dPhi_nominal",
+    #         "mmj2_dPhi_nominal",
+    #         "wgt_nominal",
+    #         "dimuon_ebe_mass_res",
+    #         "event",
+    #         "mu1_pt",
+    #         "mu2_pt",
+    #     ]
 
     fields2load = [ 
             "dimuon_mass",
@@ -1380,6 +1603,7 @@ if __name__ == "__main__":
             "event",
             "mu1_pt",
             "mu2_pt",
+            "year",
         ]
 
     
@@ -1404,7 +1628,38 @@ if __name__ == "__main__":
             # zip_sample = dak.from_parquet(parquet_path) 
             filelist = glob.glob(parquet_path)
             print(f"filelist len: {len(filelist)}")
-            zip_sample = dak.from_parquet(filelist) 
+            if year == "all":
+                # year_paths = {
+                #     2015: f"{sysargs.load_path}/2016preVFP/f1_0/{sample}/*/*.parquet",
+                #     2016: f"{sysargs.load_path}/2016postVFP/f1_0/{sample}/*/*.parquet",
+                #     2017: f"{sysargs.load_path}/2017/f1_0/{sample}/*/*.parquet",
+                #     2018: f"{sysargs.load_path}/2018/f1_0/{sample}/*/*.parquet",
+                # }
+                # print(parquet_path)
+                # zip_sample =  ReadNMergeParquet_dak(year_paths, fields2load)
+                zip_sample = dak.from_parquet(filelist)
+                # print(f"zip_sample.fields: {zip_sample.fields}")
+                # zip_sample["bdt_year"] = int(year)
+                # fields2load = fields2load + ["bdt_year_nominal"]
+                print(f"fields2load b4: {fields2load}")
+                fields2load_prepared = prepare_features(zip_sample, fields2load) # add variation to the name
+                print(f"fields2load after: {fields2load_prepared}")
+                zip_sample = ak.zip({
+                    field : zip_sample[field] for field in fields2load_prepared
+                })
+                zip_sample = zip_sample.compute()
+            else:
+                zip_sample = dak.from_parquet(filelist)
+                # print(f"zip_sample.fields: {zip_sample.fields}")
+                # zip_sample["bdt_year"] = int(year)
+                # fields2load = fields2load + ["bdt_year_nominal"]
+                print(f"fields2load b4: {fields2load}")
+                fields2load_prepared = prepare_features(zip_sample, fields2load) # add variation to the name
+                print(f"fields2load after: {fields2load_prepared}")
+                zip_sample = ak.zip({
+                    field : zip_sample[field] for field in fields2load_prepared
+                })
+                zip_sample = zip_sample.compute()
         except Exception as error:
             print(f"Parquet for {sample} not found with error {error}. skipping!")
             continue
@@ -1424,7 +1679,7 @@ if __name__ == "__main__":
             training_features = prepare_features(zip_sample, training_features) # do the same thing to training features
             zip_sample = ak.zip({
                 field : zip_sample[field] for field in fields2load
-            }).compute()
+            })#.compute()
             # wgts2deactivate = [
             #     # 'wgt_nominal_btag_wgt',
             #     # 'wgt_nominal_pu',
@@ -1446,14 +1701,15 @@ if __name__ == "__main__":
             training_features = prepare_features(zip_sample, training_features) # do the same thing to training features
             zip_sample = ak.zip({
                 field : zip_sample[field] for field in fields2load
-            }).compute()
+            })#.compute()
         is_vbf = sysargs.is_vbf
         df_sample = convert2df(zip_sample, sample, is_vbf=is_vbf, is_UL=is_UL)
         df_l.append(df_sample)
     df_total = pd.concat(df_l,ignore_index=True)   
     # new code end --------------------------------------------------------------------------------------------
     # apply random shuffle, so that signal and bkg samples get mixed up well
-    df_total = df_total.sample(frac=1, random_state=123)
+    random_seed_val = 125
+    df_total = df_total.sample(frac=1, random_state=random_seed_val)
     # print(f"df_total after shuffle: {df_total}")
     
 
@@ -1462,12 +1718,10 @@ if __name__ == "__main__":
     print("starting prepare_dataset")
     df_total = prepare_dataset(df_total, training_samples)
     print("prepare_dataset done")
-    # raise ValueError
     # print(f"len(df_total): {len(df_total)}")
     print(f"df_total.columns: {df_total.columns}")
 
-
-    classifier_train(df_total, args, training_samples)
+    classifier_train(df_total, args, training_samples, random_seed_val)
     # evaluation(df_total, args)
     #df.to_pickle('/depot/cms/hmm/purohita/coffea/eval_dataset.pickle')
     #print(df)
