@@ -34,29 +34,29 @@ from sklearn.metrics import roc_auc_score
 from modules.utils import PairNAnnhilateNegWgt, addErrByQuadrature, GetAucStdErrHanleyMcNeil, fullROC_operations, customROC_curve_AN
 
 def objective(trial, xp_train, xp_val, y_train, y_val, w_train, w_val, weight_nom_val, random_seed) -> float:
-    # params = {
-    #     # "objective": "binary:logistic",
-    #     # "eval_metric": "auc",
-    #     "eval_metric": "logloss",
-    #     # "tree_method": "hist",            # change to "gpu_hist" if you have a GPU
-    #     "random_state": random_seed,
-    #     # "n_estimators": trial.suggest_int("n_estimators", 500, 2100),
-    #     # "max_depth": trial.suggest_int("max_depth", 3, 10),
-    #     # "learning_rate": trial.suggest_float("learning_rate", 0.05, 0.3),
-    #     # "subsample": trial.suggest_float("subsample", 0.2, 1.0),
-    #     "min_child_weight": trial.suggest_float("min_child_weight", 0.001, 20.0),
-    #     # "max_bin": trial.suggest_int("max_bin", 10, 80),
-    #     "n_jobs": 30,
-    # }
+    params = {
+        # "objective": "binary:logistic",
+        # "eval_metric": "auc",
+        "eval_metric": "logloss",
+        # "tree_method": "hist",            # change to "gpu_hist" if you have a GPU
+        "random_state": random_seed,
+        # "n_estimators": trial.suggest_int("n_estimators", 500, 2100),
+        # "max_depth": trial.suggest_int("max_depth", 3, 10),
+        # "learning_rate": trial.suggest_float("learning_rate", 0.05, 0.3),
+        # "subsample": trial.suggest_float("subsample", 0.2, 1.0),
+        "min_child_weight": trial.suggest_float("min_child_weight", 0.001, 20.0),
+        # "max_bin": trial.suggest_int("max_bin", 10, 80),
+        "n_jobs": 30,
+    }
     verbosity=2
     clf = XGBClassifier(
-        n_estimators=1000,           # Number of trees
-        max_depth=4,                 # Max depth
-        learning_rate=0.10,          # Shrinkage
-        subsample=0.5,               # Bagged sample fraction
+        n_estimators= trial.suggest_int("n_estimators", 500, 2100),           # Number of trees
+        max_depth=trial.suggest_int("max_depth", 3, 10),                 # Max depth
+        learning_rate=trial.suggest_float("learning_rate", 0.05, 0.3),          # Shrinkage
+        subsample=trial.suggest_float("subsample", 0.2, 1.0),               # Bagged sample fraction
         min_child_weight=trial.suggest_float("min_child_weight", 0.001, 10.0),
         tree_method='hist',          # Needed for max_bin
-        max_bin=30,                  # Number of cuts
+        max_bin=trial.suggest_int("max_bin", 10, 80),                  # Number of cuts
         # objective='binary:logistic', # CrossEntropy (logloss)
         # use_label_encoder=False,     # Optional: suppress warning
         eval_metric='logloss',       # Ensures logloss used during training
@@ -854,38 +854,39 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             # print(f"scale_pos_weight: {scale_pos_weight}")
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
             # print(f"len(x_train): {len(x_train)}")
-            model = XGBClassifier(
-                n_estimators=1000,           # Number of trees
-                max_depth=4,                 # Max depth
-                learning_rate=0.10,          # Shrinkage
-                subsample=0.5,               # Bagged sample fraction
-                min_child_weight=0.03 ,  # NOTE: this causes AUC == 0.5
-                tree_method='hist',          # Needed for max_bin
-                max_bin=30,                  # Number of cuts
-                # objective='binary:logistic', # CrossEntropy (logloss)
-                # use_label_encoder=False,     # Optional: suppress warning
-                eval_metric='logloss',       # Ensures logloss used during training
-                n_jobs=30,                   # Use all CPU cores
-                # scale_pos_weight=scale_pos_weight*0.005,
-                # scale_pos_weight=scale_pos_weight,
-                early_stopping_rounds=15,#15
-                verbosity=verbosity,
-                random_state=random_seed_val,
-            )
+            # model = XGBClassifier(
+            #     n_estimators=1000,           # Number of trees
+            #     max_depth=4,                 # Max depth
+            #     learning_rate=0.10,          # Shrinkage
+            #     subsample=0.5,               # Bagged sample fraction
+            #     min_child_weight=0.03 ,  # NOTE: this causes AUC == 0.5
+            #     tree_method='hist',          # Needed for max_bin
+            #     max_bin=30,                  # Number of cuts
+            #     # objective='binary:logistic', # CrossEntropy (logloss)
+            #     # use_label_encoder=False,     # Optional: suppress warning
+            #     eval_metric='logloss',       # Ensures logloss used during training
+            #     n_jobs=30,                   # Use all CPU cores
+            #     # scale_pos_weight=scale_pos_weight*0.005,
+            #     # scale_pos_weight=scale_pos_weight,
+            #     early_stopping_rounds=15,#15
+            #     verbosity=verbosity,
+            #     random_state=random_seed_val,
+            # )
             # AN Model new end ---------------------------------------------------------------
             
-            print(model)
+            # print(model)
             print(f"negative w_train: {w_train[w_train <0]}")
             # model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
 
             eval_set = [(xp_train, y_train), (xp_val, y_val)]#Last used
 
             study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=random_seed_val))
-            study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, w_val, weight_nom_val, random_seed=random_seed_val), n_trials=30)
+            # study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, w_val, weight_nom_val, random_seed=random_seed_val), n_trials=30)
+            study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, w_val, weight_nom_val, random_seed=random_seed_val), n_trials=100)
             print("Best AUC:", study.best_value)
             print("Best params:", study.best_params)
 
-            raise Valueerror
+            raise ValueError
 
             y_pred_signal_val = model.predict_proba(xp_val)[:, 1].ravel()
             y_pred_signal_train = model.predict_proba(xp_train)[:, 1]
