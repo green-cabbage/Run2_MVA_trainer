@@ -535,8 +535,7 @@ def prepare_dataset(df, ds_dict):
     # -------------------------------------------------
     # increase bdt wgts for bdt to actually learn
     # -------------------------------------------------
-    # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
-    C_coeff = 1e5
+    C_coeff = 1e7
     df['bdt_wgt'] = df['bdt_wgt'] * C_coeff
     print(f"df[cols] after increase in value: {df[cols]}")
 

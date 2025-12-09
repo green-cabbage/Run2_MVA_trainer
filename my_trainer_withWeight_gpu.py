@@ -862,7 +862,7 @@ def prepare_dataset(df, ds_dict):
     # increase bdt wgts for bdt to actually learn
     # -------------------------------------------------
     # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
-    C_coeff = 1e5
+    C_coeff = 1e7
     df['bdt_wgt'] = df['bdt_wgt'] * C_coeff
     print(f"df[cols] after increase in value: {df[cols]}")
 
@@ -1198,7 +1198,7 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             #     verbosity=verbosity,
             #     random_state=random_seed_val,
             # )
-            tuned_params = {'min_child_weight': 0.5575990926754155, 'n_estimators': 1722, 'max_depth': 6, 'learning_rate': 0.10791855793494046, 'subsample': 0.9535348606340097, 'max_bin': 78}
+            tuned_params = {'min_child_weight': 14.01674093172606, 'n_estimators': 1609, 'max_depth': 7, 'learning_rate': 0.05084141448136483, 'subsample': 0.9634152684839828, 'max_bin': 73}
             tuned_params.update({
                 "tree_method" : 'hist',
                 "eval_metric" : 'logloss',
