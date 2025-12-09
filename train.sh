@@ -219,7 +219,8 @@ set -e
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_StdClsWgt_Davide"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_StdClsWgt_Peking"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_ClsWgtC1000"
-model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_StdClsWgt_HyperParamtest"
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_StdClsWgt_HyperParamtest"
+model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_StdClsWgt_HyperParamBigtest"
 
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"

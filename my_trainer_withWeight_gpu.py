@@ -1180,24 +1180,34 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             # print(f"scale_pos_weight: {scale_pos_weight}")
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
             # print(f"len(x_train): {len(x_train)}")
-            model = XGBClassifier(
-                n_estimators=1000,           # Number of trees
-                max_depth=4,                 # Max depth
-                learning_rate=0.10,          # Shrinkage
-                subsample=0.5,               # Bagged sample fraction
-                min_child_weight=2.804532632148785 ,  # NOTE: this causes AUC == 0.5
-                tree_method='hist',          # Needed for max_bin
-                max_bin=30,                  # Number of cuts
-                # objective='binary:logistic', # CrossEntropy (logloss)
-                # use_label_encoder=False,     # Optional: suppress warning
-                eval_metric='logloss',       # Ensures logloss used during training
-                n_jobs=30,                   # Use all CPU cores
-                # scale_pos_weight=scale_pos_weight*0.005,
-                # scale_pos_weight=scale_pos_weight,
-                early_stopping_rounds=15,#15
-                verbosity=verbosity,
-                random_state=random_seed_val,
-            )
+            # model = XGBClassifier(
+            #     n_estimators=1000,           # Number of trees
+            #     max_depth=4,                 # Max depth
+            #     learning_rate=0.10,          # Shrinkage
+            #     subsample=0.5,               # Bagged sample fraction
+            #     min_child_weight=2.804532632148785 ,  # NOTE: this causes AUC == 0.5
+            #     tree_method='hist',          # Needed for max_bin
+            #     max_bin=30,                  # Number of cuts
+            #     # objective='binary:logistic', # CrossEntropy (logloss)
+            #     # use_label_encoder=False,     # Optional: suppress warning
+            #     eval_metric='logloss',       # Ensures logloss used during training
+            #     n_jobs=30,                   # Use all CPU cores
+            #     # scale_pos_weight=scale_pos_weight*0.005,
+            #     # scale_pos_weight=scale_pos_weight,
+            #     early_stopping_rounds=15,#15
+            #     verbosity=verbosity,
+            #     random_state=random_seed_val,
+            # )
+            tuned_params = {'min_child_weight': 0.5575990926754155, 'n_estimators': 1722, 'max_depth': 6, 'learning_rate': 0.10791855793494046, 'subsample': 0.9535348606340097, 'max_bin': 78}
+            tuned_params.update({
+                "tree_method" : 'hist',
+                "eval_metric" : 'logloss',
+                "n_jobs" : 30,
+                "early_stopping_rounds" : 15,
+                "verbosity" : verbosity,
+                "random_state" : random_seed_val,
+            })
+            model = XGBClassifier(**tuned_params)
             # AN Model new end ---------------------------------------------------------------
             
             print(model)
