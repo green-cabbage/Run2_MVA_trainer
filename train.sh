@@ -221,8 +221,8 @@ set -e
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_ClsWgtC1000"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_StdClsWgt_HyperParamtest"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_StdClsWgt_HyperParamBigtest"
-model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_StdClsWgt_Davide_HyperParamed"
-
+# model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_StdClsWgt_Davide_HyperParamed"
+model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_StdClsWgt_DavidePerYear"
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff_newZptWgt25Mar2025"
@@ -239,15 +239,15 @@ label="fullRun_Jun23_2025_1n2Revised"
 # year="2017"
 # year="2016postVFP"
 # year="2016preVFP"
-# year="2016"
-year="all"
+year="2016"
+# year="all"
 python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 
-# year="2017"
-# python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
+year="2017"
+python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 
-# year="2018"
-# python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
+year="2018"
+python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
 
 # year="all"
 # python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"

@@ -862,10 +862,14 @@ def prepare_dataset(df, ds_dict):
     # increase bdt wgts for bdt to actually learn
     # -------------------------------------------------
     # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
-    C_coeff = 1e7
-    df['bdt_wgt'] = df['bdt_wgt'] * C_coeff
+    df['bdt_wgt'] = df['bdt_wgt'] * 100_000 * 100
     print(f"df[cols] after increase in value: {df[cols]}")
-
+    mask = df["dataset"].isin(sig_datasets)
+    print(f'new signal df.loc[mask, "bdt_wgt"]): {df.loc[mask, "bdt_wgt"]}')
+    print(f'new background (df.loc[mask, "bdt_wgt"]): {df.loc[~mask, "bdt_wgt"]}')
+    print(f'new bdt_wgt mean: {np.mean(df["bdt_wgt"])}')
+    print(f'new sig bdt_wgt mean: {np.mean(df.loc[mask, "bdt_wgt"])}')
+    print(f'new bkg bdt_wgt mean: {np.mean(df.loc[~mask, "bdt_wgt"])}')
     
     #print(df.head)
     columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
@@ -1180,34 +1184,24 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             # print(f"scale_pos_weight: {scale_pos_weight}")
             # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
             # print(f"len(x_train): {len(x_train)}")
-            # model = XGBClassifier(
-            #     n_estimators=1000,           # Number of trees
-            #     max_depth=4,                 # Max depth
-            #     learning_rate=0.10,          # Shrinkage
-            #     subsample=0.5,               # Bagged sample fraction
-            #     min_child_weight=2.804532632148785 ,  # NOTE: this causes AUC == 0.5
-            #     tree_method='hist',          # Needed for max_bin
-            #     max_bin=30,                  # Number of cuts
-            #     # objective='binary:logistic', # CrossEntropy (logloss)
-            #     # use_label_encoder=False,     # Optional: suppress warning
-            #     eval_metric='logloss',       # Ensures logloss used during training
-            #     n_jobs=30,                   # Use all CPU cores
-            #     # scale_pos_weight=scale_pos_weight*0.005,
-            #     # scale_pos_weight=scale_pos_weight,
-            #     early_stopping_rounds=15,#15
-            #     verbosity=verbosity,
-            #     random_state=random_seed_val,
-            # )
-            tuned_params = {'min_child_weight': 14.01674093172606, 'n_estimators': 1609, 'max_depth': 7, 'learning_rate': 0.05084141448136483, 'subsample': 0.9634152684839828, 'max_bin': 73}
-            tuned_params.update({
-                "tree_method" : 'hist',
-                "eval_metric" : 'logloss',
-                "n_jobs" : 30,
-                "early_stopping_rounds" : 15,
-                "verbosity" : verbosity,
-                "random_state" : random_seed_val,
-            })
-            model = XGBClassifier(**tuned_params)
+            model = XGBClassifier(
+                n_estimators=1000,           # Number of trees
+                max_depth=4,                 # Max depth
+                learning_rate=0.10,          # Shrinkage
+                subsample=0.5,               # Bagged sample fraction
+                min_child_weight=0.03 ,  # NOTE: this causes AUC == 0.5
+                tree_method='hist',          # Needed for max_bin
+                max_bin=30,                  # Number of cuts
+                # objective='binary:logistic', # CrossEntropy (logloss)
+                # use_label_encoder=False,     # Optional: suppress warning
+                eval_metric='logloss',       # Ensures logloss used during training
+                n_jobs=30,                   # Use all CPU cores
+                # scale_pos_weight=scale_pos_weight*0.005,
+                # scale_pos_weight=scale_pos_weight,
+                early_stopping_rounds=15,#15
+                verbosity=verbosity,
+                random_state=random_seed_val,
+            )
             # AN Model new end ---------------------------------------------------------------
             
             print(model)
