@@ -828,8 +828,9 @@ def prepare_dataset(df, ds_dict):
     # --------------------------------------------------------
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
-    # apply ebe mass to all
-    df['bdt_wgt'] = np.abs(df['wgt_nominal_orig']) /df['dimuon_ebe_mass_res']
+    df['bdt_wgt'] = (df['wgt_nominal_orig'])
+    for dataset in sig_datasets:
+        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] *(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
     # original end -----------------------------------------------
 
     # -------------------------------------------------
