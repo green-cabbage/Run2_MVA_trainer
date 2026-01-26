@@ -21,7 +21,7 @@ import json
 # import cmsstyle as CMS
 import pickle
 import glob
-from modules.utils import auc_from_eff, PairNAnnhilateNegWgt, addErrByQuadrature, GetAucStdErrHanleyMcNeil, fullROC_operations
+from modules.utils import auc_from_eff, PairNAnnhilateNegWgt, PairNAnnhilateNegWgt_inChunks, addErrByQuadrature, GetAucStdErrHanleyMcNeil, fullROC_operations, has_bad_values, get_subdirs, split_into_n_parts
 import seaborn as sb
 
 def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, fold_idx):
@@ -639,6 +639,8 @@ training_samples = {
         "background": [
             "dy_M-100To200", 
             "dy_M-100To200_MiNNLO",
+            "dyTo2Mu_M-50_aMCatNLO",
+            "dyTo2L_M-50_incl",
             # "dy_m105_160_amc",
             # "dy_m100_200_UL",
             "ttjets_dl",
@@ -657,10 +659,12 @@ training_samples = {
             # "wzz",
             # "zzz",
             "ewk_lljj_mll50_mjj120",
+            "ewk_mmjj",
         ],
         "signal": [
             "ggh_powhegPS", 
             "vbf_powheg_dipole", # adding vbf only makes BDT concentrate on vbf for some reason
+            "vbf_aMCatNLO", 
         ], # copperheadV2
         # ],
         
@@ -678,6 +682,41 @@ training_samples = {
         #    "zz_2l2q",
         #],
     }
+
+def apply_gghChannelSelection(delayed_dak_zip):
+    """
+    small wrapper that takes delayed dask awkward zip and converts them to pandas dataframe
+    with zip's keys as columns with extra column "dataset" to be named the string value given
+    Note: we also filter out regions not in h-peak region first, and apply cuts for
+    ggH production mode
+    """
+    # filter out arrays not in h_peak
+    train_region = (delayed_dak_zip.dimuon_mass > 115.0) & (delayed_dak_zip.dimuon_mass < 135.0) # line 1169 of the AN: when training, we apply a tigher cut
+    train_region = ak.fill_none(train_region, value=False)
+    # print(f"is_vbf: {is_vbf}")
+    # print(f"convert2df train_region:{train_region}")
+    # not entirely sure if this is what we use for ROC curve, however
+
+    vbf_cut = ak.fill_none(delayed_dak_zip.jj_mass_nominal > 400, value=False) & ak.fill_none(delayed_dak_zip.jj_dEta_nominal > 2.5, value=False) # for ggH $ VBF
+    jet1_cut =  ak.fill_none((delayed_dak_zip.jet1_pt_nominal > 35), value=False) 
+    
+
+    prod_cat_cut =  ~(vbf_cut & jet1_cut)
+    print("ggH cat!")
+
+    # btag_cut = ak.fill_none((delayed_dak_zip.nBtagLoose_nominal >= 2), value=False) | ak.fill_none((delayed_dak_zip.nBtagMedium_nominal >= 1), value=False)
+    btagLoose_filter = ak.fill_none((delayed_dak_zip.nBtagLoose_nominal >= 2), value=False)
+    btagMedium_filter = ak.fill_none((delayed_dak_zip.nBtagMedium_nominal >= 1), value=False) & ak.fill_none((delayed_dak_zip.njets_nominal >= 2), value=False)
+    btag_cut = btagLoose_filter | btagMedium_filter
+   
+    category_selection = (
+        prod_cat_cut & 
+        train_region &
+        ~btag_cut # btag cut is for VH and ttH categories
+    )
+    print(f"category_selection sum: {ak.sum(category_selection)}")
+    computed_zip = delayed_dak_zip[category_selection].compute()
+    return computed_zip
 
 def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     """
@@ -777,6 +816,7 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
         if "dPhi" in field:
             dPhis.append(field)
     df.fillna({field: nan_val for field in dPhis},inplace=True)
+    df = df.replace([np.inf, -np.inf], np.nan)
     df.fillna(nan_val,inplace=True)
     # add columns
     df["dataset"] = dataset 
@@ -808,8 +848,10 @@ def prepare_dataset(df, ds_dict):
                 df_info.loc[ds, "class_name"] = cls
                 df_info.loc[ds, "iclass"] = icls
     nan_val = -999.0
+    df_info = df_info.replace([np.inf, -np.inf], np.nan)
     df_info["iclass"] = df_info["iclass"].fillna(nan_val).astype(int)
     df = df[df.dataset.isin(df_info.dataset.unique())]
+
     
     # Assign numerical classes to each event
     cls_map = dict(df_info[["dataset", "iclass"]].values)
@@ -828,7 +870,7 @@ def prepare_dataset(df, ds_dict):
     # --------------------------------------------------------
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
-    df['bdt_wgt'] = (df['wgt_nominal_orig'])
+    df['bdt_wgt'] = np.abs(df['wgt_nominal_orig'])
     for dataset in sig_datasets:
         df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] *(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
     # original end -----------------------------------------------
@@ -1003,8 +1045,6 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
         df_val = df[val_filter]
         df_eval = df[eval_filter]
 
-        # # annhilate neg wgts
-        df_train = PairNAnnhilateNegWgt(df_train)
         
         x_train = df_train[training_features]
         #y_train = df_train['cls_idx']
@@ -1219,7 +1259,12 @@ def classifier_train(df, args, training_samples, random_seed_val: int):
             print(f"negative w_train: {w_train[w_train <0]}")
 
             eval_set = [(xp_train, y_train), (xp_val, y_val)]#Last used
-            
+            print(f"has_bad_values(w_train): {has_bad_values(w_train)}")
+            print(f"has_bad_values(xp_train): {has_bad_values(xp_train)}")
+            print(f"has_bad_values(y_train): {has_bad_values(y_train)}")
+            print(f"has_bad_values(y_train): {has_bad_values(y_train)}")
+            print(f"has_bad_values(xp_val): {has_bad_values(xp_val)}")
+            print(f"has_bad_values(y_val): {has_bad_values(y_val)}")
             model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
 
             y_pred_signal_val = model.predict_proba(xp_val)[:, 1].ravel()
@@ -1870,7 +1915,8 @@ if __name__ == "__main__":
         "label": ""
     }
     start_time = time.time()
-    client =  Client(n_workers=31,  threads_per_worker=1, processes=True, memory_limit='4 GiB') 
+    # client =  Client(n_workers=31,  threads_per_worker=1, processes=True, memory_limit='12 GiB') 
+    client =  Client(n_workers=10,  threads_per_worker=1, processes=True, memory_limit='25 GiB') 
 
     
     if year == "2016":
@@ -1959,88 +2005,115 @@ if __name__ == "__main__":
     for sample in sample_l:
         print(f"running sample {sample}")
         parquet_path = load_path+f"/{sample}/*/*.parquet"
-        try:
-            # zip_sample = dak.from_parquet(parquet_path) 
-            filelist = glob.glob(parquet_path)
-            print(f"filelist len: {len(filelist)}")
-            if year == "all":
-                # year_paths = {
-                #     2015: f"{sysargs.load_path}/2016preVFP/f1_0/{sample}/*/*.parquet",
-                #     2016: f"{sysargs.load_path}/2016postVFP/f1_0/{sample}/*/*.parquet",
-                #     2017: f"{sysargs.load_path}/2017/f1_0/{sample}/*/*.parquet",
-                #     2018: f"{sysargs.load_path}/2018/f1_0/{sample}/*/*.parquet",
-                # }
-                # print(parquet_path)
-                # zip_sample =  ReadNMergeParquet_dak(year_paths, fields2load)
-                zip_sample = dak.from_parquet(filelist)
-                # print(f"zip_sample.fields: {zip_sample.fields}")
-                # zip_sample["bdt_year"] = int(year)
-                # fields2load = fields2load + ["bdt_year_nominal"]
-                print(f"fields2load b4: {fields2load}")
-                fields2load_prepared = prepare_features(zip_sample, fields2load) # add variation to the name
-                print(f"fields2load after: {fields2load_prepared}")
-                zip_sample = ak.zip({
-                    field : zip_sample[field] for field in fields2load_prepared
-                })
-                zip_sample = zip_sample.compute()
-            else:
-                zip_sample = dak.from_parquet(filelist)
-                # print(f"zip_sample.fields: {zip_sample.fields}")
-                # zip_sample["bdt_year"] = int(year)
-                # fields2load = fields2load + ["bdt_year_nominal"]
-                print(f"fields2load b4: {fields2load}")
-                fields2load_prepared = prepare_features(zip_sample, fields2load) # add variation to the name
-                print(f"fields2load after: {fields2load_prepared}")
-                zip_sample = ak.zip({
-                    field : zip_sample[field] for field in fields2load_prepared
-                })
-                zip_sample = zip_sample.compute()
-        except Exception as error:
-            print(f"Parquet for {sample} not found with error {error}. skipping!")
-            continue
-        # zip_sample = dak.from_parquet(load_path+f"/{sample}/*.parquet") # copperheadV1
-        # temporary introduction of mu_pt_over_mass variables. Some tt and top samples don't have them
-        zip_sample["mu1_pt_over_mass"] = zip_sample["mu1_pt"] / zip_sample["dimuon_mass"]
-        zip_sample["mu2_pt_over_mass"] = zip_sample["mu2_pt"] / zip_sample["dimuon_mass"]
-
-        if "dy" in sample: # NOTE: not sure what this if statement is for
-            wgts2load = []
-            # for field in zip_sample.fields:
-            #     if "wgt" in field:
-            #         wgts2load.append(field)
-            # print(f"wgts2load: {wgts2load}")
-            fields2load = list(set(fields2load + wgts2load))
-            fields2load = prepare_features(zip_sample, fields2load) # add variation to the name
-            training_features = prepare_features(zip_sample, training_features) # do the same thing to training features
-            zip_sample = ak.zip({
-                field : zip_sample[field] for field in fields2load
-            })#.compute()
-            # wgts2deactivate = [
-            #     # 'wgt_nominal_btag_wgt',
-            #     # 'wgt_nominal_pu',
-            #     'wgt_nominal_zpt_wgt',
-            #     # 'wgt_nominal_muID',
-            #     # 'wgt_nominal_muIso',
-            #     # 'wgt_nominal_muTrig',
-            #     # 'wgt_nominal_LHERen',
-            #     # 'wgt_nominal_LHEFac',
-            #     # 'wgt_nominal_pdf_2rms',
-            #     # 'wgt_nominal_jetpuid_wgt',
-            #     # 'wgt_nominal_qgl'
-            # ]
-            # wgt_nominal = zip_sample["wgt_nominal_total"]
-            # print(f"wgt_nominal: {wgt_nominal}")
-            # zip_sample["wgt_nominal_total"] = deactivateWgts(wgt_nominal, zip_sample, wgts2deactivate)
+        print(f"parquet_path: {parquet_path}")
+        filelist_big = glob.glob(parquet_path)
+        if "dy" in sample:
+            n_parts = 4
         else:
-            fields2load = prepare_features(zip_sample, fields2load) # add variation to the name
-            training_features = prepare_features(zip_sample, training_features) # do the same thing to training features
-            zip_sample = ak.zip({
-                field : zip_sample[field] for field in fields2load
-            })#.compute()
-        is_vbf = sysargs.is_vbf
-        df_sample = convert2df(zip_sample, sample, is_vbf=is_vbf, is_UL=is_UL)
-        df_l.append(df_sample)
+            n_parts = 1
+        filelist_l = split_into_n_parts(filelist_big, n_parts)
+        # print(get_subdirs(load_path+f"/{sample}/"))
+        # if "dy" in sample:
+        #     # subdirectory_names = get_subdirs(load_path+f"/{sample}/")
+        #     subdirectory_names = ["*"]
+        # else:
+        #     subdirectory_names = ["*"]
+        # print(f"subdirectory_names: {subdirectory_names}")
+        # for subdirectory_name in subdirectory_names:
+        #     parquet_path = load_path+f"/{sample}/{subdirectory_name}/*.parquet"
+        for filelist in filelist_l:
+            try:
+                # zip_sample = dak.from_parquet(parquet_path) 
+                # filelist = glob.glob(parquet_path)
+                print(f"filelist len: {len(filelist)}")
+                if year == "all":
+                    # year_paths = {
+                    #     2015: f"{sysargs.load_path}/2016preVFP/f1_0/{sample}/*/*.parquet",
+                    #     2016: f"{sysargs.load_path}/2016postVFP/f1_0/{sample}/*/*.parquet",
+                    #     2017: f"{sysargs.load_path}/2017/f1_0/{sample}/*/*.parquet",
+                    #     2018: f"{sysargs.load_path}/2018/f1_0/{sample}/*/*.parquet",
+                    # }
+                    # print(parquet_path)
+                    # zip_sample =  ReadNMergeParquet_dak(year_paths, fields2load)
+                    zip_sample = dak.from_parquet(filelist)
+                    # print(f"zip_sample.fields: {zip_sample.fields}")
+                    # zip_sample["bdt_year"] = int(year)
+                    # fields2load = fields2load + ["bdt_year_nominal"]
+                    print(f"fields2load b4: {fields2load}")
+                    fields2load_prepared = prepare_features(zip_sample, fields2load) # add variation to the name
+                    print(f"fields2load after: {fields2load_prepared}")
+                    zip_sample = ak.zip({
+                        field : zip_sample[field] for field in fields2load_prepared
+                    })
+                    # zip_sample = zip_sample.compute()
+                    zip_sample = apply_gghChannelSelection(zip_sample)
+                else:
+                    zip_sample = dak.from_parquet(filelist)
+                    # print(f"zip_sample.fields: {zip_sample.fields}")
+                    # zip_sample["bdt_year"] = int(year)
+                    # fields2load = fields2load + ["bdt_year_nominal"]
+                    print(f"fields2load b4: {fields2load}")
+                    fields2load_prepared = prepare_features(zip_sample, fields2load) # add variation to the name
+                    print(f"fields2load after: {fields2load_prepared}")
+                    zip_sample = ak.zip({
+                        field : zip_sample[field] for field in fields2load_prepared
+                    })
+                    # zip_sample = zip_sample.compute()
+                    zip_sample = apply_gghChannelSelection(zip_sample)
+            except Exception as error:
+                print(f"Parquet for {sample} not found with error {error}. skipping!")
+                continue
+            # zip_sample = dak.from_parquet(load_path+f"/{sample}/*.parquet") # copperheadV1
+            # temporary introduction of mu_pt_over_mass variables. Some tt and top samples don't have them
+            # zip_sample["mu1_pt_over_mass"] = zip_sample["mu1_pt"] / zip_sample["dimuon_mass"]
+            # zip_sample["mu2_pt_over_mass"] = zip_sample["mu2_pt"] / zip_sample["dimuon_mass"]
+    
+            if "dy" in sample: # NOTE: not sure what this if statement is for
+                wgts2load = []
+                # for field in zip_sample.fields:
+                #     if "wgt" in field:
+                #         wgts2load.append(field)
+                # print(f"wgts2load: {wgts2load}")
+                fields2load = list(set(fields2load + wgts2load))
+                fields2load = prepare_features(zip_sample, fields2load) # add variation to the name
+                training_features = prepare_features(zip_sample, training_features) # do the same thing to training features
+                zip_sample = ak.zip({
+                    field : zip_sample[field] for field in fields2load
+                })#.compute()
+                # wgts2deactivate = [
+                #     # 'wgt_nominal_btag_wgt',
+                #     # 'wgt_nominal_pu',
+                #     'wgt_nominal_zpt_wgt',
+                #     # 'wgt_nominal_muID',
+                #     # 'wgt_nominal_muIso',
+                #     # 'wgt_nominal_muTrig',
+                #     # 'wgt_nominal_LHERen',
+                #     # 'wgt_nominal_LHEFac',
+                #     # 'wgt_nominal_pdf_2rms',
+                #     # 'wgt_nominal_jetpuid_wgt',
+                #     # 'wgt_nominal_qgl'
+                # ]
+                # wgt_nominal = zip_sample["wgt_nominal_total"]
+                # print(f"wgt_nominal: {wgt_nominal}")
+                # zip_sample["wgt_nominal_total"] = deactivateWgts(wgt_nominal, zip_sample, wgts2deactivate)
+            else:
+                fields2load = prepare_features(zip_sample, fields2load) # add variation to the name
+                training_features = prepare_features(zip_sample, training_features) # do the same thing to training features
+                zip_sample = ak.zip({
+                    field : zip_sample[field] for field in fields2load
+                })#.compute()
+            is_vbf = sysargs.is_vbf
+            df_sample = convert2df(zip_sample, sample, is_vbf=is_vbf, is_UL=is_UL)
+            max_num_rows = 80_000
+            # max_num_rows = 8_000
+            # max_num_rows = 800_000_000
+            # df_sample = PairNAnnhilateNegWgt_inChunks(df_sample, max_num_rows=max_num_rows) # FIXME
+            df_sample = PairNAnnhilateNegWgt(df_sample, max_num_rows=max_num_rows) # FIXME
+            
+            df_l.append(df_sample)
+            # print(f"df_sample: {df_sample.head()}")
     df_total = pd.concat(df_l,ignore_index=True)   
+    del df_l # delete redundant df to save memory. Not sure if this is necessary
     # new code end --------------------------------------------------------------------------------------------
     # apply random shuffle, so that signal and bkg samples get mixed up well
     random_seed_val = 125
@@ -2048,7 +2121,7 @@ if __name__ == "__main__":
     # print(f"df_total after shuffle: {df_total}")
     
 
-    del df_l # delete redundant df to save memory. Not sure if this is necessary
+    
     # print(f"df_total: {df_total}")
     print("starting prepare_dataset")
     df_total = prepare_dataset(df_total, training_samples)
