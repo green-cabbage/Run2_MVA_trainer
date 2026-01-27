@@ -225,7 +225,8 @@ set -e
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_StdClsWgt_DavidePerYear"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_StdClsWgt_DavideEbeSigOnly"
 # model_name="V2_fullRun_Jun21_2025_1n2Revised_ReProduction_Run3_StdClsWgt_DavideEbeSigOnly_HyperParamed"
-model_name="Run3PrelimResultsJan25_2026"
+# model_name="Run3PrelimResultsJan25_2026"
+model_name="Run3PrelimResultsJan25_2026_NoAnnhilateWgts"
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff_newZptWgt25Mar2025"

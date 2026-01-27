@@ -2108,7 +2108,7 @@ if __name__ == "__main__":
             # max_num_rows = 8_000
             # max_num_rows = 800_000_000
             # df_sample = PairNAnnhilateNegWgt_inChunks(df_sample, max_num_rows=max_num_rows) # FIXME
-            df_sample = PairNAnnhilateNegWgt(df_sample, max_num_rows=max_num_rows) # FIXME
+            # df_sample = PairNAnnhilateNegWgt(df_sample, max_num_rows=max_num_rows) # FIXME
             
             df_l.append(df_sample)
             # print(f"df_sample: {df_sample.head()}")
