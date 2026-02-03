@@ -3,8 +3,13 @@ import numpy as np
 import copy
 from scipy.optimize import linear_sum_assignment
 import matplotlib.pyplot as plt
+from pathlib import Path
 
-
+def get_subdirs(path):
+    p = Path(path)
+    if not p.exists() or not p.is_dir():
+        return [] # if path doesn't exist, give empty string
+    return [d.name for d in p.iterdir() if d.is_dir()]
 
 def dimuMassPlot(df, save_path):
     # --- Define regions ---
@@ -212,9 +217,57 @@ def pair_and_remove(df, cols=("mu1_eta","mu2_eta"), wgt_col="wgt_nominal"):
 
     return matches_df, remaining_df
 
-def PairNAnnhilateNegWgt(df):
-    print(f"df len {len(df)}")
+# def PairNAnnhilateNegWgt(df):
+#     print(f"df len {len(df)}")
     
+#     datasets = df["dataset"].unique()
+#     # year_param_name = "bdt_year"
+#     year_param_name = "year"
+#     years = df[year_param_name].unique()
+#     # Make an empty copy of df (same columns, no rows)
+#     df_out = df.iloc[0:0].copy()
+    
+#     # Iterate over unique datasets
+#     for year in years:
+#         for ds in datasets:
+#             # Select rows matching this dataset
+#             subset = df[(df["dataset"] == ds) & (df[year_param_name] == year)].copy()
+#             if np.all(subset["wgt_nominal_orig"] >=0):
+#                 print(f"no neg wgts in {ds} {year}")
+#             else:
+#                 print(f"neg wgts in {ds} {year}")
+#                 # --- Preprocess here ---
+#                 print(f"subset len b4 {year} {len(subset)}")
+                
+#                 colsOfInterest = ["mu1_eta", "mu2_eta","dimuon_pt"]
+#                 _, subset = pair_and_remove(subset, cols=colsOfInterest, wgt_col="wgt_nominal_orig")
+#                 print(f"subset len after {year} {len(subset)}")
+    
+#                 # # sanity check:
+#                 # assert np.all(subset["wgt_nominal_orig"] >=0)
+        
+#             # Append processed rows into the output df
+#             df_out = pd.concat([df_out, subset], ignore_index=True)
+
+#     print(f"final df_out len {len(df_out)}")
+#     # print(df_out)
+#     # raise ValueError
+#     df_out = df_out[df_out["wgt_nominal_orig"] >=0] # FIXME. we see two entries (so very few) that still have negative events, so temp solution. The two entries are from one of the none DY bkg events.
+#     return df_out
+
+def split_into_n_parts(lst, n_parts):
+    return [lst[i::n_parts] for i in range(n_parts)]
+    
+def split_df(df: pd.DataFrame, max_num_rows: int):
+    """
+    Helper function that splits pd df into smaller dfs
+    """
+    for i in range(0, len(df), max_num_rows):
+        yield df.iloc[i : i + max_num_rows]
+
+def PairNAnnhilateNegWgt(df, max_num_rows=80_000):
+    print(f"df len {len(df)}")
+    print(f"max_num_rows {max_num_rows}")
     datasets = df["dataset"].unique()
     # year_param_name = "bdt_year"
     year_param_name = "year"
@@ -226,23 +279,24 @@ def PairNAnnhilateNegWgt(df):
     for year in years:
         for ds in datasets:
             # Select rows matching this dataset
-            subset = df[(df["dataset"] == ds) & (df[year_param_name] == year)].copy()
-            if np.all(subset["wgt_nominal_orig"] >=0):
-                print(f"no neg wgts in {ds} {year}")
-            else:
-                print(f"neg wgts in {ds} {year}")
-                # --- Preprocess here ---
-                print(f"subset len b4 {year} {len(subset)}")
-                
-                colsOfInterest = ["mu1_eta", "mu2_eta","dimuon_pt"]
-                _, subset = pair_and_remove(subset, cols=colsOfInterest, wgt_col="wgt_nominal_orig")
-                print(f"subset len after {year} {len(subset)}")
-    
-                # # sanity check:
-                # assert np.all(subset["wgt_nominal_orig"] >=0)
+            subset_big = df[(df["dataset"] == ds) & (df[year_param_name] == year)].copy()
+            for subset in split_df(subset_big, max_num_rows):
+                if np.all(subset["wgt_nominal_orig"] >=0):
+                    print(f"we detect no neg wgts in {ds} yr {year}")
+                else:
+                    print(f"we detect neg wgts in {ds} yr {year}")
+                    # --- Preprocess here ---
+                    print(f"subset len b4 {year}: {len(subset)}")
+                    
+                    colsOfInterest = ["mu1_eta", "mu2_eta","dimuon_pt"]
+                    _, subset = pair_and_remove(subset, cols=colsOfInterest, wgt_col="wgt_nominal_orig")
+                    print(f"subset len after {year}: {len(subset)}")
         
-            # Append processed rows into the output df
-            df_out = pd.concat([df_out, subset], ignore_index=True)
+                    # # sanity check:
+                    # assert np.all(subset["wgt_nominal_orig"] >=0)
+            
+                # Append processed rows into the output df
+                df_out = pd.concat([df_out, subset], ignore_index=True)
 
     print(f"final df_out len {len(df_out)}")
     # print(df_out)
@@ -250,71 +304,83 @@ def PairNAnnhilateNegWgt(df):
     df_out = df_out[df_out["wgt_nominal_orig"] >=0] # FIXME. we see two entries (so very few) that still have negative events, so temp solution. The two entries are from one of the none DY bkg events.
     return df_out
 
-def fillNanJetvariables(df, forward_filter, jet_variables):
-    dijet_variables = [ 
-        # 'jet1_eta', 
-        # 'jet2_eta', 
-        # 'jet1_pt', 
-        # 'jet2_pt', 
-        'jj_dEta', 
-        'jj_dPhi', 
-        'jj_mass', 
-        'mmj_min_dEta', 
-        'mmj_min_dPhi', 
-    ]
-    jet_variables = list(set(jet_variables + dijet_variables))
-    jet_variables  = [var+"_nominal" for var in jet_variables] 
-    # print(f"df.loc[forward_filter, jet_variables] b4: {df.loc[forward_filter, jet_variables]}")
-    # df.loc[forward_filter, jet_variables].to_csv("dfb4.csv")
-    # print(f"forward_filter: {forward_filter}")
-    # print(f"jet_variables: {jet_variables}")
-    
-    for jet_var in jet_variables:
-        if jet_var in df.columns:
-            if "dPhi" in jet_var:
-                df.loc[forward_filter, jet_var] = -999.0
-            else:
-                df.loc[forward_filter, jet_var] = -999.0
 
-    # print(f"df.loc[forward_filter, jet_variables] after: {df.loc[forward_filter, jet_variables]}")
-    # df.loc[forward_filter, jet_variables].to_csv("dfafter.csv")
 
-    # remove njets
-    df.loc[forward_filter, "njets_nominal"] = df.loc[forward_filter, "njets_nominal"] - 1
-    print(f'np.all(df["njets_nominal"]): {np.all(df["njets_nominal"])}')
-    assert(np.all(df["njets_nominal"]>=0))
-    return df
-    
-def removeForwardJets(df):
-    """
-    remove jet variables that are in the forward region abs(jet eta)> 2.5 with with fill nan
-    values consistent with the rest of the framework for ggH BDT.
-    """
-    df_new = copy.deepcopy(df)
-    
-    # leading jet  --------------------------
-    forward_filter = (abs(df["jet1_eta_nominal"]) > 2.5) & (abs(df["jet1_eta_nominal"]) < 5.0)
-    jet_variables = [
-        "jet1_eta",
-        "jet1_pt",
-        # "jet1_phi",
-        # "jet1_mass",
-        "mmj1_dEta",
-        # "mmj1_dPhi",
-    ]
-    df_new = fillNanJetvariables(df_new, forward_filter, jet_variables)
+def PairNAnnhilateNegWgt_inChunks(df, max_num_rows=80_000):
+    print(f"max_num_rows: {max_num_rows}")
+    processed_chunks = []
+    for chunk in split_df(df, max_num_rows):
+        processed_chunks.append(PairNAnnhilateNegWgt(df))
+        # processed_chunks.append([]) # FIXME
+    print(f"PairNAnnhilateNegWgt_inChunks processed_chunks len: {len(processed_chunks)}")
     # raise ValueError
+    return pd.concat(processed_chunks, axis=0)  # preserves chunk order
     
-    # sub-leading jet  --------------------------
-    forward_filter = (abs(df["jet2_eta_nominal"]) > 2.5) & (abs(df["jet2_eta_nominal"]) < 5.0)
-    jet_variables = [
-        "jet2_eta",
-        "jet2_pt",
-        # "jet2_phi",
-        # "jet2_mass",
-    ]
-    df_new = fillNanJetvariables(df_new, forward_filter, jet_variables)
-    return df_new
+# def fillNanJetvariables(df, forward_filter, jet_variables):
+#     dijet_variables = [ 
+#         # 'jet1_eta', 
+#         # 'jet2_eta', 
+#         # 'jet1_pt', 
+#         # 'jet2_pt', 
+#         'jj_dEta', 
+#         'jj_dPhi', 
+#         'jj_mass', 
+#         'mmj_min_dEta', 
+#         'mmj_min_dPhi', 
+#     ]
+#     jet_variables = list(set(jet_variables + dijet_variables))
+#     jet_variables  = [var+"_nominal" for var in jet_variables] 
+#     # print(f"df.loc[forward_filter, jet_variables] b4: {df.loc[forward_filter, jet_variables]}")
+#     # df.loc[forward_filter, jet_variables].to_csv("dfb4.csv")
+#     # print(f"forward_filter: {forward_filter}")
+#     # print(f"jet_variables: {jet_variables}")
+    
+#     for jet_var in jet_variables:
+#         if jet_var in df.columns:
+#             if "dPhi" in jet_var:
+#                 df.loc[forward_filter, jet_var] = -999.0
+#             else:
+#                 df.loc[forward_filter, jet_var] = -999.0
+
+#     # print(f"df.loc[forward_filter, jet_variables] after: {df.loc[forward_filter, jet_variables]}")
+#     # df.loc[forward_filter, jet_variables].to_csv("dfafter.csv")
+
+#     # remove njets
+#     df.loc[forward_filter, "njets_nominal"] = df.loc[forward_filter, "njets_nominal"] - 1
+#     print(f'np.all(df["njets_nominal"]): {np.all(df["njets_nominal"])}')
+#     assert(np.all(df["njets_nominal"]>=0))
+#     return df
+    
+# def removeForwardJets(df):
+#     """
+#     remove jet variables that are in the forward region abs(jet eta)> 2.5 with with fill nan
+#     values consistent with the rest of the framework for ggH BDT.
+#     """
+#     df_new = copy.deepcopy(df)
+    
+#     # leading jet  --------------------------
+#     forward_filter = (abs(df["jet1_eta_nominal"]) > 2.5) & (abs(df["jet1_eta_nominal"]) < 5.0)
+#     jet_variables = [
+#         "jet1_eta",
+#         "jet1_pt",
+#         # "jet1_phi",
+#         # "jet1_mass",
+#         "mmj1_dEta",
+#         # "mmj1_dPhi",
+#     ]
+#     df_new = fillNanJetvariables(df_new, forward_filter, jet_variables)
+#     # raise ValueError
+    
+#     # sub-leading jet  --------------------------
+#     forward_filter = (abs(df["jet2_eta_nominal"]) > 2.5) & (abs(df["jet2_eta_nominal"]) < 5.0)
+#     jet_variables = [
+#         "jet2_eta",
+#         "jet2_pt",
+#         # "jet2_phi",
+#         # "jet2_mass",
+#     ]
+#     df_new = fillNanJetvariables(df_new, forward_filter, jet_variables)
+#     return df_new
 
 def auc_from_eff(eff_sig, eff_bkg):
     fpr = 1.0 - np.asarray(eff_bkg)
@@ -686,3 +752,8 @@ def fullROC_operations(fig, data_dict, name, year, label, doClassBalance=False):
     fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}_w_train{save_str_addendum}.pdf")
     
     plt.clf()
+
+
+def has_bad_values(arr):
+    arr = np.asarray(arr, dtype=float)
+    return not np.isfinite(arr).all()
