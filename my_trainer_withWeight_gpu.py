@@ -633,18 +633,66 @@ training_features = [
 # V2_UL_Apr09_2025_DyTtStVvEwkGghVbf_allOtherParamsOn_ScaleWgt0_75
 
 
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet2_eta', 
+#     'jet1_pt', 
+#     'jet2_pt', 
+#     'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     # 'mmj_min_dEta', 
+#     'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     # 'zeppenfeld',
+#     'njets',
+#     'year',
+# ] # Run3PrelimResultsJan29_2026_reducedInput
+
+# training_features = [
+#     'dimuon_cos_theta_cs', 
+#     'dimuon_phi_cs', 
+#     'dimuon_rapidity', 
+#     'dimuon_pt', 
+#     # 'jet1_eta', 
+#     # 'jet2_eta', 
+#     # 'jet1_pt', 
+#     # 'jet2_pt', 
+#     # 'jj_dEta', 
+#     # 'jj_dPhi', 
+#     # 'jj_mass', 
+#     # 'mmj_min_dEta', 
+#     # 'mmj_min_dPhi', 
+#     'mu1_eta', 
+#     'mu1_pt_over_mass', 
+#     'mu2_eta', 
+#     'mu2_pt_over_mass', 
+#     # 'zeppenfeld',
+#     # 'njets',
+#     'year',
+# ] # Run3PrelimResultsJan29_2026_reducedInput2
+
+
 #---------------------------------------------------------------------------
 
 training_samples = {
         "background": [
-            "dy_M-100To200", 
-            "dy_M-100To200_MiNNLO",
-            "dyTo2Mu_M-50_aMCatNLO",
+            # "dy_M-100To200", 
+            # "dy_M-100To200_MiNNLO",
+            # "dyTo2Mu_M-50_aMCatNLO",
             "dyTo2L_M-50_incl",
             # "dy_m105_160_amc",
             # "dy_m100_200_UL",
             "ttjets_dl",
             "ttjets_sl",
+            "ttjets_fh",
             "st_tw_top",
             "st_tw_antitop",
             # "st_t_top",
@@ -658,13 +706,15 @@ training_samples = {
             # "wwz",
             # "wzz",
             # "zzz",
-            "ewk_lljj_mll50_mjj120",
-            "ewk_mmjj",
+            # "ewk_lljj_mll50_mjj120",
+            # "ewk_mmjj",
+            # "ewk_lljj",
         ],
         "signal": [
             "ggh_powhegPS", 
-            "vbf_powheg_dipole", # adding vbf only makes BDT concentrate on vbf for some reason
-            "vbf_aMCatNLO", 
+            # "vbf_powheg_dipole", # adding vbf only makes BDT concentrate on vbf for some reason
+            # "vbf_aMCatNLO", 
+            "vbf_powheg*", 
         ], # copperheadV2
         # ],
         
@@ -868,7 +918,7 @@ def prepare_dataset(df, ds_dict):
     # --------------------------------------------------------
     # multiply by dimuon mass resolutions if signal
     # --------------------------------------------------------
-    sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole"]
+    sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole", "vbf_powheg", "vbf_aMCatNLO"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     df['bdt_wgt'] = np.abs(df['wgt_nominal_orig'])
     for dataset in sig_datasets:
@@ -1985,9 +2035,8 @@ if __name__ == "__main__":
             "mu1_pt",
             "mu2_pt",
             "year",
-        ]
-
-    
+            "njets_nominal",
+        ] 
 
     
     fields2load = list(set(fields2load + training_features)) # remove redundancies
@@ -2114,6 +2163,7 @@ if __name__ == "__main__":
             # print(f"df_sample: {df_sample.head()}")
     df_total = pd.concat(df_l,ignore_index=True)   
     del df_l # delete redundant df to save memory. Not sure if this is necessary
+    print(f"df_total.dataset.unique(): {df_total.dataset.unique()}")
     # new code end --------------------------------------------------------------------------------------------
     # apply random shuffle, so that signal and bkg samples get mixed up well
     random_seed_val = 125
