@@ -2165,6 +2165,31 @@ if __name__ == "__main__":
     del df_l # delete redundant df to save memory. Not sure if this is necessary
     print(f"df_total.dataset.unique(): {df_total.dataset.unique()}")
     # new code end --------------------------------------------------------------------------------------------
+
+    # one hot-encode start ----------------------------------------------------
+    # One-hot encode the 'year' column
+    year_col_name = "year"
+    if year_col_name in df_total.columns:
+        print(f"df_total b4: {df_total[year_col_name]}")
+        one_hot_df = pd.get_dummies(df_total[year_col_name], prefix=year_col_name, dtype=int)
+        # one_hot_df.columns = one_hot_df.columns.str.replace('.', '_') # replace "." with "_" in year columns
+
+        # Concatenate the new dummy columns with the original DataFrame
+        df_total = pd.concat([df_total, one_hot_df], axis=1)
+        
+        # Drop the original 'Segment' column
+        df_total.drop(year_col_name, axis=1, inplace=True)
+        print(df_total.columns)
+        # print(df_total)
+        filtered_df = df_total.filter(like=year_col_name, axis=1) # axis=1 specifies filtering columns
+        training_features.remove(year_col_name)
+        training_features = training_features + list(one_hot_df.columns)
+        print(f"training_features after: {training_features}")
+        print(f"df_total after: {filtered_df}")
+        print(f"one_hot_df.columns: {one_hot_df.columns}")
+    # one hot-encode end ----------------------------------------------------
+
+    
     # apply random shuffle, so that signal and bkg samples get mixed up well
     random_seed_val = 125
     df_total = df_total.sample(frac=1, random_state=random_seed_val)

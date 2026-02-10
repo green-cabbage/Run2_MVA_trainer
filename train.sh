@@ -9,7 +9,8 @@ set -e
 # model_name="Run3PrelimResultsJan29_2026_reducedInput2"
 # model_name="Run3PrelimResultsFeb3_2026_jecjer"
 # model_name="Run3PrelimResultsFeb4_2026_jecjer"
-model_name="Run3PrelimResultsFeb09_2026_jecjer"
+# model_name="Run3PrelimResultsFeb09_2026_jecjer"
+model_name="Run3PrelimResultsFeb09_2026_jecjer_onehotencode"
 
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"
@@ -36,18 +37,18 @@ year="all"
 # year="2022postEE"
 python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/yun79/hmm_ntuples/copperheadV1clean/${label}/stage1_output"
 
-year="2024"
-python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/yun79/hmm_ntuples/copperheadV1clean/${label}/stage1_output"
+# year="2024"
+# python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/yun79/hmm_ntuples/copperheadV1clean/${label}/stage1_output"
 
 
-year="2023BPix"
-python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run3_nanoAODv12_23Jan_JVMFilterJets/stage1_output"
-year="2023"
-python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run3_nanoAODv12_23Jan_JVMFilterJets/stage1_output"
-year="2022postEE"
-python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run3_nanoAODv12_23Jan_JVMFilterJets/stage1_output"
-year="2022preEE"
-python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run3_nanoAODv12_23Jan_JVMFilterJets/stage1_output"
+# year="2023BPix"
+# python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run3_nanoAODv12_23Jan_JVMFilterJets/stage1_output"
+# year="2023"
+# python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run3_nanoAODv12_23Jan_JVMFilterJets/stage1_output"
+# year="2022postEE"
+# python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run3_nanoAODv12_23Jan_JVMFilterJets/stage1_output"
+# year="2022preEE"
+# python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/shar1172/hmm_ntuples/copperheadV1clean/Run3_nanoAODv12_23Jan_JVMFilterJets/stage1_output"
 
 # year="2017"
 # python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/users/yun79/hmm/copperheadV1clean/${label}/stage1_output"
