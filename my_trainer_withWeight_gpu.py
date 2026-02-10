@@ -21,7 +21,7 @@ import json
 # import cmsstyle as CMS
 import pickle
 import glob
-from modules.utils import auc_from_eff, PairNAnnhilateNegWgt, PairNAnnhilateNegWgt_inChunks, addErrByQuadrature, GetAucStdErrHanleyMcNeil, fullROC_operations, has_bad_values, get_subdirs, split_into_n_parts
+from modules.utils import auc_from_eff, PairNAnnhilateNegWgt, PairNAnnhilateNegWgt_inChunks, addErrByQuadrature, GetAucStdErrHanleyMcNeil, fullROC_operations, has_bad_values, get_subdirs, split_into_n_parts, reweightMassToFlat
 import seaborn as sb
 
 def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, fold_idx):
@@ -920,7 +920,11 @@ def prepare_dataset(df, ds_dict):
     # --------------------------------------------------------
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole", "vbf_powheg", "vbf_aMCatNLO"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
-    df['bdt_wgt'] = np.abs(df['wgt_nominal_orig'])
+    if "wgt_flat" not in df.columns:
+        df['bdt_wgt'] = np.abs(df['wgt_nominal_orig'])
+    else:
+        df['bdt_wgt'] = np.abs(df['wgt_flat'])
+        print("taking wgt_flat as bdt wgt!")
     for dataset in sig_datasets:
         df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] *(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
     # original end -----------------------------------------------
@@ -2164,29 +2168,33 @@ if __name__ == "__main__":
     df_total = pd.concat(df_l,ignore_index=True)   
     del df_l # delete redundant df to save memory. Not sure if this is necessary
     print(f"df_total.dataset.unique(): {df_total.dataset.unique()}")
+    sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole", "vbf_powheg", "vbf_aMCatNLO"]
+    save_path = f"output/bdt_{name}_{year}"
+    os.makedirs(save_path, exist_ok=True)
+    df_total = reweightMassToFlat(df_total, sig_datasets, save_path)
     # new code end --------------------------------------------------------------------------------------------
 
     # one hot-encode start ----------------------------------------------------
     # One-hot encode the 'year' column
-    year_col_name = "year"
-    if year_col_name in df_total.columns:
-        print(f"df_total b4: {df_total[year_col_name]}")
-        one_hot_df = pd.get_dummies(df_total[year_col_name], prefix=year_col_name, dtype=int)
-        # one_hot_df.columns = one_hot_df.columns.str.replace('.', '_') # replace "." with "_" in year columns
+    # year_col_name = "year"
+    # if year_col_name in df_total.columns:
+    #     print(f"df_total b4: {df_total[year_col_name]}")
+    #     one_hot_df = pd.get_dummies(df_total[year_col_name], prefix=year_col_name, dtype=int)
+    #     # one_hot_df.columns = one_hot_df.columns.str.replace('.', '_') # replace "." with "_" in year columns
 
-        # Concatenate the new dummy columns with the original DataFrame
-        df_total = pd.concat([df_total, one_hot_df], axis=1)
+    #     # Concatenate the new dummy columns with the original DataFrame
+    #     df_total = pd.concat([df_total, one_hot_df], axis=1)
         
-        # Drop the original 'Segment' column
-        df_total.drop(year_col_name, axis=1, inplace=True)
-        print(df_total.columns)
-        # print(df_total)
-        filtered_df = df_total.filter(like=year_col_name, axis=1) # axis=1 specifies filtering columns
-        training_features.remove(year_col_name)
-        training_features = training_features + list(one_hot_df.columns)
-        print(f"training_features after: {training_features}")
-        print(f"df_total after: {filtered_df}")
-        print(f"one_hot_df.columns: {one_hot_df.columns}")
+    #     # Drop the original 'Segment' column
+    #     df_total.drop(year_col_name, axis=1, inplace=True)
+    #     print(df_total.columns)
+    #     # print(df_total)
+    #     filtered_df = df_total.filter(like=year_col_name, axis=1) # axis=1 specifies filtering columns
+    #     training_features.remove(year_col_name)
+    #     training_features = training_features + list(one_hot_df.columns)
+    #     print(f"training_features after: {training_features}")
+    #     print(f"df_total after: {filtered_df}")
+    #     print(f"one_hot_df.columns: {one_hot_df.columns}")
     # one hot-encode end ----------------------------------------------------
 
     

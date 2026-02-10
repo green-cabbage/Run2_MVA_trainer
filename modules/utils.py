@@ -757,3 +757,73 @@ def fullROC_operations(fig, data_dict, name, year, label, doClassBalance=False):
 def has_bad_values(arr):
     arr = np.asarray(arr, dtype=float)
     return not np.isfinite(arr).all()
+
+
+def reweightMassToFlat(df, sig_datasets, validation_plot_path, nbins=80, mmin=115, mmax=135, wgt_field="wgt_nominal_orig"):
+
+    # -----------------------------
+    # 1) obtain bkg_df
+    # -----------------------------
+    sig_filter = df["dataset"].isin(sig_datasets)
+    sig_df = df[sig_filter] # you leave this alone
+    bkg_df = df[~sig_filter] # work on this
+    
+    # -----------------------------
+    # 2) Compute flat reweighting
+    # -----------------------------
+    edges = np.linspace(mmin, mmax, nbins + 1)
+    
+    # weighted histogram using original weights
+    counts, _ = np.histogram(bkg_df["dimuon_mass"], bins=edges, weights=bkg_df[wgt_field])
+    
+    # target height per bin (preserve total normalization)
+    target = counts.sum() / nbins
+    
+    eps = 1e-12
+    scale = np.where(counts > eps, target / counts, 0.0)
+    
+    # assign each event to a bin
+    bin_idx = np.digitize(bkg_df["dimuon_mass"], edges) - 1
+    in_range = (bin_idx >= 0) & (bin_idx < nbins)
+    
+    # new flattened weights
+    bkg_df["wgt_flat"] = bkg_df[wgt_field]
+    bkg_df.loc[in_range, "wgt_flat"] = bkg_df.loc[in_range, wgt_field] * scale[bin_idx[in_range]]
+    
+    # -----------------------------
+    # 3) Histogram before vs after
+    # -----------------------------
+    centers = 0.5 * (edges[:-1] + edges[1:])
+    
+    h_old, _ = np.histogram(bkg_df["dimuon_mass"], bins=edges, weights=bkg_df[wgt_field])
+    h_new, _ = np.histogram(bkg_df["dimuon_mass"], bins=edges, weights=bkg_df["wgt_flat"])
+
+    print(f"np.sum(h_old): {np.sum(h_old)}")
+    print(f"np.sum(h_new): {np.sum(h_new)}")
+    plt.figure(figsize=(8,5))
+    plt.step(centers, h_old, where="mid", label="Before (exp-shaped)")
+    plt.step(centers, h_new, where="mid", label="After (flattened)")
+    plt.xlabel("dimuon_mass")
+    plt.ylabel("Weighted events / bin")
+    plt.legend()
+    plt.tight_layout()
+    # plt.show()
+    plt.savefig(f"{validation_plot_path}/bkgMassFlattenRewgtPlot.pdf")
+    # -----------------------------
+    # 4) Flatness sanity check
+    # -----------------------------
+    print("Flatness (std/mean) before:", np.std(h_old) / np.mean(h_old))
+    print("Flatness (std/mean) after: ", np.std(h_new) / np.mean(h_new))
+
+    # -----------------------------
+    # 5) combine the two df back
+    # -----------------------------
+    sig_df["wgt_flat"] = sig_df[wgt_field]
+    df = pd.concat([
+        sig_df,
+        bkg_df,
+    ]).sort_index()
+    return df
+
+
+

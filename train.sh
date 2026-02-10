@@ -10,7 +10,8 @@ set -e
 # model_name="Run3PrelimResultsFeb3_2026_jecjer"
 # model_name="Run3PrelimResultsFeb4_2026_jecjer"
 # model_name="Run3PrelimResultsFeb09_2026_jecjer"
-model_name="Run3PrelimResultsFeb09_2026_jecjer_onehotencode"
+# model_name="Run3PrelimResultsFeb09_2026_jecjer_onehotencode"
+model_name="Run3PrelimResultsFeb10_2026_jecjer_flatDimuMass"
 
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"
