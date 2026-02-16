@@ -4,6 +4,7 @@ import copy
 from scipy.optimize import linear_sum_assignment
 import matplotlib.pyplot as plt
 from pathlib import Path
+import awkward as ak
 
 def get_subdirs(path):
     p = Path(path)
@@ -621,7 +622,8 @@ def customROC_curve_AN(label, pred, weight, doClassBalance = False):
     
     return (effBkg_total, effSig_total, thresholds, effBkgSig_df)
 
-def fullROC_operations(fig, data_dict, name, year, label, doClassBalance=False):
+# def fullROC_operations(fig, data_dict, name, year, label, doClassBalance=False):
+def fullROC_operations(fig, data_dict, save_path, year, label, doClassBalance=False):
     if doClassBalance:
         # save_str_addendum = "_clsWgtBal"
         # save_str_addendum = "_noWgt"
@@ -657,7 +659,9 @@ def fullROC_operations(fig, data_dict, name, year, label, doClassBalance=False):
     # -------------------------------------
     # save ROC curve
     # -------------------------------------
-    csv_savepath = f"output/bdt_{name}_{year}/rocEffs_{label}{save_str_addendum}.csv"
+    # csv_savepath = f"output/bdt_{name}_{year}/rocEffs_{label}{save_str_addendum}.csv"
+    csv_savepath = f"{save_path}/rocEffs_{label}{save_str_addendum}.csv"
+    
     roc_df = pd.DataFrame({
         "eff_sig_eval" : eff_sig_eval,
         "eff_bkg_eval" : eff_bkg_eval,
@@ -690,7 +694,8 @@ def fullROC_operations(fig, data_dict, name, year, label, doClassBalance=False):
     # -------------------------------------
     # save auc and auc err
     # -------------------------------------
-    csv_savepath = f"output/bdt_{name}_{year}/aucInfo_{label}{save_str_addendum}.csv"
+    # csv_savepath = f"output/bdt_{name}_{year}/aucInfo_{label}{save_str_addendum}.csv"
+    csv_savepath = f"{save_path}/aucInfo_{label}{save_str_addendum}.csv"
     auc_df = pd.DataFrame({
         "auc_eval" : [auc_eval],
         "auc_err_eval" : [auc_err_eval],
@@ -719,12 +724,14 @@ def fullROC_operations(fig, data_dict, name, year, label, doClassBalance=False):
     
     plt.legend(loc="lower right")
     plt.title(f'ROC curve for ggH BDT {year}')
-    fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}{save_str_addendum}.pdf")
+    # fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}{save_str_addendum}.pdf")
+    fig.savefig(f"{save_path}/log_auc_{label}{save_str_addendum}.pdf")
 
     
     plt.plot(eff_sig_train, eff_bkg_train, label=f"ROC (Train) — AUC={auc_train:.4f}+/-{auc_err_train:.4f}")
     plt.legend(loc="lower right")
-    fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}_w_train{save_str_addendum}.pdf")
+    # fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}_w_train{save_str_addendum}.pdf")
+    fig.savefig(f"{save_path}/log_auc_{label}_w_train{save_str_addendum}.pdf")
     
     plt.clf()
     # superimposed flipped log ROC start --------------------------------------------------------------------------
@@ -745,11 +752,13 @@ def fullROC_operations(fig, data_dict, name, year, label, doClassBalance=False):
     
     plt.legend(loc="lower right")
     plt.title(f'ROC curve for ggH BDT {year}')
-    fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}{save_str_addendum}.pdf")
+    # fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}{save_str_addendum}.pdf")
+    fig.savefig(f"{save_path}/logFlip_auc_{label}{save_str_addendum}.pdf")
 
     plt.plot(1-eff_sig_train, 1-eff_bkg_train, label=f"Stage2 ROC (Train) — AUC={auc_train:.4f}+/-{auc_err_train:.4f}")
     plt.legend(loc="lower right")
-    fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}_w_train{save_str_addendum}.pdf")
+    # fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}_w_train{save_str_addendum}.pdf")
+    fig.savefig(f"{save_path}/logFlip_auc_{label}_w_train{save_str_addendum}.pdf")
     
     plt.clf()
 
@@ -827,3 +836,38 @@ def reweightMassToFlat(df, sig_datasets, validation_plot_path, nbins=80, mmin=11
 
 
 
+
+def apply_gghChannelSelection(delayed_dak_zip):
+    """
+    small wrapper that takes delayed dask awkward zip and converts them to pandas dataframe
+    with zip's keys as columns with extra column "dataset" to be named the string value given
+    Note: we also filter out regions not in h-peak region first, and apply cuts for
+    ggH production mode
+    """
+    # filter out arrays not in h_peak
+    train_region = (delayed_dak_zip.dimuon_mass > 115.0) & (delayed_dak_zip.dimuon_mass < 135.0) # line 1169 of the AN: when training, we apply a tigher cut
+    train_region = ak.fill_none(train_region, value=False)
+    # print(f"is_vbf: {is_vbf}")
+    # print(f"convert2df train_region:{train_region}")
+    # not entirely sure if this is what we use for ROC curve, however
+
+    vbf_cut = ak.fill_none(delayed_dak_zip.jj_mass_nominal > 400, value=False) & ak.fill_none(delayed_dak_zip.jj_dEta_nominal > 2.5, value=False) # for ggH $ VBF
+    jet1_cut =  ak.fill_none((delayed_dak_zip.jet1_pt_nominal > 35), value=False) 
+    
+
+    prod_cat_cut =  ~(vbf_cut & jet1_cut)
+    print("ggH cat!")
+
+    # btag_cut = ak.fill_none((delayed_dak_zip.nBtagLoose_nominal >= 2), value=False) | ak.fill_none((delayed_dak_zip.nBtagMedium_nominal >= 1), value=False)
+    btagLoose_filter = ak.fill_none((delayed_dak_zip.nBtagLoose_nominal >= 2), value=False)
+    btagMedium_filter = ak.fill_none((delayed_dak_zip.nBtagMedium_nominal >= 1), value=False) & ak.fill_none((delayed_dak_zip.njets_nominal >= 2), value=False)
+    btag_cut = btagLoose_filter | btagMedium_filter
+   
+    category_selection = (
+        prod_cat_cut & 
+        train_region &
+        ~btag_cut # btag cut is for VH and ttH categories
+    )
+    print(f"category_selection sum: {ak.sum(category_selection)}")
+    computed_zip = delayed_dak_zip[category_selection].compute()
+    return computed_zip
