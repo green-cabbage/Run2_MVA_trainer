@@ -23,8 +23,6 @@ import pickle
 import glob
 from modules.utils import auc_from_eff, PairNAnnhilateNegWgt, PairNAnnhilateNegWgt_inChunks, addErrByQuadrature, GetAucStdErrHanleyMcNeil, fullROC_operations, has_bad_values, get_subdirs
 import seaborn as sb
-import optuna
-from modules.hyperparamOptim import objective
 
 
 
@@ -672,7 +670,7 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
             
             # AN-19-124 p 45: "a correction factor is introduced to ensure that the same amount of background events are expected when either negative weighted events are discarded or they are considered with a positive weight"
             # tuned_params = {'min_child_weight': 13.428968247683708, 'n_estimators': 1573, 'max_depth': 8, 'learning_rate': 0.05982369314062763, 'subsample': 0.9430472676858279, 'max_bin': 80}
-            tuned_params = {'min_child_weight': 9.762500984740198, 'n_estimators': 768, 'max_depth': 5, 'learning_rate': 0.07449557428785843, 'subsample': 0.9443319220090325, 'max_bin': 44}
+            tuned_params =  {'min_child_weight': 2.557316256946003, 'n_estimators': 1539, 'max_depth': 10, 'learning_rate': 0.05304264948799136, 'subsample': 0.8156339679345651, 'max_bin': 74}
             tuned_params.update({
                 "tree_method" : 'hist',
                 "eval_metric" : 'logloss',
@@ -702,6 +700,8 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
             # instead of normal fitting
             # -----------------------------------------
             if do_hyperparam_search:
+                import optuna
+                from modules.hyperparamOptim import objective
                 study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=random_seed_val))
                 study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, w_val, weight_nom_val, random_seed=random_seed_val), n_trials=100)
                 print("Best AUC:", study.best_value)
