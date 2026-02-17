@@ -139,6 +139,17 @@ if __name__ == "__main__":
         parquet_path = load_path+f"/{sample}/*/*.parquet"
         print(f"parquet_path: {parquet_path}")
         filelist_big = glob.glob(parquet_path)
+
+
+        # FIXME --------------------
+        if (year == "all") or (year == "2024"):
+            if sample=="dyTo2L_M-50_incl": 
+                load_path_exception = f"{sysargs.load_path}/2024/f1_0" 
+                parquet_path = load_path_exception+f"/dyTo2Mu_M-50_aMCatNLO/*/*.parquet"
+                filelist_big += glob.glob(parquet_path)
+
+        # FIXME --------------------
+                
         if "dy" in sample:
             n_parts = 4
         else:
@@ -158,6 +169,7 @@ if __name__ == "__main__":
                 # zip_sample = dak.from_parquet(parquet_path) 
                 # filelist = glob.glob(parquet_path)
                 print(f"filelist len: {len(filelist)}")
+                print(f"filelist : {(filelist)}")
                 if year == "all":
                     # year_paths = {
                     #     2015: f"{sysargs.load_path}/2016preVFP/f1_0/{sample}/*/*.parquet",
@@ -251,7 +263,7 @@ if __name__ == "__main__":
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole", "vbf_powheg", "vbf_aMCatNLO"]
     save_path = f"output/bdt_{name}_{year}"
     os.makedirs(save_path, exist_ok=True)
-    # df_total = reweightMassToFlat(df_total, sig_datasets, save_path)
+    df_total = reweightMassToFlat(df_total, sig_datasets, save_path)
     # new code end --------------------------------------------------------------------------------------------
 
     # one hot-encode start ----------------------------------------------------
