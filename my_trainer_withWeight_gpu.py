@@ -263,7 +263,7 @@ if __name__ == "__main__":
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole", "vbf_powheg", "vbf_aMCatNLO"]
     save_path = f"output/bdt_{name}_{year}"
     os.makedirs(save_path, exist_ok=True)
-    df_total = reweightMassToFlat(df_total, sig_datasets, save_path)
+    # df_total = reweightMassToFlat(df_total, sig_datasets, save_path)
     # new code end --------------------------------------------------------------------------------------------
 
     # one hot-encode start ----------------------------------------------------
