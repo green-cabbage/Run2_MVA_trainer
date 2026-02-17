@@ -388,7 +388,18 @@ def auc_from_eff(eff_sig, eff_bkg):
     tpr = np.asarray(eff_sig)
     # sort by FPR ascending before integrating
     order = np.argsort(fpr)
-    return np.trapezoid(tpr[order], fpr[order])
+
+    # in some numpy packages np.trapezoid doesn't exist.
+    # then use np.trapz instead
+    function_name = 'trapezoid'
+    alternative_function = 'trapz'
+    
+    if hasattr(np, function_name):
+        trapz_func = getattr(np, function_name)
+    else:
+        trapz_func = getattr(np, alternative_function)
+        
+    return trapz_func(tpr[order], fpr[order])
 
 
 def addErrByQuadrature(df, columns=[]):

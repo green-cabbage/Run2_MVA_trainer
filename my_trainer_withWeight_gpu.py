@@ -25,6 +25,7 @@ from modules.workflow import prepare_features, prepare_dataset, classifier_train
 from modules.variables import training_features, training_samples
 from modules.utils import split_into_n_parts, apply_gghChannelSelection, reweightMassToFlat
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -58,21 +59,31 @@ if __name__ == "__main__":
     action="store",
     help="Year to process (2016preVFP, 2016postVFP, 2017 or 2018)",
     )
+    parser.add_argument(
+    "-param_search",
+    "--do_hyperparam_search",
+    dest="do_hyperparam_search",
+    type=int,
+    default=0,
+    # action="store",
+    help="integer flag to do hyperparam search. If zero, then do not do it",
+    )
     sysargs = parser.parse_args()
     year = sysargs.year
     name = sysargs.name
     args = {
         "dnn": False,
         "bdt": True,
-        # "dnn": True,
-        # "bdt": False,
         "year": year,
         "name": name,
         "do_massscan": False,
         "evaluate_allyears_dnn": False,
         "output_path": "/depot/cms/users/yun79/hmm/trained_MVAs",
-        "label": ""
+        "label": "",
+        # "do_hyperparam_search": !(sysargs.do_hyperparam_search==0), # if zero, then do not do hyperparam search
     }
+    do_hyperparam_search = (sysargs.do_hyperparam_search!=0) # if zero, then do not do hyperparam search
+    print(f"do_hyperparam_search: {do_hyperparam_search}")
     start_time = time.time()
     # client =  Client(n_workers=31,  threads_per_worker=1, processes=True, memory_limit='12 GiB') 
     client =  Client(n_workers=10,  threads_per_worker=1, processes=True, memory_limit='25 GiB') 
@@ -89,43 +100,6 @@ if __name__ == "__main__":
     sample_l = training_samples["background"] + training_samples["signal"]
     is_UL = True
     
-    
-    # if is_UL:
-    #     fields2load = [ # copperheadV2
-    #         "dimuon_mass",
-    #         "jj_mass",
-    #         "jj_dEta",
-    #         "jet1_pt",
-    #         "nBtagLoose",
-    #         "nBtagMedium",
-    #         "mmj1_dEta",
-    #         "mmj2_dEta",
-    #         "mmj1_dPhi",
-    #         "mmj2_dPhi",
-    #         "wgt_nominal_total",
-    #         "dimuon_ebe_mass_res",
-    #         "event",
-    #         "mu1_pt",
-    #         "mu2_pt",
-    #     ]
-    # else:
-    #     fields2load = [ # copperheadV1
-    #         "dimuon_mass",
-    #         "jj_mass_nominal",
-    #         "jj_dEta_nominal",
-    #         "jet1_pt_nominal",
-    #         "nBtagLoose_nominal",
-    #         "nBtagMedium_nominal",
-    #         "mmj1_dEta_nominal",
-    #         "mmj2_dEta_nominal",
-    #         "mmj1_dPhi_nominal",
-    #         "mmj2_dPhi_nominal",
-    #         "wgt_nominal",
-    #         "dimuon_ebe_mass_res",
-    #         "event",
-    #         "mu1_pt",
-    #         "mu2_pt",
-    #     ]
 
     fields2load = [ 
             "dimuon_mass",
@@ -277,7 +251,7 @@ if __name__ == "__main__":
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole", "vbf_powheg", "vbf_aMCatNLO"]
     save_path = f"output/bdt_{name}_{year}"
     os.makedirs(save_path, exist_ok=True)
-    df_total = reweightMassToFlat(df_total, sig_datasets, save_path)
+    # df_total = reweightMassToFlat(df_total, sig_datasets, save_path)
     # new code end --------------------------------------------------------------------------------------------
 
     # one hot-encode start ----------------------------------------------------
@@ -318,8 +292,8 @@ if __name__ == "__main__":
     # raise ValueError
     # print(f"len(df_total): {len(df_total)}")
     print(f"df_total.columns: {df_total.columns}")
-    
-    classifier_train(df_total, args, training_samples, training_features, random_seed_val, save_path)
+
+    classifier_train(df_total, args, training_samples, training_features, random_seed_val, save_path, do_hyperparam_search=do_hyperparam_search)
     # evaluation(df_total, args)
     #df.to_pickle('/depot/cms/hmm/purohita/coffea/eval_dataset.pickle')
     #print(df)

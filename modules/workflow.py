@@ -23,6 +23,8 @@ import pickle
 import glob
 from modules.utils import auc_from_eff, PairNAnnhilateNegWgt, PairNAnnhilateNegWgt_inChunks, addErrByQuadrature, GetAucStdErrHanleyMcNeil, fullROC_operations, has_bad_values, get_subdirs
 import seaborn as sb
+import optuna
+from modules.hyperparamOptim import objective
 
 
 
@@ -488,7 +490,7 @@ def getCorrMatrix(df, training_features, save_path=""):
     # raise ValueError
     return corr_matrix
 
-def classifier_train(df, args, training_samples, training_features, random_seed_val: int, save_path:str):
+def classifier_train(df, args, training_samples, training_features, random_seed_val: int, save_path:str, do_hyperparam_search=False):
     print(f"random_seed_val: {random_seed_val}")
     if args['dnn']:
         from tensorflow.keras.models import Model
@@ -663,34 +665,14 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
             w_train = w_train[shuf_ind_tr]
             w_val = w_val[shuf_ind_val]
 
-            # AN Model new start ---------------------------------------------------------------   
+            #--------------------------------------------------   
+            # BDT hyparameter setup
+            #--------------------------------------------------   
             verbosity=2
             
             # AN-19-124 p 45: "a correction factor is introduced to ensure that the same amount of background events are expected when either negative weighted events are discarded or they are considered with a positive weight"
-            # scale_pos_weight = float(np.sum(np.abs(weight_nom_train[y_train == 0]))) / np.sum(np.abs(weight_nom_train[y_train == 1])) 
-            # scale_pos_weight = scale_pos_weight*0.75
-            # print(f"scale_pos_weight: {scale_pos_weight}")
-            # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
-            # print(f"len(x_train): {len(x_train)}")
-            # model = XGBClassifier(
-            #     n_estimators=1000,           # Number of trees
-            #     max_depth=4,                 # Max depth
-            #     learning_rate=0.10,          # Shrinkage
-            #     subsample=0.5,               # Bagged sample fraction
-            #     min_child_weight=0.03 ,  # NOTE: this causes AUC == 0.5
-            #     tree_method='hist',          # Needed for max_bin
-            #     max_bin=30,                  # Number of cuts
-            #     # objective='binary:logistic', # CrossEntropy (logloss)
-            #     # use_label_encoder=False,     # Optional: suppress warning
-            #     eval_metric='logloss',       # Ensures logloss used during training
-            #     n_jobs=30,                   # Use all CPU cores
-            #     # scale_pos_weight=scale_pos_weight*0.005,
-            #     # scale_pos_weight=scale_pos_weight,
-            #     early_stopping_rounds=15,#15
-            #     verbosity=verbosity,
-            #     random_state=random_seed_val,
-            # )
-            tuned_params = {'min_child_weight': 13.428968247683708, 'n_estimators': 1573, 'max_depth': 8, 'learning_rate': 0.05982369314062763, 'subsample': 0.9430472676858279, 'max_bin': 80}
+            # tuned_params = {'min_child_weight': 13.428968247683708, 'n_estimators': 1573, 'max_depth': 8, 'learning_rate': 0.05982369314062763, 'subsample': 0.9430472676858279, 'max_bin': 80}
+            tuned_params = {'min_child_weight': 9.762500984740198, 'n_estimators': 768, 'max_depth': 5, 'learning_rate': 0.07449557428785843, 'subsample': 0.9443319220090325, 'max_bin': 44}
             tuned_params.update({
                 "tree_method" : 'hist',
                 "eval_metric" : 'logloss',
@@ -700,7 +682,6 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
                 "random_state" : random_seed_val,
             })
             model = XGBClassifier(**tuned_params)
-            # AN Model new end ---------------------------------------------------------------
             
             print(model)
             print(f"negative w_train: {w_train[w_train <0]}")
@@ -714,6 +695,22 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
             print(f"has_bad_values(y_val): {has_bad_values(y_val)}")
             print(f"y_train unqiue: {np.unique(y_train)}")
             print(f"y_val unqiue: {np.unique(y_val)}")
+
+
+            # -----------------------------------------
+            # Do hyperparameter tuning if asked
+            # instead of normal fitting
+            # -----------------------------------------
+            if do_hyperparam_search:
+                study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=random_seed_val))
+                study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, w_val, weight_nom_val, random_seed=random_seed_val), n_trials=100)
+                print("Best AUC:", study.best_value)
+                print("Best params:", study.best_params)
+                raise ValueError("Hyperparameter Tuning complete! Exiting")
+            
+            # -----------------------------------------
+            # Do normal BDT fitting 
+            # -----------------------------------------
             model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
 
             y_pred_signal_val = model.predict_proba(xp_val)[:, 1].ravel()

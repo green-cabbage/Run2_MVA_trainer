@@ -12,7 +12,9 @@ set -e
 # model_name="Run3PrelimResultsFeb09_2026_jecjer"
 # model_name="Run3PrelimResultsFeb09_2026_jecjer_onehotencode"
 # model_name="Run3PrelimResultsFeb10_2026_jecjer_flatDimuMass"
-model_name="test"
+# model_name="test"
+# model_name="hyperParam_test"
+model_name="hyperParam_test2"
 
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"
@@ -31,6 +33,11 @@ model_name="test"
 # label="Run3_nanoAODv12_09Feb_FilterJetsHorn30GeV"
 label="Run3_nanoAODv12_15Feb_FilterJetsHorn30GeV"
 
+
+# do_hyperparam_search="0" # false
+do_hyperparam_search="1" # true
+
+
 # year="2018"
 # year="2017"
 # year="2016postVFP"
@@ -38,7 +45,7 @@ label="Run3_nanoAODv12_15Feb_FilterJetsHorn30GeV"
 # year="2016"
 # year="all"
 year="2022postEE"
-python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/yun79/hmm_ntuples/copperheadV1clean/${label}/stage1_output"
+python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/yun79/hmm_ntuples/copperheadV1clean/${label}/stage1_output" -param_search ${do_hyperparam_search}
 
 # year="2024"
 # python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/yun79/hmm_ntuples/copperheadV1clean/${label}/stage1_output"
