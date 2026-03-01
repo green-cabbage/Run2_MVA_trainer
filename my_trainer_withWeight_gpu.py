@@ -23,7 +23,7 @@ import pickle
 import glob
 from modules.workflow import prepare_features, prepare_dataset, classifier_train, convert2df
 from modules.variables import training_features, training_samples
-from modules.utils import split_into_n_parts, apply_gghChannelSelection, reweightMassToFlat
+from modules.utils import split_into_n_parts, apply_gghChannelSelection, reweightMassToFlat, reweightMassToTargetDist_workflow
 
 
 if __name__ == "__main__":
@@ -68,14 +68,23 @@ if __name__ == "__main__":
     # action="store",
     help="integer flag to do hyperparam search. If zero, then do not do it",
     )
+    parser.add_argument(
+    "--massDeCorrStrat",
+    dest="mass_decorrelation_strat",
+    default="default",
+    action="store",
+    help="Dimuon mass decorrelation method for training. Available options are: default (do nothing), peking, targetZpeakMass.",
+    )
     sysargs = parser.parse_args()
     year = sysargs.year
     name = sysargs.name
+    # mass_decorrelation_strat = sysargs.mass_decorrelation_strat
     args = {
         "dnn": False,
         "bdt": True,
         "year": year,
         "name": name,
+        # "mass_decorrelation_strat": mass_decorrelation_strat,
         "do_massscan": False,
         "evaluate_allyears_dnn": False,
         "output_path": "/depot/cms/users/yun79/hmm/trained_MVAs",
@@ -263,7 +272,13 @@ if __name__ == "__main__":
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole", "vbf_powheg", "vbf_aMCatNLO"]
     save_path = f"output/bdt_{name}_{year}"
     os.makedirs(save_path, exist_ok=True)
-    # df_total = reweightMassToFlat(df_total, sig_datasets, save_path)
+    if sysargs.mass_decorrelation_strat == "peking":
+        print("Peking decorrlation method!")
+        df_total = reweightMassToFlat(df_total, sig_datasets, save_path)
+    elif sysargs.mass_decorrelation_strat == "targetZpeakMass":
+        print("targetZpeakMass decorrlation method!")
+        df_total = reweightMassToTargetDist_workflow(df_total, sig_datasets, save_path)
+    
     # new code end --------------------------------------------------------------------------------------------
 
     # one hot-encode start ----------------------------------------------------

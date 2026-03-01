@@ -801,7 +801,6 @@ def reweightMassToFlat(df, sig_datasets, validation_plot_path, nbins=80, mmin=11
     
     eps = 1e-12
     scale = np.where(counts > eps, target / counts, 0.0)
-    
     # assign each event to a bin
     bin_idx = np.digitize(bkg_df["dimuon_mass"], edges) - 1
     in_range = (bin_idx >= 0) & (bin_idx < nbins)
@@ -882,3 +881,124 @@ def apply_gghChannelSelection(delayed_dak_zip):
     print(f"category_selection sum: {ak.sum(category_selection)}")
     computed_zip = delayed_dak_zip[category_selection].compute()
     return computed_zip
+
+
+
+def reweightMassToTargetDist_workflow(df, sig_datasets, validation_plot_path, nbins=80, mmin=115, mmax=135, wgt_field="wgt_nominal_orig"):
+    """
+    wrapper of reweightMassToTargetDist over sig and bkg samples
+    """
+
+    # -----------------------------
+    # 1) obtain bkg_df
+    # -----------------------------
+    sig_filter = df["dataset"].isin(sig_datasets)
+    sig_df = df[sig_filter] # you leave this alone
+    bkg_df = df[~sig_filter] # work on this
+
+
+    target_dist_load_path = "stage1_output/Run3_nanoAODv12_02Feb_FilterJetsHorn30GeV/2024/compacted/dyTo2L_M-50_incl/0/part003.parquet"
+    sig_df = reweightMassToTargetDist(sig_df, target_dist_load_path, mmin, mmax, nbins, validation_plot_path, plot_name="sigMassTargetReWgt")
+    bkg_df = reweightMassToTargetDist(bkg_df, target_dist_load_path, mmin, mmax, nbins, validation_plot_path, plot_name="bkgMassTargetReWgt")
+
+    # -----------------------------
+    # 5) combine the two df back
+    # -----------------------------
+    df = pd.concat([
+        sig_df,
+        bkg_df,
+    ]).sort_index()
+    return df
+
+def recenter_range(x_min, x_max, new_x_center):
+    """
+    Recenter a range [x_min, x_max] to a new center,
+    keeping the same total length.
+
+    Returns:
+        new_x_min, new_x_max
+    """
+    length = x_max - x_min
+    half_length = length / 2.0
+    
+    new_x_min = new_x_center - half_length
+    new_x_max = new_x_center + half_length
+    
+    return new_x_min, new_x_max
+
+def reweightMassToTargetDist(df, target_dist_load_path, train_x_min, train_x_max, nbins, plot_save_path, plot_name="test"):
+
+    events_target = ak.from_parquet(target_dist_load_path)
+    target = ak.to_numpy(events_target.dimuon_mass)
+    target_wgt = ak.to_numpy(events_target.wgt_nominal)
+    
+    # Source distribution (to be reweighted)
+    # x = np.random.normal(loc=91, scale=6.4, size=50000)
+    # w = np.ones_like(x)
+    x = df["dimuon_mass"]
+    w = df["wgt_nominal"]
+    
+    # -----------------------------
+    # 2. Define binning
+    # -----------------------------
+    # train_x_min = 115
+    # train_x_max = 135
+    
+    z_mass = 91
+    
+    range_ = recenter_range(train_x_min, train_x_max, z_mass)
+    # print(range_)
+    
+    
+    target_hist, bin_edges = np.histogram(target, bins=nbins, range=range_, weights=target_wgt)
+    
+    bin_edges = np.linspace(train_x_min, train_x_max, num=(nbins+1))
+    source_hist, _ = np.histogram(x, bins=bin_edges, weights=w)
+    
+    # -----------------------------
+    # 3. Compute scale factors
+    # -----------------------------
+    scale = np.divide(
+        target_hist,
+        source_hist,
+        out=np.zeros_like(target_hist, dtype=float),
+        where=source_hist != 0
+    )
+    
+    # -----------------------------
+    # 4. Apply per-bin scale factor
+    # -----------------------------
+    bin_index = np.digitize(x, bin_edges) - 1
+    
+    # keep only valid bins
+    valid = (bin_index >= 0) & (bin_index < len(scale))
+    
+    w_new = w.copy()
+    w_new[valid] *= scale[bin_index[valid]]
+    
+    # -----------------------------
+    # 5. Plot comparison
+    # -----------------------------
+    train_x_center = (train_x_max + train_x_min)/2
+    plot_range_delta = train_x_center - z_mass
+    plt.hist(target+plot_range_delta, bins=bin_edges, weights=target_wgt, histtype="step", density=True, label="Target")
+    plt.hist(x, bins=bin_edges, weights=w, histtype="step", density=True, label="Source (before)")
+    
+    plt.legend()
+    plt.xlabel("x")
+    plt.ylabel("Density")
+    plt.title("Histogram Reweighting Example")
+    plt.savefig(f"{plot_save_path}/{plot_name}_b4.pdf")
+    
+    
+    plt.hist(x, bins=bin_edges, weights=w_new, histtype="step", density=True, label="Source (after)")
+    plt.legend()
+    plt.savefig(f"{plot_save_path}/{plot_name}_after.pdf")
+    plt.clf()
+    
+    # -----------------------------
+    # 6. re-wgt and return df
+    # -----------------------------
+    df["wgt_nominal"] =  w_new
+    return df
+    
