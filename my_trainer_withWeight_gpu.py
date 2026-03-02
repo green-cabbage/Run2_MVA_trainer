@@ -278,7 +278,17 @@ if __name__ == "__main__":
     elif sysargs.mass_decorrelation_strat == "targetZpeakMass":
         print("targetZpeakMass decorrlation method!")
         df_total = reweightMassToTargetDist_workflow(df_total, sig_datasets, save_path)
-    
+    elif sysargs.mass_decorrelation_strat == "targetHpeakMass":
+        print("targetHpeakMass decorrlation method!")
+        dy_target_mass_centre = 125
+        # nbins=40
+        nbins=20
+        df_total = reweightMassToTargetDist_workflow(df_total, sig_datasets, save_path, nbins=nbins, target_mass_centre=dy_target_mass_centre)
+    elif sysargs.mass_decorrelation_strat == "targetHsidebandMass":
+        print("targetHpeakMass decorrlation method!")
+        dy_target_mass_centre = 105
+        nbins=40
+        df_total = reweightMassToTargetDist_workflow(df_total, sig_datasets, save_path, nbins=nbins, target_mass_centre=dy_target_mass_centre)
     # new code end --------------------------------------------------------------------------------------------
 
     # one hot-encode start ----------------------------------------------------

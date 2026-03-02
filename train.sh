@@ -17,7 +17,9 @@ set -e
 # model_name="Run3PrelimResultsFeb16_2026_jecjer_tuned"
 # model_name="Run3PrelimResultsFeb10_2026_jecjer_flatDimuMass_tuned"
 # model_name="Feb28_2026_flatDimuMass_tuned"
-model_name="Feb28_2026_zPeakShapeMatch_tuned"
+# model_name="Feb28_2026_zPeakShapeMatch_tuned"
+model_name="Feb28_2026_hPeakShapeMatch"
+# model_name="Feb28_2026_hSidebandShapeMatch"
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff_newZptWgt25Mar2025"
@@ -37,12 +39,14 @@ model_name="Feb28_2026_zPeakShapeMatch_tuned"
 # label="Run3_nanoAODv12_15Feb_FilterJetsHorn30GeV"
 label="Run3_nanoAODv15_28Feb_JetsHorn30GeV_NoJer_tightPassLepVeto"
 
-# do_hyperparam_search="0" # false
-do_hyperparam_search="1" # true
+do_hyperparam_search="0" # false
+# do_hyperparam_search="1" # true
 
 # mass_decorrelation_strat="default" # no mass decorrelation
 # mass_decorrelation_strat="peking" # peking's mass flattening
-mass_decorrelation_strat="targetZpeakMass" # target distribution Zpeak mass
+# mass_decorrelation_strat="targetZpeakMass" # target distribution Zpeak mass
+mass_decorrelation_strat="targetHpeakMass" # target distribution Hpeak mass
+# mass_decorrelation_strat="targetHsidebandMass" # target distribution lower H sidebands and uppper ZCR mass window
 
 # year="2018"
 # year="2017"

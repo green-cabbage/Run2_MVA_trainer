@@ -372,7 +372,8 @@ def prepare_dataset(df, ds_dict):
         df['bdt_wgt'] = np.abs(df['wgt_flat'])
         print("taking wgt_flat as bdt wgt!")
     for dataset in sig_datasets:
-        df.loc[df['dataset']==dataset,'bdt_wgt'] = df.loc[df['dataset']==dataset,'bdt_wgt'] *(1 / df[df['dataset']==dataset]['dimuon_ebe_mass_res'])
+        dataset_filter = df['dataset']==dataset
+        df.loc[dataset_filter,'bdt_wgt'] = df.loc[dataset_filter,'bdt_wgt'] *(1 / df[dataset_filter]['dimuon_ebe_mass_res'])
     # original end -----------------------------------------------
 
     # -------------------------------------------------
@@ -670,7 +671,11 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
             
             # AN-19-124 p 45: "a correction factor is introduced to ensure that the same amount of background events are expected when either negative weighted events are discarded or they are considered with a positive weight"
             # tuned_params = {'min_child_weight': 13.428968247683708, 'n_estimators': 1573, 'max_depth': 8, 'learning_rate': 0.05982369314062763, 'subsample': 0.9430472676858279, 'max_bin': 80}
-            tuned_params =  {'min_child_weight': 2.557316256946003, 'n_estimators': 1539, 'max_depth': 10, 'learning_rate': 0.05304264948799136, 'subsample': 0.8156339679345651, 'max_bin': 74}
+            # tuned_params =  {'min_child_weight': 2.557316256946003, 'n_estimators': 1539, 'max_depth': 10, 'learning_rate': 0.05304264948799136, 'subsample': 0.8156339679345651, 'max_bin': 74}
+            # tuned_params =  {'min_child_weight': 3.5451229442486776, 'n_estimators': 2057, 'max_depth': 7, 'learning_rate': 0.050285069062295254, 'subsample': 0.9815632528341489, 'max_bin': 77} # Feb28_2026_zPeakShapeMatch_tuned
+            tuned_params =  {'min_child_weight': 14.58375507839577, 'n_estimators': 511, 'max_depth': 8, 'learning_rate': 0.08127708435811475, 'subsample': 0.973909078023838, 'max_bin': 79} # Feb28_2026_flatDimuMass_tuned
+
+            
             tuned_params.update({
                 "tree_method" : 'hist',
                 "eval_metric" : 'logloss',

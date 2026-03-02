@@ -884,7 +884,7 @@ def apply_gghChannelSelection(delayed_dak_zip):
 
 
 
-def reweightMassToTargetDist_workflow(df, sig_datasets, validation_plot_path, nbins=80, mmin=115, mmax=135, wgt_field="wgt_nominal_orig"):
+def reweightMassToTargetDist_workflow(df, sig_datasets, validation_plot_path, nbins=80, mmin=115, mmax=135, wgt_field="wgt_nominal_orig", target_mass_centre = 91):
     """
     wrapper of reweightMassToTargetDist over sig and bkg samples
     """
@@ -898,8 +898,8 @@ def reweightMassToTargetDist_workflow(df, sig_datasets, validation_plot_path, nb
 
 
     target_dist_load_path = "stage1_output/Run3_nanoAODv12_02Feb_FilterJetsHorn30GeV/2024/compacted/dyTo2L_M-50_incl/0/part003.parquet"
-    sig_df = reweightMassToTargetDist(sig_df, target_dist_load_path, mmin, mmax, nbins, validation_plot_path, plot_name="sigMassTargetReWgt")
-    bkg_df = reweightMassToTargetDist(bkg_df, target_dist_load_path, mmin, mmax, nbins, validation_plot_path, plot_name="bkgMassTargetReWgt")
+    sig_df = reweightMassToTargetDist(sig_df, target_dist_load_path, mmin, mmax, nbins, validation_plot_path, plot_name="sigMassTargetReWgt", target_mass_centre=target_mass_centre)
+    bkg_df = reweightMassToTargetDist(bkg_df, target_dist_load_path, mmin, mmax, nbins, validation_plot_path, plot_name="bkgMassTargetReWgt", target_mass_centre=target_mass_centre)
 
     # -----------------------------
     # 5) combine the two df back
@@ -926,7 +926,7 @@ def recenter_range(x_min, x_max, new_x_center):
     
     return new_x_min, new_x_max
 
-def reweightMassToTargetDist(df, target_dist_load_path, train_x_min, train_x_max, nbins, plot_save_path, plot_name="test"):
+def reweightMassToTargetDist(df, target_dist_load_path, train_x_min, train_x_max, nbins, plot_save_path, plot_name="test", target_mass_centre = 91):
 
     events_target = ak.from_parquet(target_dist_load_path)
     target = ak.to_numpy(events_target.dimuon_mass)
@@ -944,9 +944,9 @@ def reweightMassToTargetDist(df, target_dist_load_path, train_x_min, train_x_max
     # train_x_min = 115
     # train_x_max = 135
     
-    z_mass = 91
+    # target_mass_centre = 91
     
-    range_ = recenter_range(train_x_min, train_x_max, z_mass)
+    range_ = recenter_range(train_x_min, train_x_max, target_mass_centre)
     # print(range_)
     
     
@@ -980,7 +980,7 @@ def reweightMassToTargetDist(df, target_dist_load_path, train_x_min, train_x_max
     # 5. Plot comparison
     # -----------------------------
     train_x_center = (train_x_max + train_x_min)/2
-    plot_range_delta = train_x_center - z_mass
+    plot_range_delta = train_x_center - target_mass_centre
     plt.hist(target+plot_range_delta, bins=bin_edges, weights=target_wgt, histtype="step", density=True, label="Target")
     plt.hist(x, bins=bin_edges, weights=w, histtype="step", density=True, label="Source (before)")
     
