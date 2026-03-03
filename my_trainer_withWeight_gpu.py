@@ -73,7 +73,7 @@ if __name__ == "__main__":
     dest="mass_decorrelation_strat",
     default="default",
     action="store",
-    help="Dimuon mass decorrelation method for training. Available options are: default (do nothing), peking, targetZpeakMass.",
+    help="Dimuon mass decorrelation method for training. Available options are: default (do nothing), peking, targetZpeakMass, flatDist",
     )
     sysargs = parser.parse_args()
     year = sysargs.year
@@ -289,6 +289,11 @@ if __name__ == "__main__":
         dy_target_mass_centre = 105
         nbins=40
         df_total = reweightMassToTargetDist_workflow(df_total, sig_datasets, save_path, nbins=nbins, target_mass_centre=dy_target_mass_centre)
+    elif sysargs.mass_decorrelation_strat == "flatDist":
+        print("flatDist decorrlation method!")
+        dy_target_mass_centre = "flat"
+        df_total = reweightMassToTargetDist_workflow(df_total, sig_datasets, save_path, target_mass_centre=dy_target_mass_centre)
+        
     # new code end --------------------------------------------------------------------------------------------
 
     # one hot-encode start ----------------------------------------------------

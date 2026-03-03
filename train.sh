@@ -12,14 +12,16 @@ set -e
 # model_name="Run3PrelimResultsFeb09_2026_jecjer"
 # model_name="Run3PrelimResultsFeb09_2026_jecjer_onehotencode"
 # model_name="Run3PrelimResultsFeb10_2026_jecjer_flatDimuMass"
-# model_name="test"
 # model_name="hyperParam_test"
 # model_name="Run3PrelimResultsFeb16_2026_jecjer_tuned"
 # model_name="Run3PrelimResultsFeb10_2026_jecjer_flatDimuMass_tuned"
 # model_name="Feb28_2026_flatDimuMass_tuned"
 # model_name="Feb28_2026_zPeakShapeMatch_tuned"
-model_name="Feb28_2026_hPeakShapeMatch"
+# model_name="Feb28_2026_hPeakShapeMatch"
 # model_name="Feb28_2026_hSidebandShapeMatch"
+# model_name="test"
+# model_name="Feb28_2026_zPeakShapeMatch_ReWgtNormalized"
+model_name="Mar03_2026_FlatDist_ReWgtNormalized"
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff_newZptWgt25Mar2025"
@@ -44,22 +46,23 @@ do_hyperparam_search="0" # false
 
 # mass_decorrelation_strat="default" # no mass decorrelation
 # mass_decorrelation_strat="peking" # peking's mass flattening
-# mass_decorrelation_strat="targetZpeakMass" # target distribution Zpeak mass
-mass_decorrelation_strat="targetHpeakMass" # target distribution Hpeak mass
+# mass_decorrelation_strat="targetHpeakMass" # target distribution Hpeak mass
 # mass_decorrelation_strat="targetHsidebandMass" # target distribution lower H sidebands and uppper ZCR mass window
+mass_decorrelation_strat="flatDist" # target distribution is just a flat dist
+# mass_decorrelation_strat="targetZpeakMass" # target distribution Zpeak mass
 
 # year="2018"
 # year="2017"
 # year="2016postVFP"
 # year="2016preVFP"
 # year="2016"
-# year="all"
-year="2024"
+year="all"
+# year="2024"
+# year="2022postEE"
 python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/yun79/hmm_ntuples/copperheadV1clean/${label}/stage1_output" -param_search ${do_hyperparam_search} --massDeCorrStrat ${mass_decorrelation_strat}
 
 # year="2024"
 # python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/yun79/hmm_ntuples/copperheadV1clean/${label}/stage1_output"
-
 
 
 # year="2023"
