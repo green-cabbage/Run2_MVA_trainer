@@ -247,7 +247,7 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
         train_region &
         ~btag_cut # btag cut is for VH and ttH categories
     )
-    print(f"category_selection sum: {ak.sum(category_selection)}")
+    # print(f"category_selection sum: {ak.sum(category_selection)}")
     # computed_zip = dak_zip[category_selection].compute() # original
     computed_zip = dak_zip[category_selection]
 
@@ -304,7 +304,7 @@ def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
     # mu2_pt_over_mass = computed_dict["mu2_pt_over_mass"]
     # df = ak.to_dataframe(computed_zip) 
     df = pd.DataFrame(computed_dict)
-    print(f"df : {df.head()}")
+    # print(f"df : {df.head()}")
 
     # make sure to replace nans with zeros,  unless it's delta phis, in which case it's -1, as specified in line 1117 of the AN
     dPhis = [] # collect all dPhi features

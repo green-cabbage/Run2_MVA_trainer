@@ -878,7 +878,7 @@ def apply_gghChannelSelection(delayed_dak_zip):
         train_region &
         ~btag_cut # btag cut is for VH and ttH categories
     )
-    print(f"category_selection sum: {ak.sum(category_selection)}")
+    # print(f"category_selection sum: {ak.sum(category_selection)}")
     computed_zip = delayed_dak_zip[category_selection].compute()
     return computed_zip
 
@@ -897,7 +897,7 @@ def reweightMassToTargetDist_workflow(df, sig_datasets, validation_plot_path, nb
     bkg_df = df[~sig_filter] # work on this
 
 
-    target_dist_load_path = "stage1_output/Run3_nanoAODv12_02Feb_FilterJetsHorn30GeV/2024/compacted/dyTo2L_M-50_incl/0/part003.parquet"
+    target_dist_load_path = "/work/projects/hmm/yun79/bdt_ref_data/stage1_output/Run3_nanoAODv12_02Feb_FilterJetsHorn30GeV/2024/compacted/dyTo2L_M-50_incl/0/part003.parquet"
     sig_df = reweightMassToTargetDist(sig_df, target_dist_load_path, mmin, mmax, nbins, validation_plot_path, plot_name="sigMassTargetReWgt", target_mass_centre=target_mass_centre)
     bkg_df = reweightMassToTargetDist(bkg_df, target_dist_load_path, mmin, mmax, nbins, validation_plot_path, plot_name="bkgMassTargetReWgt", target_mass_centre=target_mass_centre)
 

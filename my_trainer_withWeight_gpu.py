@@ -151,6 +151,8 @@ if __name__ == "__main__":
 
 
         # FIXME --------------------
+        # print(f"===> year: {year}")
+        # print(f"===> sysargs.load_path: {sysargs.load_path}")
         if (year == "all") or (year == "2024"):
             if sample=="dyTo2L_M-50_incl": 
                 load_path_exception = f"{sysargs.load_path}/2024/f1_0" 
@@ -178,7 +180,7 @@ if __name__ == "__main__":
                 # zip_sample = dak.from_parquet(parquet_path) 
                 # filelist = glob.glob(parquet_path)
                 print(f"filelist len: {len(filelist)}")
-                print(f"filelist : {(filelist)}")
+                # print(f"filelist : {(filelist)}")
                 if year == "all":
                     # year_paths = {
                     #     2015: f"{sysargs.load_path}/2016preVFP/f1_0/{sample}/*/*.parquet",
@@ -192,9 +194,9 @@ if __name__ == "__main__":
                     # print(f"zip_sample.fields: {zip_sample.fields}")
                     # zip_sample["bdt_year"] = int(year)
                     # fields2load = fields2load + ["bdt_year_nominal"]
-                    print(f"fields2load b4: {fields2load}")
+                    # print(f"fields2load b4: {fields2load}")
                     fields2load_prepared = prepare_features(zip_sample, fields2load) # add variation to the name
-                    print(f"fields2load after: {fields2load_prepared}")
+                    # print(f"fields2load after: {fields2load_prepared}")
                     zip_sample = ak.zip({
                         field : zip_sample[field] for field in fields2load_prepared
                     })
@@ -205,9 +207,9 @@ if __name__ == "__main__":
                     # print(f"zip_sample.fields: {zip_sample.fields}")
                     # zip_sample["bdt_year"] = int(year)
                     # fields2load = fields2load + ["bdt_year_nominal"]
-                    print(f"fields2load b4: {fields2load}")
+                    # print(f"fields2load b4: {fields2load}")
                     fields2load_prepared = prepare_features(zip_sample, fields2load) # add variation to the name
-                    print(f"fields2load after: {fields2load_prepared}")
+                    # print(f"fields2load after: {fields2load_prepared}")
                     zip_sample = ak.zip({
                         field : zip_sample[field] for field in fields2load_prepared
                     })

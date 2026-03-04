@@ -15,11 +15,7 @@ set -e
 # model_name="test"
 # model_name="hyperParam_test"
 # model_name="Run3PrelimResultsFeb16_2026_jecjer_tuned"
-# model_name="Run3PrelimResultsFeb10_2026_jecjer_flatDimuMass_tuned"
-# model_name="Feb28_2026_flatDimuMass_tuned"
-# model_name="Feb28_2026_zPeakShapeMatch_tuned"
-model_name="Feb28_2026_hPeakShapeMatch"
-# model_name="Feb28_2026_hSidebandShapeMatch"
+model_name="Run3_03March_test"
 
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff"
 # label="UpdatedDY_100_200_CrossSection_24Feb_jetpuidOff_newZptWgt25Mar2025"
@@ -36,8 +32,7 @@ model_name="Feb28_2026_hPeakShapeMatch"
 # label="Run3_nanoAODv12_02Feb_FilterJetsHorn30GeV"
 # label="Run3_nanoAODv12_09Feb_FilterJetsHorn30GeV"
 # label="Run3_nanoAODv12_10Feb_FilterJetsHorn30GeV"
-# label="Run3_nanoAODv12_15Feb_FilterJetsHorn30GeV"
-label="Run3_nanoAODv15_28Feb_JetsHorn30GeV_NoJer_tightPassLepVeto"
+label="Run3_nanoAODv12_FilterJetsHorn30GeV_Feb23_tightPassLepVeto_NoJER_AddVars_v2"
 
 do_hyperparam_search="0" # false
 # do_hyperparam_search="1" # true
@@ -54,8 +49,12 @@ mass_decorrelation_strat="targetHpeakMass" # target distribution Hpeak mass
 # year="2016preVFP"
 # year="2016"
 # year="all"
-year="2024"
-python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/yun79/hmm_ntuples/copperheadV1clean/${label}/stage1_output" -param_search ${do_hyperparam_search} --massDeCorrStrat ${mass_decorrelation_strat}
+# year="2024"
+# year="2022postEE"
+year="2022preEE"
+year="2023"
+year="2023BPix"
+python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/work/projects/hmm/shar1172/hmm_ntuples/copperheadV1clean/${label}/stage1_output" -param_search ${do_hyperparam_search} --massDeCorrStrat ${mass_decorrelation_strat}
 
 # year="2024"
 # python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/yun79/hmm_ntuples/copperheadV1clean/${label}/stage1_output"
