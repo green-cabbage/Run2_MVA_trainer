@@ -81,8 +81,6 @@ if __name__ == "__main__":
     name = sysargs.name
     # mass_decorrelation_strat = sysargs.mass_decorrelation_strat
     args = {
-        "dnn": False,
-        "bdt": True,
         "year": year,
         "name": name,
         # "mass_decorrelation_strat": mass_decorrelation_strat,
@@ -175,7 +173,7 @@ if __name__ == "__main__":
                 zip_sample = dak.from_parquet(filelist)
 
                 fields2load_prepared = prepare_features(zip_sample, fields2load) # add variation to the name
-                training_features = prepare_features(zip_sample, training_features) # do the same thing to training features
+                training_features_prepared = prepare_features(zip_sample, training_features) # do the same thing to training features
                 
                 # print(f"fields2load after: {fields2load_prepared}")
                 zip_sample = ak.zip({
@@ -237,9 +235,9 @@ if __name__ == "__main__":
     #     print(df_total.columns)
     #     # print(df_total)
     #     filtered_df = df_total.filter(like=year_col_name, axis=1) # axis=1 specifies filtering columns
-    #     training_features.remove(year_col_name)
-    #     training_features = training_features + list(one_hot_df.columns)
-    #     print(f"training_features after: {training_features}")
+    #     training_features_prepared.remove(year_col_name)
+    #     training_features_prepared = training_features_prepared + list(one_hot_df.columns)
+    #     print(f"training_features_prepared after: {training_features_prepared}")
     #     print(f"df_total after: {filtered_df}")
     #     print(f"one_hot_df.columns: {one_hot_df.columns}")
     # one hot-encode end ----------------------------------------------------
@@ -259,7 +257,7 @@ if __name__ == "__main__":
     # print(f"len(df_total): {len(df_total)}")
     print(f"df_total.columns: {df_total.columns}")
 
-    classifier_train(df_total, args, training_samples, training_features, random_seed_val, save_path, do_hyperparam_search=do_hyperparam_search)
+    classifier_train(df_total, args, training_samples, training_features_prepared, random_seed_val, save_path, do_hyperparam_search=do_hyperparam_search)
     # evaluation(df_total, args)
     #df.to_pickle('/depot/cms/hmm/purohita/coffea/eval_dataset.pickle')
     #print(df)

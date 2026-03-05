@@ -21,8 +21,8 @@ def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, 
     """
     Get KS value for specific value
     """
-    print(f"valid_hist: {valid_hist}")
-    print(f"train_hist: {train_hist}")
+    # print(f"valid_hist: {valid_hist}")
+    # print(f"train_hist: {train_hist}")
     print(f"valid_hist: {np.sum(valid_hist)}")
     print(f"train_hist: {np.sum(train_hist)}")
     
@@ -293,7 +293,7 @@ def prepare_dataset(df, ds_dict):
     print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
     df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / sig_wgt_sum
 
-    print(f"df[cols] after normalization: {df[cols]}")
+    # print(f"df[cols] after normalization: {df[cols]}")
     print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {sig_wgt_sum}')
     print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
 
@@ -306,7 +306,7 @@ def prepare_dataset(df, ds_dict):
     print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
     df.loc[mask, "bdt_wgt"] = df.loc[mask, "bdt_wgt"] / bkg_wgt_sum
 
-    print(f"df[cols] after bkg normalization: {df[cols]}")
+    # print(f"df[cols] after bkg normalization: {df[cols]}")
     print(f'old np.sum(df.loc[mask, "bdt_wgt"]): {bkg_wgt_sum}')
     print(f'new np.sum(df.loc[mask, "bdt_wgt"]): {np.sum(df.loc[mask, "bdt_wgt"])}')
 
@@ -314,11 +314,11 @@ def prepare_dataset(df, ds_dict):
     # increase bdt wgts for bdt to actually learn
     # -------------------------------------------------
     # df['bdt_wgt'] = df['bdt_wgt'] * 10_000
-    df['bdt_wgt'] = df['bdt_wgt'] * 100_000 * 100
-    print(f"df[cols] after increase in value: {df[cols]}")
+    df['bdt_wgt'] = df['bdt_wgt'] * 100_000 * 100 # NOTE: Why this number???
+    # print(f"df[cols] after increase in value: {df[cols]}")
     mask = df["dataset"].isin(sig_datasets)
-    print(f'new signal df.loc[mask, "bdt_wgt"]): {df.loc[mask, "bdt_wgt"]}')
-    print(f'new background (df.loc[mask, "bdt_wgt"]): {df.loc[~mask, "bdt_wgt"]}')
+    # print(f'new signal df.loc[mask, "bdt_wgt"]): {df.loc[mask, "bdt_wgt"]}')
+    # print(f'new background (df.loc[mask, "bdt_wgt"]): {df.loc[~mask, "bdt_wgt"]}')
     print(f'new bdt_wgt mean: {np.mean(df["bdt_wgt"])}')
     print(f'new sig bdt_wgt mean: {np.mean(df.loc[mask, "bdt_wgt"])}')
     print(f'new bkg bdt_wgt mean: {np.mean(df.loc[~mask, "bdt_wgt"])}')
@@ -436,8 +436,6 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
         val_filter = df.event.mod(nfolds).isin(val_folds)
         eval_filter = df.event.mod(nfolds).isin(eval_folds)
         
-        other_columns = ['event']
-        
         df_train = df[train_filter]
         df_val = df[val_filter]
         df_eval = df[eval_filter]
@@ -493,596 +491,396 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
         # print(f"x_train: {x_train}")
         # print(f"x_val: {x_val}")
         # print(f"x_train[training_features]: {x_train[training_features]}")
-        x_train[other_columns] = df_train[other_columns]
-        x_val[other_columns] = df_val[other_columns]
-        x_eval[other_columns] = df_eval[other_columns]
 
             
-        if args['bdt']:
-            xp_train = x_train[training_features].values
-            xp_val = x_val[training_features].values
-            xp_eval = x_eval[training_features].values
-            y_train = y_train.values
-            y_val = y_val.values
-            y_eval = y_eval.values
+        xp_train = x_train[training_features].values
+        xp_val = x_val[training_features].values
+        xp_eval = x_eval[training_features].values
+        y_train = y_train.values
+        y_val = y_val.values
+        y_eval = y_eval.values
 
-            print(f"xp_train.shape: {xp_train.shape}")
-            print(f"xp_val.shape: {xp_val.shape}")
-            print(f"xp_eval.shape: {xp_eval.shape}")
+        print(f"xp_train.shape: {xp_train.shape}")
+        print(f"xp_val.shape: {xp_val.shape}")
+        print(f"xp_eval.shape: {xp_eval.shape}")
 
-            w_train = df_train['bdt_wgt'].values
-            w_val = df_val['training_wgt'].values
-            w_eval = df_eval['training_wgt'].values
+        # NOTE: Cross-check if the weight application is fine. Train uses 'bdt_wgt' while val/eval using 'training_wgt'.
+        w_train = df_train['bdt_wgt'].values
+        w_val = df_val['training_wgt'].values
+        w_eval = df_eval['training_wgt'].values
 
-            weight_nom_train = df_train['wgt_nominal_orig'].values
-            weight_nom_val = df_val['wgt_nominal_orig'].values
-            weight_nom_eval = df_eval['wgt_nominal_orig'].values
-            
-            np.random.seed(random_seed_val)
-            
-            shuf_ind_tr = np.arange(len(xp_train))
-            np.random.shuffle(shuf_ind_tr)
-            shuf_ind_val = np.arange(len(xp_val))
-            np.random.shuffle(shuf_ind_val)
-            shuf_ind_eval = np.arange(len(xp_eval))
-            np.random.shuffle(shuf_ind_eval)
-            xp_train = xp_train[shuf_ind_tr]
-            xp_val = xp_val[shuf_ind_val]
-            y_train = y_train[shuf_ind_tr]
-            y_val = y_val[shuf_ind_val]
+        weight_nom_train = df_train['wgt_nominal_orig'].values
+        weight_nom_val = df_val['wgt_nominal_orig'].values
+        weight_nom_eval = df_eval['wgt_nominal_orig'].values
+        
+        np.random.seed(random_seed_val)
+        
+        shuf_ind_tr = np.arange(len(xp_train))
+        np.random.shuffle(shuf_ind_tr)
+        shuf_ind_val = np.arange(len(xp_val))
+        np.random.shuffle(shuf_ind_val)
+        shuf_ind_eval = np.arange(len(xp_eval))
+        np.random.shuffle(shuf_ind_eval)
+        xp_train = xp_train[shuf_ind_tr]
+        xp_val = xp_val[shuf_ind_val]
+        y_train = y_train[shuf_ind_tr]
+        y_val = y_val[shuf_ind_val]
 
-            
-            xp_eval = xp_eval[shuf_ind_eval]
-            y_eval = y_eval[shuf_ind_eval]
+        
+        xp_eval = xp_eval[shuf_ind_eval]
+        y_eval = y_eval[shuf_ind_eval]
 
-            weight_nom_train = weight_nom_train[shuf_ind_tr]
-            weight_nom_val = weight_nom_val[shuf_ind_val]
-            weight_nom_eval = weight_nom_eval[shuf_ind_eval]
-            #print(np.isnan(xp_train).any())
-            #print(np.isnan(y_train).any())
-            #print(np.isinf(xp_train).any())
-            #print(np.isinf(y_train).any())
-            #print(np.isfinite(x_train).all())
-            #print(np.isfinite(y_train).all())
-            
-            w_train = w_train[shuf_ind_tr]
-            w_val = w_val[shuf_ind_val]
+        weight_nom_train = weight_nom_train[shuf_ind_tr]
+        weight_nom_val = weight_nom_val[shuf_ind_val]
+        weight_nom_eval = weight_nom_eval[shuf_ind_eval]
+        #print(np.isnan(xp_train).any())
+        #print(np.isnan(y_train).any())
+        #print(np.isinf(xp_train).any())
+        #print(np.isinf(y_train).any())
+        #print(np.isfinite(x_train).all())
+        #print(np.isfinite(y_train).all())
+        
+        w_train = w_train[shuf_ind_tr]
+        w_val = w_val[shuf_ind_val]
 
-            #--------------------------------------------------   
-            # BDT hyparameter setup
-            #--------------------------------------------------   
-            verbosity=2
-            
-            # AN-19-124 p 45: "a correction factor is introduced to ensure that the same amount of background events are expected when either negative weighted events are discarded or they are considered with a positive weight"
-            # tuned_params = {'min_child_weight': 13.428968247683708, 'n_estimators': 1573, 'max_depth': 8, 'learning_rate': 0.05982369314062763, 'subsample': 0.9430472676858279, 'max_bin': 80}
-            # tuned_params =  {'min_child_weight': 2.557316256946003, 'n_estimators': 1539, 'max_depth': 10, 'learning_rate': 0.05304264948799136, 'subsample': 0.8156339679345651, 'max_bin': 74}
-            # tuned_params =  {'min_child_weight': 3.5451229442486776, 'n_estimators': 2057, 'max_depth': 7, 'learning_rate': 0.050285069062295254, 'subsample': 0.9815632528341489, 'max_bin': 77} # Feb28_2026_zPeakShapeMatch_tuned
-            # FIXME: It should be setup using the config file.
-            tuned_params =  {'min_child_weight': 14.58375507839577, 'n_estimators': 511, 'max_depth': 8, 'learning_rate': 0.08127708435811475, 'subsample': 0.973909078023838, 'max_bin': 79} # Feb28_2026_flatDimuMass_tuned
+        #--------------------------------------------------   
+        # BDT hyparameter setup
+        #--------------------------------------------------   
+        verbosity=2
+        
+        # AN-19-124 p 45: "a correction factor is introduced to ensure that the same amount of background events are expected when either negative weighted events are discarded or they are considered with a positive weight"
+        # tuned_params = {'min_child_weight': 13.428968247683708, 'n_estimators': 1573, 'max_depth': 8, 'learning_rate': 0.05982369314062763, 'subsample': 0.9430472676858279, 'max_bin': 80}
+        # tuned_params =  {'min_child_weight': 2.557316256946003, 'n_estimators': 1539, 'max_depth': 10, 'learning_rate': 0.05304264948799136, 'subsample': 0.8156339679345651, 'max_bin': 74}
+        # tuned_params =  {'min_child_weight': 3.5451229442486776, 'n_estimators': 2057, 'max_depth': 7, 'learning_rate': 0.050285069062295254, 'subsample': 0.9815632528341489, 'max_bin': 77} # Feb28_2026_zPeakShapeMatch_tuned
+        # FIXME: It should be setup using the config file.
+        tuned_params =  {'min_child_weight': 14.58375507839577, 'n_estimators': 511, 'max_depth': 8, 'learning_rate': 0.08127708435811475, 'subsample': 0.973909078023838, 'max_bin': 79} # Feb28_2026_flatDimuMass_tuned
 
-            
-            tuned_params.update({
-                "tree_method" : 'hist',
-                "eval_metric" : 'logloss',
-                "n_jobs" : 30,
-                "early_stopping_rounds" : 15,
-                "verbosity" : verbosity,
-                "random_state" : random_seed_val,
-            })
-            model = XGBClassifier(**tuned_params)
-            
-            print(model)
-            print(f"negative w_train: {w_train[w_train <0]}")
+        
+        tuned_params.update({
+            "tree_method" : 'hist',
+            "eval_metric" : 'logloss',
+            "n_jobs" : 30,
+            "early_stopping_rounds" : 15,
+            "verbosity" : verbosity,
+            "random_state" : random_seed_val,
+        })
+        model = XGBClassifier(**tuned_params)
+        
+        print(model)
+        print(f"negative w_train: {w_train[w_train <0]}")
 
-            eval_set = [(xp_train, y_train), (xp_val, y_val)]#Last used
-            print(f"has_bad_values(w_train): {has_bad_values(w_train)}")
-            print(f"has_bad_values(xp_train): {has_bad_values(xp_train)}")
-            print(f"has_bad_values(y_train): {has_bad_values(y_train)}")
-            print(f"has_bad_values(y_train): {has_bad_values(y_train)}")
-            print(f"has_bad_values(xp_val): {has_bad_values(xp_val)}")
-            print(f"has_bad_values(y_val): {has_bad_values(y_val)}")
-            print(f"y_train unqiue: {np.unique(y_train)}")
-            print(f"y_val unqiue: {np.unique(y_val)}")
+        eval_set = [(xp_train, y_train), (xp_val, y_val)]#Last used
+        print(f"has_bad_values(w_train): {has_bad_values(w_train)}")
+        print(f"has_bad_values(xp_train): {has_bad_values(xp_train)}")
+        print(f"has_bad_values(y_train): {has_bad_values(y_train)}")
+        print(f"has_bad_values(xp_val): {has_bad_values(xp_val)}")
+        print(f"has_bad_values(y_val): {has_bad_values(y_val)}")
+        print(f"y_train unqiue: {np.unique(y_train)}")
+        print(f"y_val unqiue: {np.unique(y_val)}")
 
 
-            # -----------------------------------------
-            # Do hyperparameter tuning if asked
-            # instead of normal fitting
-            # -----------------------------------------
-            if do_hyperparam_search:
-                import optuna
+        # -----------------------------------------
+        # Do hyperparameter tuning if asked
+        # instead of normal fitting
+        # -----------------------------------------
+        if do_hyperparam_search:
+            import optuna
 
-                from modules.hyperparamOptim import objective
-                study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=random_seed_val))
-                study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, w_val, weight_nom_val, random_seed=random_seed_val), n_trials=100)
-                print("Best AUC:", study.best_value)
-                print("Best params:", study.best_params)
-                raise ValueError("Hyperparameter Tuning complete! Exiting")
-            
-            # -----------------------------------------
-            # Do normal BDT fitting 
-            # -----------------------------------------
-            model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
+            from modules.hyperparamOptim import objective
+            study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=random_seed_val))
+            study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, w_val, weight_nom_val, random_seed=random_seed_val), n_trials=100)
+            print("Best AUC:", study.best_value)
+            print("Best params:", study.best_params)
+            print("Hyperparameter Tuning complete! Exiting")
+            return
+        
+        # -----------------------------------------
+        # Do normal BDT fitting 
+        # -----------------------------------------
+        # fit options: fit(X, y, *, 
+        # sample_weight=None, base_margin=None, 
+        # eval_set=None, verbose=True, 
+        # xgb_model=None, 
+        # sample_weight_eval_set=None, base_margin_eval_set=None, 
+        # feature_weights=None)
+        model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
+        
+        y_pred = model.predict_proba(xp_val)[:, 1].ravel()
+        y_pred_train = model.predict_proba(xp_train)[:, 1].ravel()
+        y_eval_pred = model.predict_proba(xp_eval)[:, 1].ravel()
+        print("y_pred_______________________________________________________________")
+        print("y_pred_______________________________________________________________")
+        print("y_pred_______________________________________________________________")
+        # print(f"y_pred: {y_pred}")
+        print("y_pred_______________________________________________________________")
+        print("y_pred_______________________________________________________________")
+        print("y_pred_______________________________________________________________")
+        # print(f"y_val: {y_val}")
+        # original start ------------------------------------------------------------------------------
 
-            y_pred_signal_val = model.predict_proba(xp_val)[:, 1].ravel()
-            y_pred_signal_train = model.predict_proba(xp_train)[:, 1]
-            y_pred_bkg_val = model.predict_proba(xp_val)[ :,0 ].ravel()
-            y_pred_bkg_train = model.predict_proba(xp_train)[:,0]
-            fig1, ax1 = plt.subplots(1,1)
-            plt.hist(y_pred_signal_val, bins=50, alpha=0.5, color='blue', label='Validation Sig')
-            plt.hist(y_pred_signal_train, bins=50, alpha=0.5, color='deepskyblue', label='Training Sig')
-            plt.hist(y_pred_bkg_val, bins=50, alpha=0.5, color='red', label='Validation BKG')
-            plt.hist(y_pred_bkg_train, bins=50, alpha=0.5, color='firebrick', label='Training BKG')
 
-            ax1.legend(loc="upper right")
-            
-            fig1.savefig(f"{save_path}/Validation_{label}.png")
-            
-            y_pred = model.predict_proba(xp_val)[:, 1].ravel()
-            y_pred_train = model.predict_proba(xp_train)[:, 1].ravel()
-            y_eval_pred = model.predict_proba(xp_eval)[:, 1].ravel()
-            print("y_pred_______________________________________________________________")
-            print("y_pred_______________________________________________________________")
-            print("y_pred_______________________________________________________________")
-            # print(f"y_pred: {y_pred}")
-            print("y_pred_______________________________________________________________")
-            print("y_pred_______________________________________________________________")
-            print("y_pred_______________________________________________________________")
-            # print(f"y_val: {y_val}")
-            # original start ------------------------------------------------------------------------------
-            nn_fpr_xgb, nn_tpr_xgb, nn_thresholds_xgb = roc_curve(y_val.ravel(), y_pred, sample_weight=w_val) 
-            # original end ------------------------------------------------------------------------------
+        # output shape dist start --------------------------------------------------------------------------
+        fig, ax_main = plt.subplots()
+        # Define custom bins from 0 to 1
+        binning = np.linspace(0, 1, 31)  # 30 bins between 0 and 1
 
-            # test start ------------------------------------------------------------------------------
-            # nn_fpr_xgb, nn_tpr_xgb, nn_thresholds_xgb = roc_curve(y_val.ravel(), y_pred) # test
-            # test end ------------------------------------------------------------------------------
-            
-            # np.save(f"test_roc_curve", [y_val.ravel(), y_pred]) 
-            print(nn_fpr_xgb)
-            print(nn_tpr_xgb)
-            print(nn_thresholds_xgb)
-            """
-            for i in range(len(nn_fpr_xgb)-1):
-                if(nn_fpr_xgb[i]>nn_fpr_xgb[i+1]):
-                    print(i,nn_fpr_xgb[i])
-                    print(i+1,nn_fpr_xgb[i+1])
-                if(nn_tpr_xgb[i]>nn_tpr_xgb[i+1]):
-                    print(i,nn_tpr_xgb[i])
-                    print(i+1,nn_tpr_xgb[i+1])
-            """
-            sorted_index = np.argsort(nn_fpr_xgb)
-            fpr_sorted =  np.array(nn_fpr_xgb)[sorted_index]
-            tpr_sorted = np.array(nn_tpr_xgb)[sorted_index]
-            #auc_xgb = auc(nn_fpr_xgb[:-2], nn_tpr_xgb[:-2])
-            auc_xgb = auc(fpr_sorted, tpr_sorted)
-            #auc_xgb = roc_auc_score(y_val, y_pred, sample_weight=w_val)
-            print("The AUC score is:", auc_xgb)
-            #plt.plot(nn_fpr_xgb, nn_tpr_xgb, marker='.', label='Neural Network (auc = %0.3f)' % auc_xgb)
-            #roc_auc_gus = auc(nn_fpr_xgb,nn_tpr_xgb)
-            fig, ax = plt.subplots(1,1)
-            ax.plot(nn_fpr_xgb, nn_tpr_xgb, marker='.', label='BDT (auc = %0.3f)' % auc_xgb)
-            #ax.plot(nn_fpr_xgb, nn_tpr_xgb, label='Raw ROC curve (area = %0.2f)' % roc_auc)
-            #ax.plot(fpr_gus, tpr_gus, label='Gaussian ROC curve (area = %0.2f)' % roc_auc_gus)
-            ax.plot([0, 1], [0, 1], 'k--')
-            ax.set_xlim([0.0, 1.0])
-            ax.set_ylim([0.0, 1.05])
-            ax.set_xlabel('False Positive Rate')
-            ax.set_ylabel('True Positive Rate')
-            ax.set_title('Receiver operating characteristic')
-            ax.legend(loc="lower right")
-            
-            fig.savefig(f"{save_path}/auc_{label}.png")
-            plt.clf()
+        # get the distributions
+        is_bkg_train = y_train.ravel() == 0
+        y_pred_train_bkg = y_pred_train[is_bkg_train]
+        weight_nom_train_bkg = weight_nom_train[is_bkg_train]
+        hist_train_bkg, _ = generate_normalized_histogram(y_pred_train_bkg, weight_nom_train_bkg, binning)
 
-            # output shape dist start --------------------------------------------------------------------------
-            fig, ax_main = plt.subplots()
-            # Define custom bins from 0 to 1
-            binning = np.linspace(0, 1, 31)  # 30 bins between 0 and 1
+        is_sig_train = y_train.ravel() == 1
+        y_pred_train_sig = y_pred_train[is_sig_train]
+        weight_nom_train_sig = weight_nom_train[is_sig_train]
+        hist_train_sig, _ = generate_normalized_histogram(y_pred_train_sig, weight_nom_train_sig, binning)
+        
+        is_bkg_val = y_val.ravel() == 0
+        y_pred_val_bkg = y_pred[is_bkg_val]
+        weight_nom_val_bkg = weight_nom_val[is_bkg_val]
+        hist_val_bkg, _ = generate_normalized_histogram(y_pred_val_bkg, weight_nom_val_bkg, binning)
 
-            # get the distributions
-            is_bkg_train = y_train.ravel() == 0
-            y_pred_train_bkg = y_pred_train[is_bkg_train]
-            weight_nom_train_bkg = weight_nom_train[is_bkg_train]
-            hist_train_bkg, _ = generate_normalized_histogram(y_pred_train_bkg, weight_nom_train_bkg, binning)
+        is_sig_val = y_val.ravel() == 1
+        y_pred_val_sig = y_pred[is_sig_val]
+        weight_nom_val_sig = weight_nom_val[is_sig_val]
+        hist_val_sig, _ = generate_normalized_histogram(y_pred_val_sig, weight_nom_val_sig, binning)
 
-            is_sig_train = y_train.ravel() == 1
-            y_pred_train_sig = y_pred_train[is_sig_train]
-            weight_nom_train_sig = weight_nom_train[is_sig_train]
-            hist_train_sig, _ = generate_normalized_histogram(y_pred_train_sig, weight_nom_train_sig, binning)
-            
-            is_bkg_val = y_val.ravel() == 0
-            y_pred_val_bkg = y_pred[is_bkg_val]
-            weight_nom_val_bkg = weight_nom_val[is_bkg_val]
-            hist_val_bkg, _ = generate_normalized_histogram(y_pred_val_bkg, weight_nom_val_bkg, binning)
+        is_bkg_eval = y_eval.ravel() == 0
+        y_pred_eval_bkg = y_eval_pred[is_bkg_eval]
+        weight_nom_eval_bkg = weight_nom_eval[is_bkg_eval]
+        hist_eval_bkg, _ = generate_normalized_histogram(y_pred_eval_bkg, weight_nom_eval_bkg, binning)
 
-            is_sig_val = y_val.ravel() == 1
-            y_pred_val_sig = y_pred[is_sig_val]
-            weight_nom_val_sig = weight_nom_val[is_sig_val]
-            hist_val_sig, _ = generate_normalized_histogram(y_pred_val_sig, weight_nom_val_sig, binning)
+        is_sig_eval = y_eval.ravel() == 1
+        y_pred_eval_sig = y_eval_pred[is_sig_eval]
+        weight_nom_eval_sig = weight_nom_eval[is_sig_eval]
+        hist_eval_sig, _ = generate_normalized_histogram(y_pred_eval_sig, weight_nom_eval_sig, binning)
+        
+        
+        hep.histplot(
+            hist_train_bkg, 
+            bins=binning, 
+            stack=False, 
+            histtype='step', 
+            # color='blue', 
+            label='Background train', 
+            ax=ax_main,
+        )
+        hep.histplot(
+            hist_val_bkg, 
+            bins=binning, 
+            stack=False, 
+            histtype='step', 
+            # color='green', 
+            label='Background Validation', 
+            ax=ax_main,
+        )
+        hep.histplot(
+            hist_eval_bkg, 
+            bins=binning, 
+            stack=False, 
+            histtype='step', 
+            # color='blue', 
+            label='Background Eval', 
+            ax=ax_main,
+        )
+        hep.histplot(
+            hist_train_sig, 
+            bins=binning, 
+            stack=False, 
+            histtype='step', 
+            # color='red', 
+            label='Signal train', 
+            ax=ax_main,
+        )
+        hep.histplot(
+            hist_val_sig, 
+            bins=binning, 
+            stack=False, 
+            histtype='step', 
+            # color='blue', 
+            label='Signal Validation', 
+            ax=ax_main,
+        )
+        hep.histplot(
+            hist_eval_sig, 
+            bins=binning, 
+            stack=False, 
+            histtype='step', 
+            # color='blue', 
+            label='Signal Eval', 
+            ax=ax_main,
+        )
+        
+        
+        # Add labels, title, and legend
+        ax_main.set_xlabel('BDT Score')
+        ax_main.set_ylabel('A.U.')
+        ax_main.legend()
+        ax_main.set_title('BDT Score distribution')
+        
+        fig.savefig(f"{save_path}/BDT_Score_{label}.png")
+        ax_main.clear()
+        plt.cla()
+        plt.clf()
 
-            is_bkg_eval = y_eval.ravel() == 0
-            y_pred_eval_bkg = y_eval_pred[is_bkg_eval]
-            weight_nom_eval_bkg = weight_nom_eval[is_bkg_eval]
-            hist_eval_bkg, _ = generate_normalized_histogram(y_pred_eval_bkg, weight_nom_eval_bkg, binning)
+        # output shape dist end --------------------------------------------------------------------------
 
-            is_sig_eval = y_eval.ravel() == 1
-            y_pred_eval_sig = y_eval_pred[is_sig_eval]
-            weight_nom_eval_sig = weight_nom_eval[is_sig_eval]
-            hist_eval_sig, _ = generate_normalized_histogram(y_pred_eval_sig, weight_nom_eval_sig, binning)
-            
-           
-            hep.histplot(
-                hist_train_bkg, 
-                bins=binning, 
-                stack=False, 
-                histtype='step', 
-                # color='blue', 
-                label='Background train', 
-                ax=ax_main,
-            )
-            hep.histplot(
-                hist_val_bkg, 
-                bins=binning, 
-                stack=False, 
-                histtype='step', 
-                # color='green', 
-                label='Background Validation', 
-                ax=ax_main,
-            )
-            hep.histplot(
-                hist_eval_bkg, 
-                bins=binning, 
-                stack=False, 
-                histtype='step', 
-                # color='blue', 
-                label='Background Eval', 
-                ax=ax_main,
-            )
-            hep.histplot(
-                hist_train_sig, 
-                bins=binning, 
-                stack=False, 
-                histtype='step', 
-                # color='red', 
-                label='Signal train', 
-                ax=ax_main,
-            )
-            hep.histplot(
-                hist_val_sig, 
-                bins=binning, 
-                stack=False, 
-                histtype='step', 
-                # color='blue', 
-                label='Signal Validation', 
-                ax=ax_main,
-            )
-            hep.histplot(
-                hist_eval_sig, 
-                bins=binning, 
-                stack=False, 
-                histtype='step', 
-                # color='blue', 
-                label='Signal Eval', 
-                ax=ax_main,
-            )
-            
-            
-            # Add labels, title, and legend
-            ax_main.set_xlabel('BDT Score')
-            ax_main.set_ylabel('A.U.')
-            ax_main.legend()
-            ax_main.set_title('BDT Score distribution')
-            
-            fig.savefig(f"{save_path}/BDT_Score_{label}.png")
-            ax_main.clear()
-            plt.cla()
-            plt.clf()
+        
+        # -------------------------------------------
+        # GoF test
+        # -------------------------------------------
+        gof_save_path = save_path
+        # print(f"weight_nom_val_sig: {weight_nom_val_sig}")
+        # print(f"weight_nom_train_sig: {weight_nom_train_sig}")
+        print(f"weight_nom_val_sig: {type(weight_nom_val_sig)}")
+        print(f"weight_nom_train_sig: {type(weight_nom_train_sig)}")
+        print(f"weight_nom_val_sig: {len(weight_nom_val_sig)}")
+        print(f"weight_nom_train_sig: {len(weight_nom_train_sig)}")
+        
+        # we compare validation distribution with evaluation distribution to see if there's any over-training
+        getGOF_KS_bdt(hist_eval_sig, hist_val_sig, weight_nom_val_sig, binning, gof_save_path, label)
 
-            # output shape dist end --------------------------------------------------------------------------
+        # -------------------------------------------
+        # Log scale ROC curve
+        # -------------------------------------------
+        roc_data_dict = {
+            "y_train": y_train.ravel(),
+            "y_pred_train": y_pred_train,
+            "weight_nom_train": weight_nom_train,
+        
+            "y_val": y_val.ravel(),
+            "y_pred": y_pred,
+            "weight_nom_val": weight_nom_val,
+        
+            "y_eval": y_eval.ravel(),
+            "y_eval_pred": y_eval_pred,
+            "weight_nom_eval": weight_nom_eval,
+        }
 
-            
-            # -------------------------------------------
-            # GoF test
-            # -------------------------------------------
-            gof_save_path = save_path
-            # print(f"weight_nom_val_sig: {weight_nom_val_sig}")
-            # print(f"weight_nom_train_sig: {weight_nom_train_sig}")
-            print(f"weight_nom_val_sig: {type(weight_nom_val_sig)}")
-            print(f"weight_nom_train_sig: {type(weight_nom_train_sig)}")
-            print(f"weight_nom_val_sig: {len(weight_nom_val_sig)}")
-            print(f"weight_nom_train_sig: {len(weight_nom_train_sig)}")
-            
-            # we compare validation distribution with evaluation distribution to see if there's any over-training
-            getGOF_KS_bdt(hist_eval_sig, hist_val_sig, weight_nom_val_sig, binning, gof_save_path, label)
+        fullROC_operations(fig, roc_data_dict, save_path, year, label, doClassBalance=False)
+        fullROC_operations(fig, roc_data_dict, save_path, year, label, doClassBalance=True)        
+        
+        # do fig 6.5 start --------------------------------------------------------------
+        get6_5(y_eval.ravel(), y_eval_pred, weight_nom_eval, save_path, f"eval_{label}")
+        get6_5(y_val.ravel(), y_pred, weight_nom_val, save_path, f"val_{label}")
+        # do fig 6.5 end --------------------------------------------------------------
+        
+        # Also save ROC curve for evaluation just in case start --------------
+        nn_fpr_xgb, nn_tpr_xgb, nn_thresholds_xgb = roc_curve(y_eval.ravel(), y_eval_pred)
+        sorted_index = np.argsort(nn_fpr_xgb)
+        fpr_sorted =  np.array(nn_fpr_xgb)[sorted_index]
+        tpr_sorted = np.array(nn_tpr_xgb)[sorted_index]
+        auc_xgb = auc(fpr_sorted, tpr_sorted)
+        print("The AUC score is:", auc_xgb)
 
-            # -------------------------------------------
-            # Log scale ROC curve
-            # -------------------------------------------
-            roc_data_dict = {
-                "y_train": y_train.ravel(),
-                "y_pred_train": y_pred_train,
-                "weight_nom_train": weight_nom_train,
-            
-                "y_val": y_val.ravel(),
-                "y_pred": y_pred,
-                "weight_nom_val": weight_nom_val,
-            
-                "y_eval": y_eval.ravel(),
-                "y_eval_pred": y_eval_pred,
-                "weight_nom_eval": weight_nom_eval,
-            }
-            # fullROC_operations(fig, roc_data_dict, name, year, label, doClassBalance=False)
-            # fullROC_operations(fig, roc_data_dict, name, year, label, doClassBalance=True)
-            
-            fullROC_operations(fig, roc_data_dict, save_path, year, label, doClassBalance=False)
-            fullROC_operations(fig, roc_data_dict, save_path, year, label, doClassBalance=True)
-            
-            
-            # # eff_bkg_train, eff_sig_train, thresholds_train, TpFpTnFn_df_train = customROC_curve_AN(y_train.ravel(), y_pred_train, weight_nom_train)
-            # # eff_bkg_val, eff_sig_val, thresholds_val, TpFpTnFn_df_val = customROC_curve_AN(y_val.ravel(), y_pred, weight_nom_val)
-            # # eff_bkg_eval, eff_sig_eval, thresholds_eval, TpFpTnFn_df_eval = customROC_curve_AN(y_eval.ravel(), y_eval_pred, weight_nom_eval)
+        fig, ax = plt.subplots(1,1)
+        ax.plot(nn_fpr_xgb, nn_tpr_xgb, marker='.', label='eval data BDT (auc = %0.3f)' % auc_xgb)
+        ax.plot([0, 1], [0, 1], 'k--')
+        ax.set_xlim([0.0, 1.0])
+        ax.set_ylim([0.0, 1.05])
+        ax.set_xlabel('False Positive Rate')
+        ax.set_ylabel('True Positive Rate')
+        ax.set_title('Receiver operating characteristic')
+        ax.legend(loc="lower right")
+        fig.savefig(f"{save_path}/eval_auc_{label}.png")
+        plt.clf()
 
-            # eff_bkg_train, eff_sig_train, thresholds_train, _ = customROC_curve_AN(y_train.ravel(), y_pred_train, weight_nom_train, doClassBalance=True)
-            # eff_bkg_val, eff_sig_val, thresholds_val, _ = customROC_curve_AN(y_val.ravel(), y_pred, weight_nom_val, doClassBalance=True)
-            # eff_bkg_eval, eff_sig_eval, thresholds_eval, _ = customROC_curve_AN(y_eval.ravel(), y_eval_pred, weight_nom_eval, doClassBalance=True)
+        nn_fpr_xgb, nn_tpr_xgb, nn_thresholds_xgb = roc_curve(y_eval.ravel(), y_eval_pred, sample_weight=w_eval)
+        sorted_index = np.argsort(nn_fpr_xgb)
+        fpr_sorted =  np.array(nn_fpr_xgb)[sorted_index]
+        tpr_sorted = np.array(nn_tpr_xgb)[sorted_index]
+        auc_xgb = auc(fpr_sorted, tpr_sorted)
+        print("The AUC score is:", auc_xgb)
 
-            # # deprecated -----------------------
-            # # cols2merge = ["TP","FP","TN","FN"]
-            # # TpFpTnFn_df_train = addErrByQuadrature(TpFpTnFn_df_train, columns=cols2merge)
-            # # TpFpTnFn_df_val = addErrByQuadrature(TpFpTnFn_df_val, columns=cols2merge)
-            # # TpFpTnFn_df_eval = addErrByQuadrature(TpFpTnFn_df_eval, columns=cols2merge)
-            # # deprecated -----------------------
-            
+        fig, ax = plt.subplots(1,1)
+        ax.plot(nn_fpr_xgb, nn_tpr_xgb, marker='.', label='eval data BDT (auc = %0.3f)' % auc_xgb)
+        ax.plot([0, 1], [0, 1], 'k--')
+        ax.set_xlim([0.0, 1.0])
+        ax.set_ylim([0.0, 1.05])
+        ax.set_xlabel('False Positive Rate')
+        ax.set_ylabel('True Positive Rate')
+        ax.set_title('Receiver operating characteristic')
+        ax.legend(loc="lower right")
+        fig.savefig(f"{save_path}/eval_auc_{label}_weighted.png")
+        plt.clf()        
+        # Also save ROC curve for evaluation just in case end --------------
 
-            # # -------------------------------------
-            # # save ROC curve
-            # # -------------------------------------
-            # csv_savepath = f"output/bdt_{name}_{year}/rocEffs_{label}.csv"
-            # roc_df = pd.DataFrame({
-            #     "eff_sig_eval" : eff_sig_eval,
-            #     "eff_bkg_eval" : eff_bkg_eval,
-            #     "eff_sig_train" : eff_sig_train,
-            #     "eff_bkg_train" : eff_bkg_train,
-            #     "eff_sig_val" : eff_sig_val,
-            #     "eff_bkg_val" : eff_bkg_val,
-            # })
-            # # roc_df = pd.concat([roc_df, TpFpTnFn_df_train, TpFpTnFn_df_val, TpFpTnFn_df_eval], axis=1)
-            # roc_df.to_csv(csv_savepath)
 
-            
-            # auc_eval  = auc_from_eff(eff_sig_eval,  eff_bkg_eval)
-            # auc_train = auc_from_eff(eff_sig_train, eff_bkg_train)
-            # auc_val   = auc_from_eff(eff_sig_val,   eff_bkg_val)
+        # -----------------------------
+        # Retrieve evaluation results
+        # -----------------------------
+        results = model.evals_result()
+        epochs = len(results["validation_0"]["logloss"])
+        plot_x_axis = range(0, epochs)
+        
+        # -----------------------------
+        # Plot training vs. validation loss
+        # -----------------------------
+        plt.clf()
+        train_loss = results["validation_0"]["logloss"]
+        val_loss = results["validation_1"]["logloss"]
+        plt.plot(plot_x_axis, train_loss, label="Train Loss")
+        plt.plot(plot_x_axis, val_loss, label="Validation Loss")
 
-            # # Calculate auc err using HM method
-            # n_pos_eval = np.sum(y_eval.ravel() ==1)
-            # n_neg_eval = np.sum(y_eval.ravel() !=1)
-            # auc_err_eval = GetAucStdErrHanleyMcNeil(auc_eval, n_pos_eval, n_neg_eval)
-            # n_pos_train = np.sum(y_train.ravel() ==1)
-            # n_neg_train = np.sum(y_train.ravel() !=1)
-            # auc_err_train = GetAucStdErrHanleyMcNeil(auc_train, n_pos_train, n_neg_train)
-            # n_pos_val = np.sum(y_val.ravel() ==1)
-            # n_neg_val = np.sum(y_val.ravel() !=1)
-            # auc_err_val = GetAucStdErrHanleyMcNeil(auc_val, n_pos_val, n_neg_val)
-            
-            # print(f"auc_err_train: {auc_err_train}")
+        plt.xlabel("Boosting Round")
+        plt.ylabel("Log Loss")
+        plt.title("XGBoost Training vs. Validation Loss")
+        perf_text = plt.Line2D([], [], color='none', label=f'Best iteration: {model.best_iteration} \n Best validation loss: {model.best_score:.5f}')
+        plt.legend(handles=[perf_text])
+        plt.savefig(f"{save_path}/loss_{label}.png")
+        
+        # -----------------------------
+        # 6. Check the best iteration
+        # -----------------------------
+        print(f"Best iteration: {model.best_iteration}")
+        print(f"Best validation loss: {model.best_score:.5f}")
+        
+        csv_savepath = f"{save_path}/loss_{label}.csv"
+        loss_df = pd.DataFrame({
+            "epoch" : plot_x_axis,
+            "train_loss" : train_loss,
+            "val_loss" : val_loss,
+        })
+        loss_df.to_csv(csv_savepath)
+        
 
-            # # -------------------------------------
-            # # save auc and auc err
-            # # -------------------------------------
-            # csv_savepath = f"output/bdt_{name}_{year}/aucInfo_{label}.csv"
-            # auc_df = pd.DataFrame({
-            #     "auc_eval" : [auc_eval],
-            #     "auc_err_eval" : [auc_err_eval],
-            #     "auc_train" : [auc_train],
-            #     "auc_err_train" : [auc_err_train],
-            #     "auc_val" : [auc_val],
-            #     "auc_err_val" : [auc_err_val],
-            # })
-            # # roc_df = pd.concat([roc_df, TpFpTnFn_df_train, TpFpTnFn_df_val, TpFpTnFn_df_eval], axis=1)
-            # auc_df.to_csv(csv_savepath)
+        labels = [feat.replace("_nominal","") for feat in training_features]
+        model.get_booster().feature_names = labels # set my training features as feature names
+        
+        # plot trees
+        plot_tree(model)
+        plt.savefig(f"{save_path}/TreePlot_{i}.png",dpi=400)
 
-            
-            # plt.plot(eff_sig_eval, eff_bkg_eval, label=f"ROC (Eval)  — AUC={auc_eval:.4f}+/-{auc_err_eval:.4f}")
-            # plt.plot(eff_sig_val, eff_bkg_val, label=f"ROC (Val)   — AUC={auc_val:.4f}+/-{auc_err_val:.4f}")
-            
-            # # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
-            # plt.vlines(np.linspace(0,1,11), 0, 1, linestyle="dashed", color="grey")
-            # plt.hlines(np.logspace(-4,0,5), 0, 1, linestyle="dashed", color="grey")
-            # # plt.hlines(eff_bkg, 0, eff_sig, linestyle="dashed")
-            # plt.xlim([0.0, 1.0])
-            # # plt.ylim([0.0, 1.0])
-            # plt.xlabel('Signal eff')
-            # plt.ylabel('Background eff')
-            # plt.yscale("log")
-            # plt.ylim([0.0001, 1.0])
-            
-            # plt.legend(loc="lower right")
-            # plt.title(f'ROC curve for ggH BDT {year}')
-            # fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}.pdf")
 
-            
-            # plt.plot(eff_sig_train, eff_bkg_train, label=f"ROC (Train) — AUC={auc_train:.4f}+/-{auc_err_train:.4f}")
-            # plt.legend(loc="lower right")
-            # fig.savefig(f"output/bdt_{name}_{year}/log_auc_{label}_w_train.pdf")
-            
-            # plt.clf()
-            # superimposed log ROC end --------------------------------------------------------------------------
+        feature_important = model.get_booster().get_score(importance_type='weight')
+        keys = list(feature_important.keys())
+        values = list(feature_important.values())
+        score_name = "Weight Score"
+        data = pd.DataFrame(data=values, index=keys, columns=[score_name]).sort_values(by = score_name, ascending=True)
+        data["Normalized Score"] = data[score_name] / data[score_name].sum()
+        data.to_csv(f"{save_path}/BDT_FeatureImportance_{label}_byWeight.csv")
+        data.nlargest(50, columns=score_name).plot(kind='barh', figsize = (20,10))
+        data.plot(kind='barh', figsize = (20,10))
+        plt.savefig(f"{save_path}/BDT_FeatureImportance_{label}_byWeight.png")
 
-            # # superimposed flipped log ROC start --------------------------------------------------------------------------
-            # plt.plot(1-eff_sig_eval,  1-eff_bkg_eval,  label=f"Stage2 ROC (Eval)  — AUC={auc_eval:.4f}+/-{auc_err_eval:.4f}")
-            # plt.plot(1-eff_sig_val,   1-eff_bkg_val,   label=f"Stage2 ROC (Val)   — AUC={auc_val:.4f}+/-{auc_err_val:.4f}")
+        feature_important = model.get_booster().get_score(importance_type='gain')
+        keys = list(feature_important.keys())
+        values = list(feature_important.values())
+        score_name = "Gain Score"
+        data = pd.DataFrame(data=values, index=keys, columns=[score_name]).sort_values(by = score_name, ascending=True)
+        data["Normalized Score"] = data[score_name] / data[score_name].sum()
+        data.to_csv(f"{save_path}/BDT_FeatureImportance_{label}_byGain.csv")
+        data.nlargest(50, columns=score_name).plot(kind='barh', figsize = (20,10))
+        data.plot(kind='barh', figsize = (20,10))
+        plt.savefig(f"{save_path}/BDT_FeatureImportance_{label}_byGain.png")
 
-            
-            # # plt.vlines(eff_sig, 0, eff_bkg, linestyle="dashed")
-            # plt.vlines(np.linspace(0,1,11), 0, 1, linestyle="dashed", color="grey")
-            # plt.hlines(np.logspace(-4,0,5), 0, 1, linestyle="dashed", color="grey")
-            # # plt.hlines(eff_bkg, 0, eff_sig, linestyle="dashed")
-            # plt.xlim([0.0, 1.0])
-            # # plt.ylim([0.0, 1.0])
-            # plt.xlabel('1 - Signal eff')
-            # plt.ylabel('1- Background eff')
-            # plt.yscale("log")
-            # plt.ylim([0.0001, 1.0])
-            
-            # plt.legend(loc="lower right")
-            # plt.title(f'ROC curve for ggH BDT {year}')
-            # fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}.pdf")
-
-            # plt.plot(1-eff_sig_train, 1-eff_bkg_train, label=f"Stage2 ROC (Train) — AUC={auc_train:.4f}+/-{auc_err_train:.4f}")
-            # plt.legend(loc="lower right")
-            # fig.savefig(f"output/bdt_{name}_{year}/logFlip_auc_{label}_w_train.pdf")
-            
-            # plt.clf()
-            # superimposed flipped log ROC end --------------------------------------------------------------------------
-            
-            
-            # do fig 6.5 start --------------------------------------------------------------
-            # save_path = f"output/bdt_{name}_{year}" 
-            get6_5(y_eval.ravel(), y_eval_pred, weight_nom_eval, save_path, f"eval_{label}")
-            get6_5(y_val.ravel(), y_pred, weight_nom_val, save_path, f"val_{label}")
-            # do fig 6.5 end --------------------------------------------------------------
-            
-            # Also save ROC curve for evaluation just in case start --------------
-            # shuf_ind_eval = np.arange(len(xp_eval))
-            # xp_eval = xp_eval[shuf_ind_eval]
-            # y_eval = y_eval[shuf_ind_eval]
-            # y_eval_pred = model.predict_proba(xp_eval)[:, 1].ravel()
-            nn_fpr_xgb, nn_tpr_xgb, nn_thresholds_xgb = roc_curve(y_eval.ravel(), y_eval_pred)
-            sorted_index = np.argsort(nn_fpr_xgb)
-            fpr_sorted =  np.array(nn_fpr_xgb)[sorted_index]
-            tpr_sorted = np.array(nn_tpr_xgb)[sorted_index]
-            #auc_xgb = auc(nn_fpr_xgb[:-2], nn_tpr_xgb[:-2])
-            auc_xgb = auc(fpr_sorted, tpr_sorted)
-            #auc_xgb = roc_auc_score(y_val, y_pred, sample_weight=w_val)
-            print("The AUC score is:", auc_xgb)
-            #plt.plot(nn_fpr_xgb, nn_tpr_xgb, marker='.', label='Neural Network (auc = %0.3f)' % auc_xgb)
-            #roc_auc_gus = auc(nn_fpr_xgb,nn_tpr_xgb)
-            fig, ax = plt.subplots(1,1)
-            ax.plot(nn_fpr_xgb, nn_tpr_xgb, marker='.', label='eval data BDT (auc = %0.3f)' % auc_xgb)
-            #ax.plot(nn_fpr_xgb, nn_tpr_xgb, label='Raw ROC curve (area = %0.2f)' % roc_auc)
-            #ax.plot(fpr_gus, tpr_gus, label='Gaussian ROC curve (area = %0.2f)' % roc_auc_gus)
-            ax.plot([0, 1], [0, 1], 'k--')
-            ax.set_xlim([0.0, 1.0])
-            ax.set_ylim([0.0, 1.05])
-            ax.set_xlabel('False Positive Rate')
-            ax.set_ylabel('True Positive Rate')
-            ax.set_title('Receiver operating characteristic')
-            ax.legend(loc="lower right")
-            fig.savefig(f"{save_path}/eval_auc_{label}.png")
-            plt.clf()
-            # Also save ROC curve for evaluation just in case end --------------
-
-            
-            # results = model.evals_result()
-            # print(results.keys())
-            # plt.plot(results['validation_0']['logloss'], label='train')
-            # plt.plot(results['validation_1']['logloss'], label='test')
-            # # show the legend
-            # plt.legend()
-            # plt.savefig(f"output/bdt_{name}_{year}/Loss_{label}.png")
-
-            # -----------------------------
-            # Retrieve evaluation results
-            # -----------------------------
-            results = model.evals_result()
-            epochs = len(results["validation_0"]["logloss"])
-            plot_x_axis = range(0, epochs)
-            
-            # -----------------------------
-            # Plot training vs. validation loss
-            # -----------------------------
-            plt.clf()
-            train_loss = results["validation_0"]["logloss"]
-            val_loss = results["validation_1"]["logloss"]
-            plt.plot(plot_x_axis, train_loss, label="Train Loss")
-            plt.plot(plot_x_axis, val_loss, label="Validation Loss")
-
-            plt.xlabel("Boosting Round")
-            plt.ylabel("Log Loss")
-            plt.title("XGBoost Training vs. Validation Loss")
-            perf_text = plt.Line2D([], [], color='none', label=f'Best iteration: {model.best_iteration} \n Best validation loss: {model.best_score:.5f}')
-            plt.legend(handles=[perf_text])
-            plt.savefig(f"{save_path}/loss_{label}.png")
-            
-            # -----------------------------
-            # 6. Check the best iteration
-            # -----------------------------
-            print(f"Best iteration: {model.best_iteration}")
-            print(f"Best validation loss: {model.best_score:.5f}")
-            
-            csv_savepath = f"{save_path}/loss_{label}.csv"
-            loss_df = pd.DataFrame({
-                "epoch" : plot_x_axis,
-                "train_loss" : train_loss,
-                "val_loss" : val_loss,
-            })
-            loss_df.to_csv(csv_savepath)
-            
-
-            labels = [feat.replace("_nominal","") for feat in training_features]
-            model.get_booster().feature_names = labels # set my training features as feature names
-            
-            # plot trees
-            plot_tree(model)
-            plt.savefig(f"{save_path}/TreePlot_{i}.png",dpi=400)
-            
-            # plot importance
-            # plot_importance(model, importance_type='weight', xlabel="Score by weight",show_values=False)
-            # plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byWeight.png")
-            # plt.clf()
-            # plot_importance(model, importance_type='gain', xlabel="Score by gain",show_values=False)
-            # plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}_byGain.png")
-            # plt.clf()
-            
-            # feature_important = model.get_booster().get_score(importance_type='gain')
-            # feature_important = model.get_booster().get_score(importance_type='weight')
-            # keys = list(feature_important.keys())
-            # values = list(feature_important.values())
-            # print(f"feat importance keys b4 sorting: {keys}")
-            # print(f"feat importance value b4 sorting: {values}")
-            # print(f"feat importance training_features b4 sorting: {training_features}")
-
-            # # data = pd.DataFrame(data=values, index=training_features, columns=["score"]).sort_values(by = "score", ascending=True)
-            # data = pd.DataFrame(data=values, index=training_features[:-2], columns=["score"]).sort_values(by = "score", ascending=True)
-            # data.nlargest(50, columns="score").plot(kind='barh', figsize = (20,10))
-            # plt.savefig(f"output/bdt_{name}_{year}/BDT_FeatureImportance_{label}.png")
-            # plt.clf()
-
-            feature_important = model.get_booster().get_score(importance_type='weight')
-            keys = list(feature_important.keys())
-            values = list(feature_important.values())
-            score_name = "Weight Score"
-            data = pd.DataFrame(data=values, index=keys, columns=[score_name]).sort_values(by = score_name, ascending=True)
-            data["Normalized Score"] = data[score_name] / data[score_name].sum()
-            data.to_csv(f"{save_path}/BDT_FeatureImportance_{label}_byWeight.csv")
-            data.nlargest(50, columns=score_name).plot(kind='barh', figsize = (20,10))
-            data.plot(kind='barh', figsize = (20,10))
-            plt.savefig(f"{save_path}/BDT_FeatureImportance_{label}_byWeight.png")
-    
-            feature_important = model.get_booster().get_score(importance_type='gain')
-            keys = list(feature_important.keys())
-            values = list(feature_important.values())
-            score_name = "Gain Score"
-            data = pd.DataFrame(data=values, index=keys, columns=[score_name]).sort_values(by = score_name, ascending=True)
-            data["Normalized Score"] = data[score_name] / data[score_name].sum()
-            data.to_csv(f"{save_path}/BDT_FeatureImportance_{label}_byGain.csv")
-            data.nlargest(50, columns=score_name).plot(kind='barh', figsize = (20,10))
-            data.plot(kind='barh', figsize = (20,10))
-            plt.savefig(f"{save_path}/BDT_FeatureImportance_{label}_byGain.png")
-
-            
-            #save('x_val_{label}.npy', x_val[training_features])
-            #save('y_val_{label}.npy', y_val)
-            #save('weight_val_{label}.npy', df_val['training_wgt'].values)
-            output_path = args["output_path"]
-            #util.save(history.history, f"output/trained_models/history_{label}_bdt.coffea")            
-            # save_path = f"{output_path}/bdt_{name}_{year}"
-            if not os.path.exists(save_path):
-                os.makedirs(save_path)
-            model_fname = (f"{save_path}/{name}_{label}.pkl")
-            pickle.dump(model, open(model_fname, "wb"))
-            print ("wrote model to",model_fname)
+        
+        output_path = args["output_path"]
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        model_fname = (f"{save_path}/{name}_{label}.pkl")
+        pickle.dump(model, open(model_fname, "wb"))
+        print ("wrote model to",model_fname)
             
 
 def evaluation(df, args):

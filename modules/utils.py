@@ -313,7 +313,7 @@ def PairNAnnhilateNegWgt_inChunks(df, max_num_rows=80_000):
     print(f"max_num_rows: {max_num_rows}")
     processed_chunks = []
     for chunk in split_df(df, max_num_rows):
-        processed_chunks.append(PairNAnnhilateNegWgt(df))
+        processed_chunks.append(PairNAnnhilateNegWgt(df)) # FIXME: here this should be chunk
         # processed_chunks.append([]) # FIXME
     print(f"PairNAnnhilateNegWgt_inChunks processed_chunks len: {len(processed_chunks)}")
     # raise ValueError
@@ -635,7 +635,6 @@ def customROC_curve_AN(label, pred, weight, doClassBalance = False):
     
     return (effBkg_total, effSig_total, thresholds, effBkgSig_df)
 
-# def fullROC_operations(fig, data_dict, name, year, label, doClassBalance=False):
 def fullROC_operations(fig, data_dict, save_path, year, label, doClassBalance=False):
     if doClassBalance:
         # save_str_addendum = "_clsWgtBal"
@@ -929,7 +928,7 @@ def recenter_range(x_min, x_max, new_x_center):
     return new_x_min, new_x_max
 
 def reweightMassToTargetDist(df, target_dist_load_path, train_x_min, train_x_max, nbins, plot_save_path, plot_name="test", target_mass_centre = 91):
-
+    df = df.copy() # To get rid of warning SettingWithCopyWarning
     events_target = ak.from_parquet(target_dist_load_path)
     target = ak.to_numpy(events_target.dimuon_mass)
     target_wgt = ak.to_numpy(events_target.wgt_nominal)
