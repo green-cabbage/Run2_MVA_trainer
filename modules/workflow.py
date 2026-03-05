@@ -1,29 +1,20 @@
-import xgboost as xgb
-import argparse
-#from xgboost import XGBClassifier
-from sklearn.metrics import mean_squared_error
-import pandas as pd
-import numpy as np
-import awkward as ak
-import dask_awkward as dak
-from sklearn.metrics import roc_curve, auc, roc_auc_score
-import matplotlib.pyplot as plt
-import mplhep as hep
-plt.style.use(hep.style.CMS)
-import tqdm
-from distributed import LocalCluster, Client, progress
-import os
-import coffea.util as util
-import time
-from xgboost import plot_importance, plot_tree
 import copy
 import json
-# import cmsstyle as CMS
+import os
 import pickle
-import glob
-from modules.utils import auc_from_eff, PairNAnnhilateNegWgt, PairNAnnhilateNegWgt_inChunks, addErrByQuadrature, GetAucStdErrHanleyMcNeil, fullROC_operations, has_bad_values, get_subdirs
-import seaborn as sb
 
+import awkward as ak
+import matplotlib.pyplot as plt
+import mplhep as hep
+import numpy as np
+import pandas as pd
+import seaborn as sb
+from sklearn.metrics import auc, roc_curve
+from xgboost import XGBClassifier, plot_tree
+
+from modules.utils import fullROC_operations, has_bad_values
+
+plt.style.use(hep.style.CMS)
 
 
 def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, fold_idx):
@@ -214,120 +205,41 @@ def get6_5(label, pred, weight, save_path:str, name: str):
 
 
 
-def convert2df(dak_zip, dataset: str, is_vbf=False, is_UL=False):
+def convert2df(dak_zip, dataset: str):
     """
     small wrapper that takes delayed dask awkward zip and converts them to pandas dataframe
     with zip's keys as columns with extra column "dataset" to be named the string value given
-    Note: we also filter out regions not in h-peak region first, and apply cuts for
-    ggH production mode
+
+    Fill missing values; use -1 for dPhi variables (per AN), -999 otherwise.
     """
-    # filter out arrays not in h_peak
-    train_region = (dak_zip.dimuon_mass > 115.0) & (dak_zip.dimuon_mass < 135.0) # line 1169 of the AN: when training, we apply a tigher cut
-    train_region = ak.fill_none(train_region, value=False)
-    # print(f"is_vbf: {is_vbf}")
-    # print(f"convert2df train_region:{train_region}")
-    # not entirely sure if this is what we use for ROC curve, however
-
-    vbf_cut = ak.fill_none(dak_zip.jj_mass_nominal > 400, value=False) & ak.fill_none(dak_zip.jj_dEta_nominal > 2.5, value=False) # for ggH $ VBF
-    jet1_cut =  ak.fill_none((dak_zip.jet1_pt_nominal > 35), value=False) 
-    
-    if is_vbf: # VBF
-        prod_cat_cut =  vbf_cut & jet1_cut
-    else: # ggH
-        prod_cat_cut =  ~(vbf_cut & jet1_cut)
-        print("ggH cat!")
-
-    # btag_cut = ak.fill_none((dak_zip.nBtagLoose_nominal >= 2), value=False) | ak.fill_none((dak_zip.nBtagMedium_nominal >= 1), value=False)
-    btagLoose_filter = ak.fill_none((dak_zip.nBtagLoose_nominal >= 2), value=False)
-    btagMedium_filter = ak.fill_none((dak_zip.nBtagMedium_nominal >= 1), value=False) & ak.fill_none((dak_zip.njets_nominal >= 2), value=False)
-    btag_cut = btagLoose_filter | btagMedium_filter
-   
-    category_selection = (
-        prod_cat_cut & 
-        train_region &
-        ~btag_cut # btag cut is for VH and ttH categories
-    )
-    # print(f"category_selection sum: {ak.sum(category_selection)}")
-    # computed_zip = dak_zip[category_selection].compute() # original
-    computed_zip = dak_zip[category_selection]
-
-    # recalculate BDT variables that you're not certain is up to date from stage 1 start -----------------
-    # if is_UL:
-    #     # copperheadV2
-    #     min_dEta_filter  = ak.fill_none((computed_zip.mmj1_dEta < computed_zip.mmj2_dEta), value=True)
-    #     computed_zip["mmj_min_dEta"]  = ak.where(
-    #         min_dEta_filter,
-    #         computed_zip.mmj1_dEta,
-    #         computed_zip.mmj2_dEta,
-    #     )
-    #     min_dPhi_filter = ak.fill_none((computed_zip.mmj1_dPhi < computed_zip.mmj2_dPhi), value=True)
-    #     computed_zip["mmj_min_dPhi"] = ak.where(
-    #         min_dPhi_filter,
-    #         computed_zip.mmj1_dPhi,
-    #         computed_zip.mmj2_dPhi,
-    #     )
-    # else:
-    #     # copperheadV1
-    #     min_dEta_filter  = ak.fill_none((computed_zip.mmj1_dEta_nominal < computed_zip.mmj2_dEta_nominal), value=True)
-    #     computed_zip["mmj_min_dEta_nominal"]  = ak.where(
-    #         min_dEta_filter,
-    #         computed_zip.mmj1_dEta_nominal,
-    #         computed_zip.mmj2_dEta_nominal,
-    #     )
-    #     min_dPhi_filter = ak.fill_none((computed_zip.mmj1_dPhi_nominal < computed_zip.mmj2_dPhi_nominal), value=True)
-    #     computed_zip["mmj_min_dPhi_nominal"] = ak.where(
-    #         min_dPhi_filter,
-    #         computed_zip.mmj1_dPhi_nominal,
-    #         computed_zip.mmj2_dPhi_nominal,
-    #     )
-    # recalculate BDT variables that you're not certain is up to date from stage 1 end -----------------
-    
-    # print(f"computed_zip : {computed_zip}")
-    # for copperheadV1, you gotta fill none b4 and store them in a dictionary b4 converting to dataframe
-    computed_dict = {}
     nan_val = -999.0
-    for field in computed_zip.fields:
-        # print(f"field: {field}")
-        # print(f"computed_dict[{field}] b4 fill none: {ak.to_dataframe(computed_zip[field]) }")
-        
-        if "dPhi" in field:
-            computed_dict[field] = ak.fill_none(computed_zip[field], value=nan_val)
-        else:
-            computed_dict[field] = ak.fill_none(computed_zip[field], value=nan_val)
-        # print(f"computed_dict[{field}] : {computed_dict[field]}")
-        
-    # # recalculate pt over masses. They're all inf and zeros for copperheadV1
-    # computed_dict["mu1_pt_over_mass"] = computed_dict["mu1_pt"] / computed_dict["dimuon_mass"]
-    # computed_dict["mu2_pt_over_mass"] = computed_dict["mu2_pt"] / computed_dict["dimuon_mass"]
-    
-    # mu1_pt_over_mass = computed_dict["mu1_pt_over_mass"]
-    # mu2_pt_over_mass = computed_dict["mu2_pt_over_mass"]
-    # df = ak.to_dataframe(computed_zip) 
-    df = pd.DataFrame(computed_dict)
-    # print(f"df : {df.head()}")
+    dphi_nan_val = -1.0
 
-    # make sure to replace nans with zeros,  unless it's delta phis, in which case it's -1, as specified in line 1117 of the AN
-    dPhis = [] # collect all dPhi features
-    for field in df.columns:
-        if "dPhi" in field:
-            dPhis.append(field)
-    df.fillna({field: nan_val for field in dPhis},inplace=True)
+    computed_dict = {}
+    for field in dak_zip.fields:
+        fill_val = dphi_nan_val if "dPhi" in field else nan_val
+        computed_dict[field] = ak.fill_none(dak_zip[field], value=fill_val)
+
+    # Force to numpy arrays (avoid object dtype)
+    for k, v in computed_dict.items():
+        computed_dict[k] = ak.to_numpy(v)
+
+    df = pd.DataFrame(computed_dict)
+
+    # Replace infs then fill again
     df = df.replace([np.inf, -np.inf], np.nan)
-    df.fillna(nan_val,inplace=True)
-    # add columns
-    df["dataset"] = dataset 
+
+    # Fill dPhi NaNs with -1, everything else with -999
+    dphi_cols = [c for c in df.columns if "dPhi" in c]
+    df.fillna({c: dphi_nan_val for c in dphi_cols}, inplace=True)
+    df.fillna(nan_val, inplace=True)
+
+    df["dataset"] = dataset
     df["cls_avg_wgt"] = -1.0
-    # if is_UL:
-    #     df["wgt_nominal"] = np.abs(df["wgt_nominal_total"])
-    # else:
-    df["wgt_nominal_orig"] = copy.deepcopy(df["wgt_nominal"])
+
+    df["wgt_nominal_orig"] = df["wgt_nominal"].copy()
     df["wgt_nominal"] = np.abs(df["wgt_nominal"])
-    # df["wgt_nominal_total"] = np.abs(df["wgt_nominal_total"]) # enforce poisitive weights OR:
-    # # drop negative values
-    # if "wgt_nominal" in df.columns:
-    #     df["wgt_nominal_total"] = df["wgt_nominal"] 
-    # positive_wgts = df["wgt_nominal_total"] > 0 
-    # df = df.loc[positive_wgts]
+
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     return df
 
@@ -355,10 +267,6 @@ def prepare_dataset(df, ds_dict):
     cls_name_map = dict(df_info[["dataset", "class_name"]].values)
     df["class"] = df.dataset.map(cls_map)
     df["class_name"] = df.dataset.map(cls_name_map)
-    # df.loc[:,'mu1_pt_over_mass'] = np.divide(df['mu1_pt'], df['dimuon_mass'])
-    # df.loc[:,'mu2_pt_over_mass'] = np.divide(df['mu2_pt'], df['dimuon_mass'])
-    # df[df['njets']<2]['jj_dPhi'] = -1
-    #df[df['dataset']=="ggh_amcPS"].loc[:,'wgt_nominal_total'] = np.divide(df[df['dataset']=="ggh_amcPS"]['wgt_nominal_total'], df[df['dataset']=="ggh_amcPS"]['dimuon_ebe_mass_res'])
 
     
     # --------------------------------------------------------
@@ -416,9 +324,9 @@ def prepare_dataset(df, ds_dict):
     print(f'new bkg bdt_wgt mean: {np.mean(df.loc[~mask, "bdt_wgt"])}')
     
     #print(df.head)
-    columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
-    columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta','jet2_pt']
-    columns2 = ['mmj1_dEta', 'mmj1_dPhi', 'mmj2_dEta', 'mmj2_dPhi', 'mmj_min_dEta', 'mmj_min_dPhi']
+    # columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta',]
+    # columns_print = ['njets','jj_dPhi','jj_mass_log', 'jj_phi', 'jj_pt', 'll_zstar_log', 'mmj1_dEta','jet2_pt']
+    # columns2 = ['mmj1_dEta', 'mmj1_dPhi', 'mmj2_dEta', 'mmj2_dPhi', 'mmj_min_dEta', 'mmj_min_dPhi']
     # with open("df.txt", "w") as f:
     #     print(df[columns_print], file=f)
     # with open("df2.txt", "w") as f:
@@ -491,38 +399,22 @@ def getCorrMatrix(df, training_features, save_path=""):
 
 def classifier_train(df, args, training_samples, training_features, random_seed_val: int, save_path:str, do_hyperparam_search=False):
     print(f"random_seed_val: {random_seed_val}")
-    if args['dnn']:
-        from tensorflow.keras.models import Model
-        from tensorflow.keras.layers import Dense, Activation, Input, Dropout, Concatenate, Lambda, BatchNormalization
-        from tensorflow.keras import backend as K
-    if args['bdt']:
-        import xgboost as xgb
-        from xgboost import XGBClassifier
-        import pickle
 
     nfolds = 4
-    # classes = df.dataset.unique()
-    #print(df["class"])
-    #cls_idx_map = {dataset:idx for idx,dataset in enumerate(classes)}
-    add_year = (args['year']=='')
-    #df = prepare_features(df, args, add_year)
-    #df['cls_idx'] = df['dataset'].map(cls_idx_map)
-    print("Training features: ", training_features)
+    print(f"Training features: {training_features}")
     year = args['year']
     name = args['name']
     print(f"year: {year}")
-    # raise ValueError
-    # save_path = f"output/bdt_{name}_{year}"
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
     # save training features as json for readability
     with open(f'{save_path}/training_features.json', 'w') as file:
-        json.dump(training_features, file)
+        json.dump(training_features, file, indent=4)
     # get the overal correlation matrix
     corr_matrix = getCorrMatrix(df, training_features, save_path=save_path)
 
-    
+
     
     for i in range(nfolds):
         if args['year']=='':
@@ -538,7 +430,7 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
         print(f"Training folds: {train_folds}")
         print(f"Validation folds: {val_folds}")
         print(f"Evaluation folds: {eval_folds}")
-        print(f"Samples used: ",df.dataset.unique())
+        print(f"Samples used: {df.dataset.unique()}")
         
         train_filter = df.event.mod(nfolds).isin(train_folds)
         val_filter = df.event.mod(nfolds).isin(val_folds)
@@ -552,11 +444,9 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
 
         
         x_train = df_train[training_features]
-        #y_train = df_train['cls_idx']
         y_train = df_train['class']
         x_val = df_val[training_features]
         x_eval = df_eval[training_features]
-        #y_val = df_val['cls_idx']
         y_val = df_val['class']
         y_eval = df_eval['class']
 
@@ -571,7 +461,6 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
             1 : 'signal',
         }
         print(f"classes: {classes}")
-        # for icls, cls in enumerate(classes):
         
         for icls, cls in classes.items():
             print(f"icls: {icls}")
@@ -579,11 +468,9 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
             df_train.loc[y_train==icls,'cls_avg_wgt'] = df_train.loc[y_train==icls,'wgt_nominal'].values.mean()
             df_val.loc[y_val==icls,'cls_avg_wgt'] = df_val.loc[y_val==icls,'wgt_nominal'].values.mean()
             df_eval.loc[y_eval==icls,'cls_avg_wgt'] = df_eval.loc[y_eval==icls,'wgt_nominal'].values.mean()
-            # df_train.loc[y_train==icls,'cls_avg_wgt'] = df_train.loc[y_train==icls,'wgt_nominal'].values.sum()
-            # df_val.loc[y_val==icls,'cls_avg_wgt'] = df_val.loc[y_val==icls,'wgt_nominal'].values.sum()
-            # df_eval.loc[y_eval==icls,'cls_avg_wgt'] = df_eval.loc[y_eval==icls,'wgt_nominal'].values.sum()
             print(f"{train_evts} training events in class {cls}")
         # original end -------------------------------------------------------
+
         # test start -------------------------------------------------------
         # bkg_l = training_samples["background"]
         # sig_l = training_samples["signal"]
@@ -612,7 +499,6 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
 
             
         if args['bdt']:
-            seed = 7
             xp_train = x_train[training_features].values
             xp_val = x_val[training_features].values
             xp_eval = x_eval[training_features].values
@@ -631,8 +517,6 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
             weight_nom_train = df_train['wgt_nominal_orig'].values
             weight_nom_val = df_val['wgt_nominal_orig'].values
             weight_nom_eval = df_eval['wgt_nominal_orig'].values
-
-            # random_seed_val= 125 # M of Higgs as random seed
             
             np.random.seed(random_seed_val)
             
@@ -673,6 +557,7 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
             # tuned_params = {'min_child_weight': 13.428968247683708, 'n_estimators': 1573, 'max_depth': 8, 'learning_rate': 0.05982369314062763, 'subsample': 0.9430472676858279, 'max_bin': 80}
             # tuned_params =  {'min_child_weight': 2.557316256946003, 'n_estimators': 1539, 'max_depth': 10, 'learning_rate': 0.05304264948799136, 'subsample': 0.8156339679345651, 'max_bin': 74}
             # tuned_params =  {'min_child_weight': 3.5451229442486776, 'n_estimators': 2057, 'max_depth': 7, 'learning_rate': 0.050285069062295254, 'subsample': 0.9815632528341489, 'max_bin': 77} # Feb28_2026_zPeakShapeMatch_tuned
+            # FIXME: It should be setup using the config file.
             tuned_params =  {'min_child_weight': 14.58375507839577, 'n_estimators': 511, 'max_depth': 8, 'learning_rate': 0.08127708435811475, 'subsample': 0.973909078023838, 'max_bin': 79} # Feb28_2026_flatDimuMass_tuned
 
             
@@ -706,6 +591,7 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
             # -----------------------------------------
             if do_hyperparam_search:
                 import optuna
+
                 from modules.hyperparamOptim import objective
                 study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=random_seed_val))
                 study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, w_val, weight_nom_val, random_seed=random_seed_val), n_trials=100)
@@ -1202,8 +1088,6 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
 def evaluation(df, args):
     if df.shape[0]==0: return df
     if args['bdt']:
-        import xgboost as xgb
-        import pickle
         if args['do_massscan']:
             mass_shift = args['mass']-125.0
         add_year = args['evaluate_allyears_dnn']

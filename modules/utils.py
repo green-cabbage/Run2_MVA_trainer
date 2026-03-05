@@ -1,10 +1,12 @@
-import pandas as pd
-import numpy as np
 import copy
-from scipy.optimize import linear_sum_assignment
-import matplotlib.pyplot as plt
 from pathlib import Path
+
 import awkward as ak
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from scipy.optimize import linear_sum_assignment
+
 
 def get_subdirs(path):
     p = Path(path)
