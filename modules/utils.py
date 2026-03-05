@@ -929,6 +929,17 @@ def recenter_range(x_min, x_max, new_x_center):
     return new_x_min, new_x_max
 
 
+def sin_histogram(nbins, xmin, xmax):
+    # bin edges
+    edges = np.linspace(xmin, xmax, nbins + 1)
+
+    # bin centers
+    centers = 0.5 * (edges[:-1] + edges[1:])
+
+    # histogram values following sin(x)
+    hist = 1.5 + np.sin(centers)
+    return hist
+
 def reweightMassToTargetDist(df, target_dist_load_path, train_x_min, train_x_max, nbins, plot_save_path, plot_name="test", wgt_field="wgt_nominal_orig", target_mass_centre = 91):
 
     events_target = ak.from_parquet(target_dist_load_path)
@@ -949,9 +960,19 @@ def reweightMassToTargetDist(df, target_dist_load_path, train_x_min, train_x_max
     # train_x_max = 135
     
     # target_mass_centre = 91
+    # -----------------------------
+    # Define reference disctribution
+    # as histogram 'target_hist'
+    # -----------------------------
     if target_mass_centre == "flat": # just get a flat distribution
         print("Taking flat distribution as the Target Hist!")
         target_hist = np.ones(nbins)
+    elif target_mass_centre == "sinusoidal":
+        nbins = 50
+        # xmin, xmax = 0, np.pi
+        xmin, xmax = 0, 2*np.pi
+        target_hist = sin_histogram(nbins, xmin, xmax)
+
     else: # else, it's a mass value
         range_ = recenter_range(train_x_min, train_x_max, target_mass_centre)
         target_hist, bin_edges = np.histogram(target, bins=nbins, range=range_, weights=target_wgt)
@@ -959,7 +980,11 @@ def reweightMassToTargetDist(df, target_dist_load_path, train_x_min, train_x_max
     bin_edges = np.linspace(train_x_min, train_x_max, num=(nbins+1))
     source_hist, _ = np.histogram(x, bins=bin_edges, weights=w)
 
+    print(f"sum source_hist: {np.sum(source_hist)}")
+    print(f"sum target_hist b4: {np.sum(target_hist)}")
+    
     target_hist = target_hist * (np.sum(source_hist)/np.sum(target_hist)) # match target_hist sum to source_hist sum
+    print(f"sum target_hist after: {np.sum(target_hist)}")
     # -----------------------------
     # 3. Compute scale factors
     # -----------------------------
@@ -985,7 +1010,8 @@ def reweightMassToTargetDist(df, target_dist_load_path, train_x_min, train_x_max
     # 5. Plot comparison
     # -----------------------------
     train_x_center = (train_x_max + train_x_min)/2
-    if target_mass_centre == "flat":
+    # if target_mass_centre == "flat":
+    if type(target_mass_centre) == str:
         # plt.hist(target, bins=bin_edges, weights=target_wgt, histtype="step", density=True, label="Target")
         print("skip plot flat distribution") # FIXME
     else:
