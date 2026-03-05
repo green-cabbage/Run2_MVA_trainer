@@ -1,6 +1,7 @@
 import optuna
 from xgboost import XGBClassifier
 from modules.utils import customROC_curve_AN, auc_from_eff
+from modules.utils_logger import logger
 
 
 def objective(trial, xp_train, xp_val, y_train, y_val, w_train, w_val, weight_nom_val, random_seed) -> float:

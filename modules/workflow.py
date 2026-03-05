@@ -4,17 +4,98 @@ import os
 import pickle
 
 import awkward as ak
+from datetime import datetime, timezone
 import matplotlib.pyplot as plt
 import mplhep as hep
 import numpy as np
 import pandas as pd
 import seaborn as sb
 from sklearn.metrics import auc, roc_curve
+import time
 from xgboost import XGBClassifier, plot_tree
 
 from modules.utils import fullROC_operations, has_bad_values
 
 plt.style.use(hep.style.CMS)
+
+
+# ---- helpers (small + self-contained) ---------------------------------
+def _utc_now_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+def _to_py(x):
+    # convert numpy scalars/arrays to JSON-able python
+    if isinstance(x, (np.integer,)):
+        return int(x)
+    if isinstance(x, (np.floating,)):
+        return float(x)
+    if isinstance(x, np.ndarray):
+        return x.tolist()
+    return x
+
+def _array_stats(x, name):
+    x = np.asarray(x)
+    out = {
+        "name": name,
+        "dtype": str(x.dtype),
+        "shape": list(x.shape),
+        "size": int(x.size),
+        "finite_frac": float(np.isfinite(x).mean()) if x.size else None,
+    }
+    if x.size:
+        xf = x[np.isfinite(x)]
+        out.update({
+            "min": float(np.min(xf)) if xf.size else None,
+            "max": float(np.max(xf)) if xf.size else None,
+            "mean": float(np.mean(xf)) if xf.size else None,
+            "std": float(np.std(xf)) if xf.size else None,
+            "sum": float(np.sum(xf)) if xf.size else None,
+            "n_nonzero": int(np.count_nonzero(xf)) if xf.size else 0,
+        })
+    else:
+        out.update({"min": None, "max": None, "mean": None, "std": None, "sum": None, "n_nonzero": 0})
+    return out
+
+def _df_class_breakdown(df, class_col="class", dataset_col="dataset", wcols=("wgt_nominal_orig", "bdt_wgt")):
+    rows = []
+    if df is None or df.empty:
+        return {"by_dataset_class": [], "overall": {"n": 0}}
+
+    for (ds, cls), g in df.groupby([dataset_col, class_col], dropna=False):
+        rec = {"dataset": str(ds), "class": int(cls), "n": int(len(g))}
+        for wc in wcols:
+            if wc in g.columns:
+                w = g[wc].to_numpy()
+                rec[f"{wc}_sum"] = float(np.sum(w))
+                rec[f"{wc}_sum_abs"] = float(np.sum(np.abs(w)))
+                rec[f"{wc}_mean"] = float(np.mean(w)) if len(w) else None
+        rows.append(rec)
+
+    overall = {"n": int(len(df))}
+    for wc in wcols:
+        if wc in df.columns:
+            w = df[wc].to_numpy()
+            overall[f"{wc}_sum"] = float(np.sum(w))
+            overall[f"{wc}_sum_abs"] = float(np.sum(np.abs(w)))
+            overall[f"{wc}_min"] = float(np.min(w)) if len(w) else None
+            overall[f"{wc}_max"] = float(np.max(w)) if len(w) else None
+
+    return {"by_dataset_class": rows, "overall": overall}
+
+# Convert AUC DataFrames to json-serializable dicts and store in metadata
+def _df_to_dict_safe(df):
+    if df is None:
+        return None
+    try:
+        return df.to_dict(orient="list")
+    except Exception:
+        return str(df)
+
+def _write_metadata_json(meta_path, meta_obj):
+    os.makedirs(os.path.dirname(meta_path), exist_ok=True)
+    with open(meta_path, "w") as f:
+        json.dump(meta_obj, f, indent=2, sort_keys=True)
+# ----------------------------------------------------------------------
 
 
 def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, fold_idx):
@@ -414,7 +495,28 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
     # get the overal correlation matrix
     corr_matrix = getCorrMatrix(df, training_features, save_path=save_path)
 
-
+    # ------------------- NEW: initialize ONE metadata dict -------------------
+    meta_path = os.path.join(save_path, "training_metadata.json")
+    metadata = {
+        "run": {
+            "timestamp_utc": _utc_now_iso(),
+            "args": dict(args),
+            "random_seed_val": int(random_seed_val),
+            "nfolds": int(nfolds),
+            "training_features": list(training_features),
+            "training_samples": training_samples,
+            "df_global": {
+                "n_rows": int(len(df)),
+                "columns": list(df.columns),
+                "datasets": sorted([str(x) for x in df["dataset"].unique()]) if "dataset" in df.columns else [],
+                "classes": sorted([int(x) for x in df["class"].unique()]) if "class" in df.columns else [],
+            },
+        },
+    }
+    for i in range(nfolds):
+        metadata[f"folds_{i}"] = []    
+    _write_metadata_json(meta_path, metadata)
+    # ------------------------------------------------------------------------
     
     for i in range(nfolds):
         if args['year']=='':
@@ -469,29 +571,6 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
             print(f"{train_evts} training events in class {cls}")
         # original end -------------------------------------------------------
 
-        # test start -------------------------------------------------------
-        # bkg_l = training_samples["background"]
-        # sig_l = training_samples["signal"]
-
-
-        # # V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_scale_pos_weight or V2_UL_Mar24_2025_DyTtStVvEwkGghVbf_allOtherParamsOn
-        # AN-19-124 line 1156: "the final BDTs have been trained by flipping the sign of negative weighted events"
-        # df_train['training_wgt'] = np.abs(df_train['wgt_nominal_orig']) / df_train['dimuon_ebe_mass_res']
-        df_val['training_wgt'] = np.abs(df_val['wgt_nominal_orig']) / df_val['dimuon_ebe_mass_res']
-        df_eval['training_wgt'] = np.abs(df_eval['wgt_nominal_orig']) / df_eval['dimuon_ebe_mass_res']
-        
-        
-        # scale data
-        #x_train, x_val = scale_data(training_features, x_train, x_val, df_train, label)#Last used
-        # x_train, x_val, x_eval = scale_data_withweight(training_features, x_train, x_val, x_eval, df_train, label)
-
-        
-        # print(f"x_train.shape: {x_train.shape}")
-        # print(f"x_val.shape: {x_val.shape}")
-        # print(f"x_train: {x_train}")
-        # print(f"x_val: {x_val}")
-        # print(f"x_train[training_features]: {x_train[training_features]}")
-
             
         xp_train = x_train[training_features].values
         xp_val = x_val[training_features].values
@@ -504,10 +583,8 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
         print(f"xp_val.shape: {xp_val.shape}")
         print(f"xp_eval.shape: {xp_eval.shape}")
 
-        # NOTE: Cross-check if the weight application is fine. Train uses 'bdt_wgt' while val/eval using 'training_wgt'.
+        # NOTE: bdt_wgt = (1/ebe)*(Class weight imbalance weight)*(Mass decorelation weight)
         w_train = df_train['bdt_wgt'].values
-        w_val = df_val['training_wgt'].values
-        w_eval = df_eval['training_wgt'].values
 
         weight_nom_train = df_train['wgt_nominal_orig'].values
         weight_nom_val = df_val['wgt_nominal_orig'].values
@@ -541,7 +618,6 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
         #print(np.isfinite(y_train).all())
         
         w_train = w_train[shuf_ind_tr]
-        w_val = w_val[shuf_ind_val]
 
         #--------------------------------------------------   
         # BDT hyparameter setup
@@ -559,6 +635,7 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
         tuned_params.update({
             "tree_method" : 'hist',
             "eval_metric" : 'logloss',
+            # "eval_metric" : ["logloss","auc"],
             "n_jobs" : 30,
             "early_stopping_rounds" : 15,
             "verbosity" : verbosity,
@@ -579,6 +656,43 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
         print(f"y_val unqiue: {np.unique(y_val)}")
 
 
+        # ------------------- NEW: per-fold prefit metadata -------------------
+        fold_meta = {
+            "label": label,
+            "fold_index": int(i),
+            "timestamp_utc_prefit": _utc_now_iso(),
+            "splits": {"train_folds": train_folds, "val_folds": val_folds, "eval_folds": eval_folds},
+            "x_shapes": {"train": list(xp_train.shape), "val": list(xp_val.shape), "eval": list(xp_eval.shape)},
+            "y_unique": {
+                "train": [int(x) for x in np.unique(y_train)],
+                "val":   [int(x) for x in np.unique(y_val)],
+                "eval":  [int(x) for x in np.unique(y_eval)],
+            },
+            "composition": {
+                "train": _df_class_breakdown(df_train),
+                "val":   _df_class_breakdown(df_val),
+                "eval":  _df_class_breakdown(df_eval),
+            },
+            "weights": {
+                "w_train": _array_stats(w_train, "w_train"),
+                "weight_nom_val":   _array_stats(weight_nom_val, "weight_nom_val"),
+                "weight_nom_eval":  _array_stats(weight_nom_eval, "weight_nom_eval"),
+                "weight_nom_train": _array_stats(weight_nom_train, "weight_nom_train"),
+                "weight_nom_val":   _array_stats(weight_nom_val, "weight_nom_val"),
+                "weight_nom_eval":  _array_stats(weight_nom_eval, "weight_nom_eval"),
+            },
+            "tuned_params": tuned_params,
+            "fit_call": {
+                "sample_weight": True,
+                "eval_set": ["train", "val"],
+                "verbose": False,
+                # set to True if you use it
+                "sample_weight_eval_set": True,
+                "sample_weight_eval_set_names": ["w_train", "weight_nom_val"],
+            },
+        }
+        # --------------------------------------------------------------------
+
         # -----------------------------------------
         # Do hyperparameter tuning if asked
         # instead of normal fitting
@@ -588,7 +702,7 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
 
             from modules.hyperparamOptim import objective
             study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=random_seed_val))
-            study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, w_val, weight_nom_val, random_seed=random_seed_val), n_trials=100)
+            study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, weight_nom_val, weight_nom_val, random_seed=random_seed_val), n_trials=100)
             print("Best AUC:", study.best_value)
             print("Best params:", study.best_params)
             print("Hyperparameter Tuning complete! Exiting")
@@ -604,6 +718,7 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
         # sample_weight_eval_set=None, base_margin_eval_set=None, 
         # feature_weights=None)
         model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False)
+        # model.fit(xp_train, y_train, sample_weight = w_train, eval_set=eval_set, verbose=False, sample_weight_eval_set=[w_train, weight_nom_val])
         
         y_pred = model.predict_proba(xp_val)[:, 1].ravel()
         y_pred_train = model.predict_proba(xp_train)[:, 1].ravel()
@@ -757,53 +872,14 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
             "weight_nom_eval": weight_nom_eval,
         }
 
-        fullROC_operations(fig, roc_data_dict, save_path, year, label, doClassBalance=False)
-        fullROC_operations(fig, roc_data_dict, save_path, year, label, doClassBalance=True)        
+        auc_df_NoClsBalance = fullROC_operations(fig, roc_data_dict, save_path, year, label, doClassBalance=False)
+        auc_df_ClsBalance = fullROC_operations(fig, roc_data_dict, save_path, year, label, doClassBalance=True)        
         
         # do fig 6.5 start --------------------------------------------------------------
         get6_5(y_eval.ravel(), y_eval_pred, weight_nom_eval, save_path, f"eval_{label}")
         get6_5(y_val.ravel(), y_pred, weight_nom_val, save_path, f"val_{label}")
         # do fig 6.5 end --------------------------------------------------------------
-        
-        # Also save ROC curve for evaluation just in case start --------------
-        nn_fpr_xgb, nn_tpr_xgb, nn_thresholds_xgb = roc_curve(y_eval.ravel(), y_eval_pred)
-        sorted_index = np.argsort(nn_fpr_xgb)
-        fpr_sorted =  np.array(nn_fpr_xgb)[sorted_index]
-        tpr_sorted = np.array(nn_tpr_xgb)[sorted_index]
-        auc_xgb = auc(fpr_sorted, tpr_sorted)
-        print("The AUC score is:", auc_xgb)
 
-        fig, ax = plt.subplots(1,1)
-        ax.plot(nn_fpr_xgb, nn_tpr_xgb, marker='.', label='eval data BDT (auc = %0.3f)' % auc_xgb)
-        ax.plot([0, 1], [0, 1], 'k--')
-        ax.set_xlim([0.0, 1.0])
-        ax.set_ylim([0.0, 1.05])
-        ax.set_xlabel('False Positive Rate')
-        ax.set_ylabel('True Positive Rate')
-        ax.set_title('Receiver operating characteristic')
-        ax.legend(loc="lower right")
-        fig.savefig(f"{save_path}/eval_auc_{label}.png")
-        plt.clf()
-
-        nn_fpr_xgb, nn_tpr_xgb, nn_thresholds_xgb = roc_curve(y_eval.ravel(), y_eval_pred, sample_weight=w_eval)
-        sorted_index = np.argsort(nn_fpr_xgb)
-        fpr_sorted =  np.array(nn_fpr_xgb)[sorted_index]
-        tpr_sorted = np.array(nn_tpr_xgb)[sorted_index]
-        auc_xgb = auc(fpr_sorted, tpr_sorted)
-        print("The AUC score is:", auc_xgb)
-
-        fig, ax = plt.subplots(1,1)
-        ax.plot(nn_fpr_xgb, nn_tpr_xgb, marker='.', label='eval data BDT (auc = %0.3f)' % auc_xgb)
-        ax.plot([0, 1], [0, 1], 'k--')
-        ax.set_xlim([0.0, 1.0])
-        ax.set_ylim([0.0, 1.05])
-        ax.set_xlabel('False Positive Rate')
-        ax.set_ylabel('True Positive Rate')
-        ax.set_title('Receiver operating characteristic')
-        ax.legend(loc="lower right")
-        fig.savefig(f"{save_path}/eval_auc_{label}_weighted.png")
-        plt.clf()        
-        # Also save ROC curve for evaluation just in case end --------------
 
 
         # -----------------------------
@@ -813,6 +889,27 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
         epochs = len(results["validation_0"]["logloss"])
         plot_x_axis = range(0, epochs)
         
+        # ------------------- NEW: per-fold postfit metadata -------------------
+        # Make evals_result JSONable
+        clean_results = {}
+        for k, v in results.items():
+            clean_results[str(k)] = {}
+            for mk, mv in v.items():
+                clean_results[str(k)][str(mk)] = [float(x) for x in mv]
+
+        fold_meta.update({
+            "timestamp_utc_postfit": _utc_now_iso(),
+            "best_iteration": int(model.best_iteration) if model.best_iteration is not None else None,
+            "best_score": float(model.best_score) if model.best_score is not None else None,
+            "evals_result": clean_results,
+            "auc_df_NoClsBalance":  _df_to_dict_safe(auc_df_NoClsBalance),
+            "auc_df_ClsBalance":  _df_to_dict_safe(auc_df_ClsBalance),
+        })
+
+        metadata[f"folds_{i}"].append(fold_meta)
+        _write_metadata_json(meta_path, metadata)
+        # --------------------------------------------------------------------
+
         # -----------------------------
         # Plot training vs. validation loss
         # -----------------------------

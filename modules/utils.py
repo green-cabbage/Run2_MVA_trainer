@@ -773,6 +773,7 @@ def fullROC_operations(fig, data_dict, save_path, year, label, doClassBalance=Fa
     fig.savefig(f"{save_path}/logFlip_auc_{label}_w_train{save_str_addendum}.pdf")
     
     plt.clf()
+    return auc_df
 
 
 def has_bad_values(arr):
