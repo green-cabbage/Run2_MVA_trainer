@@ -23,7 +23,7 @@ import pickle
 import glob
 from modules.workflow import prepare_features, prepare_dataset, classifier_train, convert2df
 from modules.variables import training_features, training_samples
-from modules.utils import split_into_n_parts, apply_gghChannelSelection, reweightMassToFlat, reweightMassToTargetDist_workflow
+from modules.utils import split_into_n_parts, apply_gghChannelSelection, reweightMassToFlat, reweightMassToTargetDist_workflow, PairNAnnhilateNegWgt_inChunks
 
 
 if __name__ == "__main__":
@@ -75,9 +75,17 @@ if __name__ == "__main__":
     action="store",
     help="Dimuon mass decorrelation method for training. Available options are: default (do nothing), peking, targetZpeakMass, flatDist",
     )
+    parser.add_argument(
+    "--negWgtHandling",
+    dest="negWgtHandling",
+    default="pairAndAnnhilate",
+    action="store",
+    help="algorithm for handling the negative weight during training. The options are: pairAndAnnhilate, takeAbsWgts, removeNegWgts",
+    )
     sysargs = parser.parse_args()
     year = sysargs.year
     name = sysargs.name
+    negWgtHandling = sysargs.negWgtHandling
     # mass_decorrelation_strat = sysargs.mass_decorrelation_strat
     args = {
         "dnn": False,
@@ -221,11 +229,27 @@ if __name__ == "__main__":
             })
             is_vbf = sysargs.is_vbf
             df_sample = convert2df(zip_sample, sample, is_vbf=is_vbf, is_UL=is_UL)
-            max_num_rows = 80_000
-            # max_num_rows = 8_000
-            # max_num_rows = 800_000_000
-            # df_sample = PairNAnnhilateNegWgt_inChunks(df_sample, max_num_rows=max_num_rows) # FIXME
-            # df_sample = PairNAnnhilateNegWgt(df_sample, max_num_rows=max_num_rows) # FIXME
+                                  
+            if negWgtHandling == "pairAndAnnhilate":
+                print("Applying pairAndAnnhilate!")
+                max_num_rows = 80_000
+                # max_num_rows = 8_000
+                # max_num_rows = 800_000_000
+                df_sample = PairNAnnhilateNegWgt_inChunks(df_sample, max_num_rows=max_num_rows) # FIXME
+                # df_sample = PairNAnnhilateNegWgt(df_sample, max_num_rows=max_num_rows) # FIXME
+                print(f"any neg wgts: {np.any(df_sample[wgt_col] < 0)}")
+            elif negWgtHandling == "takeAbsWgts":
+                print("Applying takeAbsWgts!")
+                # do nothing convert2df already takes the absolute value of wgt_notminal_orig
+                pass
+            elif negWgtHandling == "removeNegWgts":
+                print("Applying removeNegWgts!")
+                wgt_col = "wgt_nominal_orig"
+                wgt_filter = df_sample[wgt_col] >= 0
+                df_sample = df_sample[wgt_filter]
+                print(f"any neg wgts: {np.any(df_sample[wgt_col] < 0)}")
+            else:
+                raise ValueError("Error: Unsupported negative weight handling method!")
             
             df_l.append(df_sample)
     df_total = pd.concat(df_l,ignore_index=True)   

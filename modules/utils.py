@@ -779,7 +779,7 @@ def has_bad_values(arr):
     return not np.isfinite(arr).all()
 
 
-def reweightMassToFlat(df, sig_datasets, validation_plot_path, nbins=80, mmin=115, mmax=135, wgt_field="wgt_nominal_orig"):
+def reweightMassToFlat(df, sig_datasets, validation_plot_path, nbins=80, mmin=115, mmax=135, wgt_field="wgt_nominal"):
 
     # -----------------------------
     # 1) obtain bkg_df
@@ -842,6 +842,8 @@ def reweightMassToFlat(df, sig_datasets, validation_plot_path, nbins=80, mmin=11
         sig_df,
         bkg_df,
     ]).sort_index()
+    # overwrite the wgt_field
+    bkg_df[wgt_field] = bkg_df["wgt_flat"]
     return df
 
 
@@ -884,7 +886,7 @@ def apply_gghChannelSelection(delayed_dak_zip):
 
 
 
-def reweightMassToTargetDist_workflow(df, sig_datasets, validation_plot_path, nbins=80, mmin=115, mmax=135, wgt_field="wgt_nominal_orig", target_mass_centre = 91):
+def reweightMassToTargetDist_workflow(df, sig_datasets, validation_plot_path, nbins=80, mmin=115, mmax=135, wgt_field="wgt_nominal", target_mass_centre = 91):
     """
     wrapper of reweightMassToTargetDist over sig and bkg samples
     """
@@ -940,7 +942,7 @@ def sin_histogram(nbins, xmin, xmax):
     hist = 1.5 + np.sin(centers)
     return hist
 
-def reweightMassToTargetDist(df, target_dist_load_path, train_x_min, train_x_max, nbins, plot_save_path, plot_name="test", wgt_field="wgt_nominal_orig", target_mass_centre = 91):
+def reweightMassToTargetDist(df, target_dist_load_path, train_x_min, train_x_max, nbins, plot_save_path, plot_name="test", wgt_field="wgt_nominal", target_mass_centre = 91):
 
     events_target = ak.from_parquet(target_dist_load_path)
     target = ak.to_numpy(events_target.dimuon_mass)
@@ -1035,6 +1037,6 @@ def reweightMassToTargetDist(df, target_dist_load_path, train_x_min, train_x_max
     # -----------------------------
     # 6. re-wgt and return df
     # -----------------------------
-    df["wgt_flat"] =  w_new
+    df[wgt_field] =  w_new
     return df
     

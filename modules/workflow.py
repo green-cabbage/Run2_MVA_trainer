@@ -366,11 +366,13 @@ def prepare_dataset(df, ds_dict):
     # --------------------------------------------------------
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole", "vbf_powheg", "vbf_aMCatNLO"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
-    if "wgt_flat" not in df.columns:
-        df['bdt_wgt'] = np.abs(df['wgt_nominal_orig'])
-    else:
-        df['bdt_wgt'] = np.abs(df['wgt_flat'])
-        print("taking wgt_flat as bdt wgt!")
+    # if "wgt_flat" not in df.columns:
+    #     df['bdt_wgt'] = np.abs(df['wgt_nominal_orig'])
+    # else:
+    #     df['bdt_wgt'] = np.abs(df['wgt_flat'])
+    #     print("taking wgt_flat as bdt wgt!")
+    print(f"df['wgt_nominal']: {df['wgt_nominal']}")
+    df['bdt_wgt'] = df['wgt_nominal']
     for dataset in sig_datasets:
         dataset_filter = df['dataset']==dataset
         df.loc[dataset_filter,'bdt_wgt'] = df.loc[dataset_filter,'bdt_wgt'] *(1 / df[dataset_filter]['dimuon_ebe_mass_res'])
@@ -674,7 +676,7 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
             # tuned_params =  {'min_child_weight': 2.557316256946003, 'n_estimators': 1539, 'max_depth': 10, 'learning_rate': 0.05304264948799136, 'subsample': 0.8156339679345651, 'max_bin': 74}
             # tuned_params =  {'min_child_weight': 3.5451229442486776, 'n_estimators': 2057, 'max_depth': 7, 'learning_rate': 0.050285069062295254, 'subsample': 0.9815632528341489, 'max_bin': 77} # Feb28_2026_zPeakShapeMatch_tuned
             tuned_params =  {'min_child_weight': 14.58375507839577, 'n_estimators': 511, 'max_depth': 8, 'learning_rate': 0.08127708435811475, 'subsample': 0.973909078023838, 'max_bin': 79} # Feb28_2026_flatDimuMass_tuned
-
+            
             
             tuned_params.update({
                 "tree_method" : 'hist',

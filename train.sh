@@ -51,6 +51,10 @@ do_hyperparam_search="0" # false
 mass_decorrelation_strat="flatDist" # target distribution is just a flat dist
 # mass_decorrelation_strat="targetZpeakMass" # target distribution Zpeak mass
 
+# negWgtHandling="pairAndAnnhilate"
+# negWgtHandling="removeNegWgts"
+negWgtHandling="takeAbsWgts"
+
 # year="2018"
 # year="2017"
 # year="2016postVFP"
@@ -59,7 +63,7 @@ mass_decorrelation_strat="flatDist" # target distribution is just a flat dist
 year="all"
 # year="2024"
 # year="2022postEE"
-python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/yun79/hmm_ntuples/copperheadV1clean/${label}/stage1_output" -param_search ${do_hyperparam_search} --massDeCorrStrat ${mass_decorrelation_strat}
+python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/yun79/hmm_ntuples/copperheadV1clean/${label}/stage1_output" -param_search ${do_hyperparam_search} --massDeCorrStrat ${mass_decorrelation_strat} --negWgtHandling ${negWgtHandling}
 
 # year="2024"
 # python my_trainer_withWeight_gpu.py --name $model_name --year $year -load  "/depot/cms/hmm/yun79/hmm_ntuples/copperheadV1clean/${label}/stage1_output"
