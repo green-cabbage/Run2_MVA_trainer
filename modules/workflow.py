@@ -32,15 +32,6 @@ def get_xgb_device():
 def _utc_now_iso():
     return datetime.now(timezone.utc).isoformat()
 
-def _to_py(x):
-    # convert numpy scalars/arrays to JSON-able python
-    if isinstance(x, (np.integer,)):
-        return int(x)
-    if isinstance(x, (np.floating,)):
-        return float(x)
-    if isinstance(x, np.ndarray):
-        return x.tolist()
-    return x
 
 def _array_stats(x, name):
     x = np.asarray(x)
@@ -364,11 +355,13 @@ def prepare_dataset(df, ds_dict):
     # --------------------------------------------------------
     sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole", "vbf_powheg", "vbf_aMCatNLO"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
-    if "wgt_flat" not in df.columns:
-        df['bdt_wgt'] = np.abs(df['wgt_nominal_orig'])
-    else:
-        df['bdt_wgt'] = np.abs(df['wgt_flat'])
-        print("taking wgt_flat as bdt wgt!")
+    # if "wgt_flat" not in df.columns:
+    #     df['bdt_wgt'] = np.abs(df['wgt_nominal_orig'])
+    # else:
+    #     df['bdt_wgt'] = np.abs(df['wgt_flat'])
+    #     print("taking wgt_flat as bdt wgt!")
+    print(f"df['wgt_nominal']: {df['wgt_nominal']}")
+    df['bdt_wgt'] = df['wgt_nominal']
     for dataset in sig_datasets:
         dataset_filter = df['dataset']==dataset
         df.loc[dataset_filter,'bdt_wgt'] = df.loc[dataset_filter,'bdt_wgt'] *(1 / df[dataset_filter]['dimuon_ebe_mass_res'])

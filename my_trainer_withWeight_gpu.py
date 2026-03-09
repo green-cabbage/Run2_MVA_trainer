@@ -75,11 +75,19 @@ if __name__ == "__main__":
     dest="mass_decorrelation_strat",
     default="default",
     action="store",
-    help="Dimuon mass decorrelation method for training. Available options are: default (do nothing), peking, targetZpeakMass.",
+    help="Dimuon mass decorrelation method for training. Available options are: default (do nothing), peking, targetZpeakMass, flatDist",
+    )
+    parser.add_argument(
+    "--negWgtHandling",
+    dest="negWgtHandling",
+    default="pairAndAnnhilate",
+    action="store",
+    help="algorithm for handling the negative weight during training. The options are: pairAndAnnhilate, takeAbsWgts, removeNegWgts",
     )
     sysargs = parser.parse_args()
     year = sysargs.year
     name = sysargs.name
+    negWgtHandling = sysargs.negWgtHandling
     # mass_decorrelation_strat = sysargs.mass_decorrelation_strat
     args = {
         "year": year,
@@ -136,9 +144,6 @@ if __name__ == "__main__":
     
     
     
-    # df_total = pd.concat([df_ggh,df_dy],ignore_index=True)
-    # old code end --------------------------------------------------------------------------------------------
-    # new code start --------------------------------------------------------------------------------------------
     df_l = []
     print(f"sample_l: {sample_l}")
     print(f"training_features: {training_features}")
@@ -185,13 +190,29 @@ if __name__ == "__main__":
                 raise FileNotFoundError(f"Parquet for {sample} not found with error {error}. skipping!")
 
             df_sample = convert2df(zip_sample, sample)
-            max_num_rows = 80_000
-            df_sample = PairNAnnhilateNegWgt_inChunks(df_sample, max_num_rows=max_num_rows) # FIXME
-            # df_sample = PairNAnnhilateNegWgt(df_sample, max_num_rows=max_num_rows) # FIXME
+                                  
+            if negWgtHandling == "pairAndAnnhilate":
+                print("Applying pairAndAnnhilate!")
+                max_num_rows = 80_000
+                # max_num_rows = 8_000
+                # max_num_rows = 800_000_000
+                df_sample = PairNAnnhilateNegWgt_inChunks(df_sample, max_num_rows=max_num_rows) # FIXME
+                # df_sample = PairNAnnhilateNegWgt(df_sample, max_num_rows=max_num_rows) # FIXME
+                print(f"any neg wgts: {np.any(df_sample[wgt_col] < 0)}")
+            elif negWgtHandling == "takeAbsWgts":
+                print("Applying takeAbsWgts!")
+                # do nothing convert2df already takes the absolute value of wgt_notminal_orig
+                pass
+            elif negWgtHandling == "removeNegWgts":
+                print("Applying removeNegWgts!")
+                wgt_col = "wgt_nominal_orig"
+                wgt_filter = df_sample[wgt_col] >= 0
+                df_sample = df_sample[wgt_filter]
+                print(f"any neg wgts: {np.any(df_sample[wgt_col] < 0)}")
+            else:
+                raise ValueError("Error: Unsupported negative weight handling method!")
             
             df_l.append(df_sample)
-            # print(f"df_sample: {df_sample.head()}")
-    # print(f"df_l: {df_l}")
     df_total = pd.concat(df_l,ignore_index=True)   
     del df_l # delete redundant df to save memory. Not sure if this is necessary
 
@@ -218,29 +239,40 @@ if __name__ == "__main__":
         dy_target_mass_centre = 105
         nbins=40
         df_total = reweightMassToTargetDist_workflow(df_total, sig_datasets, save_path, nbins=nbins, target_mass_centre=dy_target_mass_centre)
-    # new code end --------------------------------------------------------------------------------------------
+    elif sysargs.mass_decorrelation_strat == "flatDist":
+        print("flatDist decorrlation method!")
+        dy_target_mass_centre = "flat"
+        df_total = reweightMassToTargetDist_workflow(df_total, sig_datasets, save_path, target_mass_centre=dy_target_mass_centre)
+    elif sysargs.mass_decorrelation_strat == "sinusoidalDist":
+        print("sinusoidal decorrlation method!")
+        dy_target_mass_centre = "sinusoidal"
+        df_total = reweightMassToTargetDist_workflow(df_total, sig_datasets, save_path, target_mass_centre=dy_target_mass_centre)
+
+        
 
     # one hot-encode start ----------------------------------------------------
-    # One-hot encode the 'year' column
-    # year_col_name = "year"
-    # if year_col_name in df_total.columns:
-    #     print(f"df_total b4: {df_total[year_col_name]}")
-    #     one_hot_df = pd.get_dummies(df_total[year_col_name], prefix=year_col_name, dtype=int)
-    #     # one_hot_df.columns = one_hot_df.columns.str.replace('.', '_') # replace "." with "_" in year columns
-
-    #     # Concatenate the new dummy columns with the original DataFrame
-    #     df_total = pd.concat([df_total, one_hot_df], axis=1)
-        
-    #     # Drop the original 'Segment' column
-    #     df_total.drop(year_col_name, axis=1, inplace=True)
-    #     print(df_total.columns)
-    #     # print(df_total)
-    #     filtered_df = df_total.filter(like=year_col_name, axis=1) # axis=1 specifies filtering columns
-    #     training_features_prepared.remove(year_col_name)
-    #     training_features_prepared = training_features_prepared + list(one_hot_df.columns)
-    #     print(f"training_features_prepared after: {training_features_prepared}")
-    #     print(f"df_total after: {filtered_df}")
-    #     print(f"one_hot_df.columns: {one_hot_df.columns}")
+    do_one_hot_encode = False
+    if do_one_hot_encode:
+        # One-hot encode the 'year' column
+        year_col_name = "year"
+        if year_col_name in df_total.columns:
+            print(f"df_total b4: {df_total[year_col_name]}")
+            one_hot_df = pd.get_dummies(df_total[year_col_name], prefix=year_col_name, dtype=int)
+            # one_hot_df.columns = one_hot_df.columns.str.replace('.', '_') # replace "." with "_" in year columns
+    
+            # Concatenate the new dummy columns with the original DataFrame
+            df_total = pd.concat([df_total, one_hot_df], axis=1)
+            
+            # Drop the original 'Segment' column
+            df_total.drop(year_col_name, axis=1, inplace=True)
+            print(df_total.columns)
+            # print(df_total)
+            filtered_df = df_total.filter(like=year_col_name, axis=1) # axis=1 specifies filtering columns
+            training_features.remove(year_col_name)
+            training_features = training_features + list(one_hot_df.columns)
+            print(f"training_features after: {training_features}")
+            print(f"df_total after: {filtered_df}")
+            print(f"one_hot_df.columns: {one_hot_df.columns}")
     # one hot-encode end ----------------------------------------------------
 
     
@@ -255,12 +287,10 @@ if __name__ == "__main__":
     print("starting prepare_dataset")
     df_total = prepare_dataset(df_total, training_samples)
     print("prepare_dataset done")
-    # print(f"len(df_total): {len(df_total)}")
     print(f"df_total.columns: {df_total.columns}")
 
     classifier_train(df_total, args, training_samples, training_features_prepared, random_seed_val, save_path, do_hyperparam_search=do_hyperparam_search)
     # evaluation(df_total, args)
     #df.to_pickle('/depot/cms/hmm/purohita/coffea/eval_dataset.pickle')
-    #print(df)
     runtime = int(time.time()-start_time)
     print(f"Success! run time is {runtime} seconds")
