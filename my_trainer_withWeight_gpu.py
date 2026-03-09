@@ -7,6 +7,7 @@ import awkward as ak
 import dask_awkward as dak
 import matplotlib.pyplot as plt
 import mplhep as hep
+import numpy as np
 import pandas as pd
 from distributed import Client
 from modules.variables import training_features, training_samples
@@ -196,6 +197,7 @@ if __name__ == "__main__":
                 max_num_rows = 80_000
                 # max_num_rows = 8_000
                 # max_num_rows = 800_000_000
+                wgt_col = "wgt_nominal_orig"
                 df_sample = PairNAnnhilateNegWgt_inChunks(df_sample, max_num_rows=max_num_rows) # FIXME
                 # df_sample = PairNAnnhilateNegWgt(df_sample, max_num_rows=max_num_rows) # FIXME
                 print(f"any neg wgts: {np.any(df_sample[wgt_col] < 0)}")

@@ -539,9 +539,9 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
             },
         }
         for i in range(nfolds):
-            metadata[f"folds_{i}"] = []
+            metadata[f"folds_{i}"] = {}
         for i in range(nfolds):
-            metadata[f"hyperparameter_search_fold{i}"] = []
+            metadata[f"hyperparameter_search_fold{i}"] = {}
         _write_metadata_json(meta_path, metadata)
     # ------------------------------------------------------------------------
     
@@ -658,7 +658,7 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
 
             from modules.hyperparamOptim import objective
             study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=random_seed_val))
-            study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, weight_nom_val, random_seed=random_seed_val), n_trials=500)
+            study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, weight_nom_val, random_seed=random_seed_val), n_trials=100)
             print(f"Fold {i} Best AUC: {study.best_value}")
             print(f"Fold {i} Best params: {study.best_params}")
 
