@@ -87,7 +87,7 @@ if __name__ == "__main__":
         # "mass_decorrelation_strat": mass_decorrelation_strat,
         "do_massscan": False,
         "evaluate_allyears_dnn": False,
-        "output_path": "/depot/cms/users/yun79/hmm/trained_MVAs",
+        "output_path": "output/trained_MVAs",
         "label": "",
         # "do_hyperparam_search": !(sysargs.do_hyperparam_search==0), # if zero, then do not do hyperparam search
     }
@@ -186,7 +186,7 @@ if __name__ == "__main__":
 
             df_sample = convert2df(zip_sample, sample)
             max_num_rows = 80_000
-            # df_sample = PairNAnnhilateNegWgt_inChunks(df_sample, max_num_rows=max_num_rows) # FIXME
+            df_sample = PairNAnnhilateNegWgt_inChunks(df_sample, max_num_rows=max_num_rows) # FIXME
             # df_sample = PairNAnnhilateNegWgt(df_sample, max_num_rows=max_num_rows) # FIXME
             
             df_l.append(df_sample)

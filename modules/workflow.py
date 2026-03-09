@@ -15,9 +15,18 @@ import time
 from xgboost import XGBClassifier, plot_tree
 
 from modules.utils import fullROC_operations, has_bad_values
+from modules.git_utils import get_git_commit, get_git_state
 
 plt.style.use(hep.style.CMS)
 
+def get_xgb_device():
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda"
+    except Exception:
+        pass
+    return "cpu"
 
 # ---- helpers (small + self-contained) ---------------------------------
 def _utc_now_iso():
@@ -478,6 +487,20 @@ def getCorrMatrix(df, training_features, save_path=""):
     # raise ValueError
     return corr_matrix
 
+def load_best_params_for_fold(meta_path, fold_idx):
+    with open(meta_path, "r") as f:
+        metadata = json.load(f)
+
+    key = f"hyperparameter_search_fold{fold_idx}"
+    if key not in metadata:
+        raise KeyError(f"{key} not found in {meta_path}")
+
+    best_params = metadata[key].get("best_params", None)
+    if best_params is None:
+        raise ValueError(f"best_params missing for {key} in {meta_path}")
+
+    return best_params
+
 def classifier_train(df, args, training_samples, training_features, random_seed_val: int, save_path:str, do_hyperparam_search=False):
     print(f"random_seed_val: {random_seed_val}")
 
@@ -497,25 +520,36 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
 
     # ------------------- NEW: initialize ONE metadata dict -------------------
     meta_path = os.path.join(save_path, "training_metadata.json")
-    metadata = {
-        "run": {
-            "timestamp_utc": _utc_now_iso(),
-            "args": dict(args),
-            "random_seed_val": int(random_seed_val),
-            "nfolds": int(nfolds),
-            "training_features": list(training_features),
-            "training_samples": training_samples,
-            "df_global": {
-                "n_rows": int(len(df)),
-                "columns": list(df.columns),
-                "datasets": sorted([str(x) for x in df["dataset"].unique()]) if "dataset" in df.columns else [],
-                "classes": sorted([int(x) for x in df["class"].unique()]) if "class" in df.columns else [],
+    if os.path.exists(meta_path):
+        with open(meta_path, "r") as f:
+            metadata = json.load(f)
+    else:    
+        metadata = {
+            "pipeline": {
+                "preprocessor_version": "v1.1",
+                "git_commit": get_git_commit(),
+                "git_state": get_git_state(save_path),
+            },        
+            "run": {
+                "timestamp_utc": _utc_now_iso(),
+                "args": dict(args),
+                "random_seed_val": int(random_seed_val),
+                "nfolds": int(nfolds),
+                "training_features": list(training_features),
+                "training_samples": training_samples,
+                "df_global": {
+                    "n_rows": int(len(df)),
+                    "columns": list(df.columns),
+                    "datasets": sorted([str(x) for x in df["dataset"].unique()]) if "dataset" in df.columns else [],
+                    "classes": sorted([int(x) for x in df["class"].unique()]) if "class" in df.columns else [],
+                },
             },
-        },
-    }
-    for i in range(nfolds):
-        metadata[f"folds_{i}"] = []    
-    _write_metadata_json(meta_path, metadata)
+        }
+        for i in range(nfolds):
+            metadata[f"folds_{i}"] = []
+        for i in range(nfolds):
+            metadata[f"hyperparameter_search_fold{i}"] = []
+        _write_metadata_json(meta_path, metadata)
     # ------------------------------------------------------------------------
     
     for i in range(nfolds):
@@ -619,23 +653,58 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
         
         w_train = w_train[shuf_ind_tr]
 
+        verbosity=2
+        device = get_xgb_device()
+        print(f"\n\n====> device: {device}")
+        # -----------------------------------------
+        # Do hyperparameter tuning if asked
+        # instead of normal fitting
+        # -----------------------------------------
+        if do_hyperparam_search:
+            import optuna
+
+            from modules.hyperparamOptim import objective
+            study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=random_seed_val))
+            study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, weight_nom_val, random_seed=random_seed_val), n_trials=500)
+            print(f"Fold {i} Best AUC: {study.best_value}")
+            print(f"Fold {i} Best params: {study.best_params}")
+
+            metadata[f"hyperparameter_search_fold{i}"] = {
+                "timestamp": _utc_now_iso(),
+
+                "sampler": "TPESampler",
+                "direction": "maximize",
+
+                "n_trials": len(study.trials),
+
+                "best_value": float(study.best_value),
+                "best_params": study.best_params,
+
+                "best_trial_number": study.best_trial.number,
+
+                "trials": [
+                    {
+                        "trial_number": t.number,
+                        "value": float(t.value) if t.value is not None else None,
+                        "params": t.params,
+                        "state": str(t.state)
+                    }
+                    for t in study.trials
+                ]
+            }
+            _write_metadata_json(meta_path, metadata)            
+            continue
+
         #--------------------------------------------------   
         # BDT hyparameter setup
-        #--------------------------------------------------   
-        verbosity=2
-        
+        #--------------------------------------------------           
         # AN-19-124 p 45: "a correction factor is introduced to ensure that the same amount of background events are expected when either negative weighted events are discarded or they are considered with a positive weight"
-        # tuned_params = {'min_child_weight': 13.428968247683708, 'n_estimators': 1573, 'max_depth': 8, 'learning_rate': 0.05982369314062763, 'subsample': 0.9430472676858279, 'max_bin': 80}
-        # tuned_params =  {'min_child_weight': 2.557316256946003, 'n_estimators': 1539, 'max_depth': 10, 'learning_rate': 0.05304264948799136, 'subsample': 0.8156339679345651, 'max_bin': 74}
-        # tuned_params =  {'min_child_weight': 3.5451229442486776, 'n_estimators': 2057, 'max_depth': 7, 'learning_rate': 0.050285069062295254, 'subsample': 0.9815632528341489, 'max_bin': 77} # Feb28_2026_zPeakShapeMatch_tuned
-        # FIXME: It should be setup using the config file.
-        tuned_params =  {'min_child_weight': 14.58375507839577, 'n_estimators': 511, 'max_depth': 8, 'learning_rate': 0.08127708435811475, 'subsample': 0.973909078023838, 'max_bin': 79} # Feb28_2026_flatDimuMass_tuned
-
-        
+        tuned_params = load_best_params_for_fold(meta_path, i)
+        tuned_params = dict(tuned_params)
         tuned_params.update({
             "tree_method" : 'hist',
-            "eval_metric" : 'logloss',
-            # "eval_metric" : ["logloss","auc"],
+            "device": device,
+            "eval_metric": ["logloss", "error", "auc"],
             "n_jobs" : 30,
             "early_stopping_rounds" : 15,
             "verbosity" : verbosity,
@@ -646,7 +715,7 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
         print(model)
         print(f"negative w_train: {w_train[w_train <0]}")
 
-        eval_set = [(xp_train, y_train), (xp_val, y_val)]#Last used
+        eval_set = [(xp_train, y_train), (xp_val, y_val)] # Last used
         print(f"has_bad_values(w_train): {has_bad_values(w_train)}")
         print(f"has_bad_values(xp_train): {has_bad_values(xp_train)}")
         print(f"has_bad_values(y_train): {has_bad_values(y_train)}")
@@ -675,8 +744,6 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
             },
             "weights": {
                 "w_train": _array_stats(w_train, "w_train"),
-                "weight_nom_val":   _array_stats(weight_nom_val, "weight_nom_val"),
-                "weight_nom_eval":  _array_stats(weight_nom_eval, "weight_nom_eval"),
                 "weight_nom_train": _array_stats(weight_nom_train, "weight_nom_train"),
                 "weight_nom_val":   _array_stats(weight_nom_val, "weight_nom_val"),
                 "weight_nom_eval":  _array_stats(weight_nom_eval, "weight_nom_eval"),
@@ -687,27 +754,13 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
                 "eval_set": ["train", "val"],
                 "verbose": False,
                 # set to True if you use it
-                "sample_weight_eval_set": True,
-                "sample_weight_eval_set_names": ["w_train", "weight_nom_val"],
+                "sample_weight_eval_set": False,
+                # "sample_weight_eval_set_names": ["w_train", "weight_nom_val"],
+                "sample_weight_eval_set_names": [],
             },
         }
         # --------------------------------------------------------------------
 
-        # -----------------------------------------
-        # Do hyperparameter tuning if asked
-        # instead of normal fitting
-        # -----------------------------------------
-        if do_hyperparam_search:
-            import optuna
-
-            from modules.hyperparamOptim import objective
-            study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=random_seed_val))
-            study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, weight_nom_val, weight_nom_val, random_seed=random_seed_val), n_trials=100)
-            print("Best AUC:", study.best_value)
-            print("Best params:", study.best_params)
-            print("Hyperparameter Tuning complete! Exiting")
-            return
-        
         # -----------------------------------------
         # Do normal BDT fitting 
         # -----------------------------------------
@@ -722,7 +775,7 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
         
         y_pred = model.predict_proba(xp_val)[:, 1].ravel()
         y_pred_train = model.predict_proba(xp_train)[:, 1].ravel()
-        y_eval_pred = model.predict_proba(xp_eval)[:, 1].ravel()
+        y_eval_pred = model.predict_proba(xp_eval)[:, 1].ravel()        
         print("y_pred_______________________________________________________________")
         print("y_pred_______________________________________________________________")
         print("y_pred_______________________________________________________________")
@@ -906,26 +959,52 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
             "auc_df_ClsBalance":  _df_to_dict_safe(auc_df_ClsBalance),
         })
 
-        metadata[f"folds_{i}"].append(fold_meta)
+        metadata[f"folds_{i}"][label] = fold_meta
         _write_metadata_json(meta_path, metadata)
         # --------------------------------------------------------------------
 
         # -----------------------------
         # Plot training vs. validation loss
         # -----------------------------
-        plt.clf()
-        train_loss = results["validation_0"]["logloss"]
-        val_loss = results["validation_1"]["logloss"]
-        plt.plot(plot_x_axis, train_loss, label="Train Loss")
-        plt.plot(plot_x_axis, val_loss, label="Validation Loss")
+        if "logloss" in results["validation_0"] and "logloss" in results["validation_1"]:
+            plt.clf()
+            train_loss = results["validation_0"]["logloss"]
+            val_loss = results["validation_1"]["logloss"]
+            plt.plot(plot_x_axis, train_loss, label="Train ")
+            plt.plot(plot_x_axis, val_loss, label="Validation")
 
-        plt.xlabel("Boosting Round")
-        plt.ylabel("Log Loss")
-        plt.title("XGBoost Training vs. Validation Loss")
-        perf_text = plt.Line2D([], [], color='none', label=f'Best iteration: {model.best_iteration} \n Best validation loss: {model.best_score:.5f}')
-        plt.legend(handles=[perf_text])
-        plt.savefig(f"{save_path}/loss_{label}.png")
-        
+            plt.xlabel("Boosting Round")
+            plt.ylabel("Log Loss")
+            plt.title("XGBoost Training vs. Validation Loss")
+            perf_text = plt.Line2D([], [], color='none', label=f'Best iteration: {model.best_iteration} \n Best score: {model.best_score:.5f}')
+            plt.legend(handles=[perf_text])
+            plt.savefig(f"{save_path}/loss_{label}.png")
+            
+        # -----------------------------
+        # Plot training vs. AUC
+        # -----------------------------        
+        if "auc" in results["validation_0"] and "auc" in results["validation_1"]:
+            plt.clf()
+            plt.plot(plot_x_axis, results['validation_0']['auc'], label='Train')
+            plt.plot(plot_x_axis, results['validation_1']['auc'], label='Validation')
+            plt.xlabel("Boosting Round")
+            plt.ylabel('AUC')
+            plt.title('XGBoost AUC')
+            plt.legend()
+            plt.savefig(f"{save_path}/auc_{label}.png")
+
+        # -----------------------------
+        # Plot training vs. classification error
+        # -----------------------------      
+        if "error" in results["validation_0"] and "error" in results["validation_1"]:
+            plt.clf()
+            plt.plot(plot_x_axis, results['validation_0']['error'], label='Train')
+            plt.plot(plot_x_axis, results['validation_1']['error'], label='Validation')
+            plt.xlabel("Boosting Round")
+            plt.ylabel('Classification Error')
+            plt.title('XGBoost Classification Error')
+            plt.legend()
+            plt.savefig(f"{save_path}/classificationError_{label}.png")
         # -----------------------------
         # 6. Check the best iteration
         # -----------------------------
