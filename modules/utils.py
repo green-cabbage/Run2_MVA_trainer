@@ -1,10 +1,12 @@
-import pandas as pd
-import numpy as np
 import copy
-from scipy.optimize import linear_sum_assignment
-import matplotlib.pyplot as plt
 from pathlib import Path
+
 import awkward as ak
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from scipy.optimize import linear_sum_assignment
+
 
 def get_subdirs(path):
     p = Path(path)
@@ -270,9 +272,9 @@ def PairNAnnhilateNegWgt(df, max_num_rows=80_000):
     print(f"df len {len(df)}")
     print(f"max_num_rows {max_num_rows}")
     datasets = df["dataset"].unique()
-    # year_param_name = "bdt_year"
     year_param_name = "year"
     years = df[year_param_name].unique()
+    
     # Make an empty copy of df (same columns, no rows)
     df_out = df.iloc[0:0].copy()
     
@@ -300,8 +302,6 @@ def PairNAnnhilateNegWgt(df, max_num_rows=80_000):
                 df_out = pd.concat([df_out, subset], ignore_index=True)
 
     print(f"final df_out len {len(df_out)}")
-    # print(df_out)
-    # raise ValueError
     df_out = df_out[df_out["wgt_nominal_orig"] >=0] # FIXME. we see two entries (so very few) that still have negative events, so temp solution. The two entries are from one of the none DY bkg events.
     return df_out
 
@@ -311,12 +311,10 @@ def PairNAnnhilateNegWgt_inChunks(df, max_num_rows=80_000):
     print(f"max_num_rows: {max_num_rows}")
     processed_chunks = []
     for chunk in split_df(df, max_num_rows):
-        processed_chunks.append(PairNAnnhilateNegWgt(df))
-        # processed_chunks.append([]) # FIXME
+        processed_chunks.append(PairNAnnhilateNegWgt(chunk, max_num_rows=max_num_rows))
     print(f"PairNAnnhilateNegWgt_inChunks processed_chunks len: {len(processed_chunks)}")
-    # raise ValueError
     return pd.concat(processed_chunks, axis=0)  # preserves chunk order
-    
+
 # def fillNanJetvariables(df, forward_filter, jet_variables):
 #     dijet_variables = [ 
 #         # 'jet1_eta', 
@@ -633,7 +631,6 @@ def customROC_curve_AN(label, pred, weight, doClassBalance = False):
     
     return (effBkg_total, effSig_total, thresholds, effBkgSig_df)
 
-# def fullROC_operations(fig, data_dict, name, year, label, doClassBalance=False):
 def fullROC_operations(fig, data_dict, save_path, year, label, doClassBalance=False):
     if doClassBalance:
         # save_str_addendum = "_clsWgtBal"
@@ -772,6 +769,7 @@ def fullROC_operations(fig, data_dict, save_path, year, label, doClassBalance=Fa
     fig.savefig(f"{save_path}/logFlip_auc_{label}_w_train{save_str_addendum}.pdf")
     
     plt.clf()
+    return auc_df
 
 
 def has_bad_values(arr):
@@ -880,7 +878,7 @@ def apply_gghChannelSelection(delayed_dak_zip):
         train_region &
         ~btag_cut # btag cut is for VH and ttH categories
     )
-    print(f"category_selection sum: {ak.sum(category_selection)}")
+    # print(f"category_selection sum: {ak.sum(category_selection)}")
     computed_zip = delayed_dak_zip[category_selection].compute()
     return computed_zip
 
@@ -1039,4 +1037,3 @@ def reweightMassToTargetDist(df, target_dist_load_path, train_x_min, train_x_max
     # -----------------------------
     df[wgt_field] =  w_new
     return df
-    
