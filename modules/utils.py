@@ -311,7 +311,8 @@ def PairNAnnhilateNegWgt_inChunks(df, max_num_rows=80_000):
     print(f"max_num_rows: {max_num_rows}")
     processed_chunks = []
     for chunk in split_df(df, max_num_rows):
-        processed_chunks.append(PairNAnnhilateNegWgt(df))
+        # processed_chunks.append(PairNAnnhilateNegWgt(df))
+        processed_chunks.append(PairNAnnhilateNegWgt(chunk))
         # processed_chunks.append([]) # FIXME
     print(f"PairNAnnhilateNegWgt_inChunks processed_chunks len: {len(processed_chunks)}")
     # raise ValueError
@@ -633,12 +634,13 @@ def customROC_curve_AN(label, pred, weight, doClassBalance = False):
     
     return (effBkg_total, effSig_total, thresholds, effBkgSig_df)
 
-# def fullROC_operations(fig, data_dict, name, year, label, doClassBalance=False):
-def fullROC_operations(fig, data_dict, save_path, year, label, doClassBalance=False):
+def fullROC_operations(fig, data_dict, save_path, year, label, doClassBalance=False, include_wgt=True):
     if doClassBalance:
         # save_str_addendum = "_clsWgtBal"
         # save_str_addendum = "_noWgt"
         save_str_addendum = "_eqlSigWgt"
+    elif (not include_wgt):
+        save_str_addendum = "_noWgt"
     else:
         save_str_addendum = ""
     y_train = data_dict["y_train"]
@@ -653,7 +655,10 @@ def fullROC_operations(fig, data_dict, save_path, year, label, doClassBalance=Fa
     y_eval_pred = data_dict["y_eval_pred"]
     weight_nom_eval = data_dict["weight_nom_eval"]
     
-    
+    if (not include_wgt): # convert the wgt arr into ones
+        weight_nom_train = np.ones_like(weight_nom_train)
+        weight_nom_val = np.ones_like(weight_nom_val)
+        weight_nom_eval = np.ones_like(weight_nom_eval)
     
     eff_bkg_train, eff_sig_train, thresholds_train, TpFpTnFn_df_train = customROC_curve_AN(y_train, y_pred_train, weight_nom_train, doClassBalance=doClassBalance)
     eff_bkg_val, eff_sig_val, thresholds_val, TpFpTnFn_df_val = customROC_curve_AN(y_val, y_pred, weight_nom_val, doClassBalance=doClassBalance)
