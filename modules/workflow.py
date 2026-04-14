@@ -16,6 +16,7 @@ from xgboost import XGBClassifier, plot_tree
 
 from modules.utils import fullROC_operations, has_bad_values
 from modules.git_utils import get_git_commit, get_git_state
+from modules.variables import training_samples
 
 plt.style.use(hep.style.CMS)
 
@@ -353,7 +354,7 @@ def prepare_dataset(df, ds_dict):
     # --------------------------------------------------------
     # multiply by dimuon mass resolutions if signal
     # --------------------------------------------------------
-    sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole", "vbf_powheg", "vbf_aMCatNLO"]
+    sig_datasets = training_samples["signal"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     # if "wgt_flat" not in df.columns:
     #     df['bdt_wgt'] = np.abs(df['wgt_nominal_orig'])
@@ -494,7 +495,7 @@ def load_best_params_for_fold(meta_path, fold_idx):
 
     return best_params
 
-def classifier_train(df, args, training_samples, training_features, random_seed_val: int, save_path:str, do_hyperparam_search=False):
+def classifier_train(df, args, training_samples, training_features, random_seed_val: int, save_path:str, do_hyperparam_search=False, n_trials=25):
     print(f"random_seed_val: {random_seed_val}")
 
     nfolds = 4
@@ -658,7 +659,7 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
 
             from modules.hyperparamOptim import objective
             study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=random_seed_val))
-            study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, weight_nom_val, random_seed=random_seed_val), n_trials=100)
+            study.optimize(lambda trial: objective(trial, xp_train, xp_val, y_train, y_val, w_train, weight_nom_val, random_seed=random_seed_val), n_trials=n_trials)
             print(f"Fold {i} Best AUC: {study.best_value}")
             print(f"Fold {i} Best params: {study.best_params}")
 

@@ -16,6 +16,7 @@ from pathlib import Path
 from rich import print
 
 from modules.variables import training_features, training_samples
+
 from modules.workflow import (
     classifier_train,
     convert2df,
@@ -132,6 +133,13 @@ if __name__ == "__main__":
     default=0,
     # action="store",
     help="integer flag to do hyperparam search. If zero, then do not do it",
+    )
+    parser.add_argument(
+        "--n_trials",
+        "--n_trials",
+        type=int,
+        default=21,
+        help="Number of trials for the Bayseian optimization",
     )
     parser.add_argument(
     "--massDeCorrStrat",
@@ -308,7 +316,7 @@ if __name__ == "__main__":
 
         print(f"df_total.dataset.unique(): {df_total.dataset.unique()}")
 
-        sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole", "vbf_powheg", "vbf_aMCatNLO"]
+        sig_datasets = training_samples["signal"]
 
         if sysargs.mass_decorrelation_strat == "peking":
             print("Peking decorrlation method!")
@@ -404,7 +412,7 @@ if __name__ == "__main__":
     print(f"df_total.columns: {df_total.columns}")
 
     training_features_prepared = prepare_features_from_df(df_total, training_features)
-    classifier_train(df_total, args, training_samples, training_features_prepared, random_seed_val, save_path, do_hyperparam_search=do_hyperparam_search)
+    classifier_train(df_total, args, training_samples, training_features_prepared, random_seed_val, save_path, do_hyperparam_search=do_hyperparam_search, n_trials=sysargs.n_trials)
     # evaluation(df_total, args)
     #df.to_pickle('/depot/cms/hmm/purohita/coffea/eval_dataset.pickle')
     runtime = int(time.time()-start_time)
