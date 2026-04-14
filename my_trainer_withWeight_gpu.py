@@ -183,7 +183,7 @@ if __name__ == "__main__":
                 # zip_sample = dak.from_parquet(parquet_path) 
                 # filelist = glob.glob(parquet_path)
                 print(f"filelist len: {len(filelist)}")
-                print(f"filelist : {(filelist)}")
+                print(f"first file in filelist : {(filelist[0])}")
                 if year == "all":
                     # year_paths = {
                     #     2015: f"{sysargs.load_path}/2016preVFP/f1_0/{sample}/*/*.parquet",
@@ -237,7 +237,7 @@ if __name__ == "__main__":
                 # max_num_rows = 800_000_000
                 df_sample = PairNAnnhilateNegWgt_inChunks(df_sample, max_num_rows=max_num_rows) # FIXME
                 # df_sample = PairNAnnhilateNegWgt(df_sample, max_num_rows=max_num_rows) # FIXME
-                print(f"any neg wgts: {np.any(df_sample[wgt_col] < 0)}")
+                print(f"any neg wgts: {np.any(df_sample['wgt_nominal_orig'] < 0)}")
             elif negWgtHandling == "takeAbsWgts":
                 print("Applying takeAbsWgts!")
                 # do nothing convert2df already takes the absolute value of wgt_notminal_orig
@@ -255,7 +255,7 @@ if __name__ == "__main__":
     df_total = pd.concat(df_l,ignore_index=True)   
     del df_l # delete redundant df to save memory. Not sure if this is necessary
     print(f"df_total.dataset.unique(): {df_total.dataset.unique()}")
-    sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole", "vbf_powheg", "vbf_aMCatNLO"]
+    sig_datasets = training_samples["signal"]
     save_path = f"output/bdt_{name}_{year}"
     os.makedirs(save_path, exist_ok=True)
     if sysargs.mass_decorrelation_strat == "peking":

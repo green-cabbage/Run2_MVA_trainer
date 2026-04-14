@@ -311,11 +311,8 @@ def PairNAnnhilateNegWgt_inChunks(df, max_num_rows=80_000):
     print(f"max_num_rows: {max_num_rows}")
     processed_chunks = []
     for chunk in split_df(df, max_num_rows):
-        # processed_chunks.append(PairNAnnhilateNegWgt(df))
         processed_chunks.append(PairNAnnhilateNegWgt(chunk))
-        # processed_chunks.append([]) # FIXME
     print(f"PairNAnnhilateNegWgt_inChunks processed_chunks len: {len(processed_chunks)}")
-    # raise ValueError
     return pd.concat(processed_chunks, axis=0)  # preserves chunk order
     
 # def fillNanJetvariables(df, forward_filter, jet_variables):

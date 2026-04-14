@@ -22,8 +22,17 @@ import json
 import pickle
 import glob
 from modules.utils import auc_from_eff, PairNAnnhilateNegWgt, PairNAnnhilateNegWgt_inChunks, addErrByQuadrature, GetAucStdErrHanleyMcNeil, fullROC_operations, has_bad_values, get_subdirs
+from modules.variables import training_samples
 import seaborn as sb
 
+def get_xgb_device():
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda"
+    except Exception:
+        pass
+    return "cpu"
 
 
 def getGOF_KS_bdt(valid_hist, train_hist, weight_val, bin_edges, save_path:str, fold_idx):
@@ -364,7 +373,7 @@ def prepare_dataset(df, ds_dict):
     # --------------------------------------------------------
     # multiply by dimuon mass resolutions if signal
     # --------------------------------------------------------
-    sig_datasets = ["ggh_powhegPS", "vbf_powheg_dipole", "vbf_powheg", "vbf_aMCatNLO"]
+    sig_datasets = training_samples["signal"]
     print(f"df.dataset.unique(): {df.dataset.unique()}")
     # if "wgt_flat" not in df.columns:
     #     df['bdt_wgt'] = np.abs(df['wgt_nominal_orig'])
@@ -670,21 +679,25 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
             # BDT hyparameter setup
             #--------------------------------------------------   
             verbosity=2
-            
+            device = get_xgb_device()
             # AN-19-124 p 45: "a correction factor is introduced to ensure that the same amount of background events are expected when either negative weighted events are discarded or they are considered with a positive weight"
             # tuned_params = {'min_child_weight': 13.428968247683708, 'n_estimators': 1573, 'max_depth': 8, 'learning_rate': 0.05982369314062763, 'subsample': 0.9430472676858279, 'max_bin': 80}
             # tuned_params =  {'min_child_weight': 2.557316256946003, 'n_estimators': 1539, 'max_depth': 10, 'learning_rate': 0.05304264948799136, 'subsample': 0.8156339679345651, 'max_bin': 74}
-            # tuned_params =  {'min_child_weight': 3.5451229442486776, 'n_estimators': 2057, 'max_depth': 7, 'learning_rate': 0.050285069062295254, 'subsample': 0.9815632528341489, 'max_bin': 77} # Feb28_2026_zPeakShapeMatch_tuned
-            tuned_params =  {'min_child_weight': 14.58375507839577, 'n_estimators': 511, 'max_depth': 8, 'learning_rate': 0.08127708435811475, 'subsample': 0.973909078023838, 'max_bin': 79} # Feb28_2026_flatDimuMass_tuned
-            
+            # tuned_params = {'min_child_weight': 4.310151315092528, 'n_estimators': 641, 'max_depth': 6, 'learning_rate': 0.05020002508265417, 'subsample': 0.5576159121532909, 'max_bin': 80} # Mar03_2026_zPeakShapeMatch_ReWgtNormalized_tuned
+            # tuned_params = {'min_child_weight': 11.828791910359616, 'n_estimators': 2023, 'max_depth': 3, 'learning_rate': 0.0945660703947374, 'subsample': 0.7708719621286169, 'max_bin': 36} # Mar03_2026_FlatDist_ReWgtNormalized_tuned_redo
+            # tuned_params = {'min_child_weight': 8.180553898329997, 'n_estimators': 1442, 'max_depth': 7, 'learning_rate': 0.06765063053674134, 'subsample': 0.7682896881875354, 'max_bin': 48}
+            # tuned_params = {'min_child_weight': 0.06253886892669058, 'n_estimators': 2096, 'max_depth': 3, 'learning_rate': 0.11018136284172503, 'subsample': 0.9178910493360318, 'max_bin': 79} # Mar04_2026_sinWave_ReWgtNormalized_tuned
+            tuned_params = {'min_child_weight': 2.275845510661017, 'n_estimators': 1310, 'max_depth': 7, 'learning_rate': 0.050167522747335914, 'subsample': 0.8769729356915293, 'max_bin': 61} # Mar06_2026_zPeakShapeMatch_negWgtPairAnnhilate_tuned
             
             tuned_params.update({
                 "tree_method" : 'hist',
+                # "eval_metric" : 'auc',
                 "eval_metric" : 'logloss',
                 "n_jobs" : 30,
                 "early_stopping_rounds" : 15,
                 "verbosity" : verbosity,
                 "random_state" : random_seed_val,
+                "device" : device,
             })
             model = XGBClassifier(**tuned_params)
             
@@ -927,11 +940,9 @@ def classifier_train(df, args, training_samples, training_features, random_seed_
                 "y_eval_pred": y_eval_pred,
                 "weight_nom_eval": weight_nom_eval,
             }
-            # fullROC_operations(fig, roc_data_dict, name, year, label, doClassBalance=False)
-            # fullROC_operations(fig, roc_data_dict, name, year, label, doClassBalance=True)
             
-            fullROC_operations(fig, roc_data_dict, save_path, year, label, doClassBalance=False)
-            fullROC_operations(fig, roc_data_dict, save_path, year, label, doClassBalance=True)
+            fullROC_operations(fig, roc_data_dict, save_path, year, label)
+            fullROC_operations(fig, roc_data_dict, save_path, year, label, include_wgt=False)
             
             
             # # eff_bkg_train, eff_sig_train, thresholds_train, TpFpTnFn_df_train = customROC_curve_AN(y_train.ravel(), y_pred_train, weight_nom_train)
@@ -1234,7 +1245,6 @@ def evaluation(df, args):
             print(f"eval_label: {eval_label}")
             
             # scalers_path = f"{output_path}/{name}_{year}/scalers_{name}_{eval_label}.npy"
-            # start_path = "/depot/cms/hmm/copperhead/trained_models/"
             output_path = args["output_path"]
             print(f"output_path: {output_path}")
             # scalers_path = f"{output_path}/bdt_{name}_{year}/scalers_{name}_{eval_label}.npy"
