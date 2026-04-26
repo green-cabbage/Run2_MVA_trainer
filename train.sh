@@ -38,8 +38,7 @@ model_name="Mar03_2026_FlatDist_ReWgtNormalized"
 # label="Run3_nanoAODv12_02Feb_FilterJetsHorn30GeV"
 # label="Run3_nanoAODv12_09Feb_FilterJetsHorn30GeV"
 # label="Run3_nanoAODv12_10Feb_FilterJetsHorn30GeV"
-# label="Run3_nanoAODv12_15Feb_FilterJetsHorn30GeV"
-label="Run3_nanoAODv15_28Feb_JetsHorn30GeV_NoJer_tightPassLepVeto"
+label="Run3_nanoAODv12_FilterJetsHorn30GeV_Feb23_tightPassLepVeto_NoJER_AddVars_v2"
 
 do_hyperparam_search="0" # false
 # do_hyperparam_search="1" # true
